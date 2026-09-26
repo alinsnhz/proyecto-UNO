@@ -29,5 +29,10 @@ namespace proyectoUNO
         {
             Cartas.Remove(carta);
         }
+
+        public int cantidadCartas()
+        {
+            return Cartas.Count;
+        }
     }
 }
