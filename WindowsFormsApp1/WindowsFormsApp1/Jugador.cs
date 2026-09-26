@@ -10,5 +10,7 @@ namespace proyectoUNO
     internal class Jugador
     {
         public int ID { get; set; }
+        public string nombre { get; set; }
+        public List<Carta> Cartas { get; set; }
     }
 }
