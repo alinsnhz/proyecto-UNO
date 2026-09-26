@@ -18,7 +18,11 @@ namespace proyectoUNO
             ID = id;
             Nombre = nombre;
             Cartas = new List<Carta>();
+        }
 
+        public void AgregarCarta(Carta carta)
+        {
+            Cartas.Add(carta);
         }
     }
 }
