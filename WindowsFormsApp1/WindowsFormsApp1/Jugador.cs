@@ -20,9 +20,14 @@ namespace proyectoUNO
             Cartas = new List<Carta>();
         }
 
-        public void AgregarCarta(Carta carta)
+        public void agregarCarta(Carta carta)
         {
             Cartas.Add(carta);
+        }
+
+        public void quitarCarta(Carta carta)
+        {
+            Cartas.Remove(carta);
         }
     }
 }
