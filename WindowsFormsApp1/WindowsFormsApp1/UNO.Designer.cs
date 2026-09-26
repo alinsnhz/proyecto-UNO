@@ -35,8 +35,8 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1462, 771);
-            this.Name = "UNO";
-            this.Text = "Form1";
+            this.Name = "proyectoUNO";
+            this.Text = "UNO";
             this.ResumeLayout(false);
 
         }
