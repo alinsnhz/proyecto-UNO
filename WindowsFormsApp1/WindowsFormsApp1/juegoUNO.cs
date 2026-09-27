@@ -12,6 +12,7 @@ namespace proyectoUNO
         public int jugadorActual { get; set; }
         public Carta? CartaActual { get; set; }
         public int Direccion { get; set; } // 1 - hacia adelante / -1 hacia atrás
+        public int cartasARobar { get; set; }
     }
 
     public juegoUNO()
@@ -20,12 +21,14 @@ namespace proyectoUNO
             jugadorActual = 0;
             CartaActual = null;
             Direccion = 1;
+            cartasARobar = 0;
         }
 
         public void iniciarPartida()
         {
             jugadorActual = 0;
             Direccion = 1;
+            cartasARobar = 0;
         }
 
         public void cambiarTurno()
@@ -50,6 +53,13 @@ namespace proyectoUNO
         public void aplicarSaltoTurno()
         {
             cambiarTurno();
+            cambiarTurno();
+        }
+
+        public void aplicarMasDos()
+        {
+            //pediente aplicar mazo de cartas
+            cartasARobar += 2;
             cambiarTurno();
         }
     }
