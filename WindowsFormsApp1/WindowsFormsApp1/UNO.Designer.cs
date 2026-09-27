@@ -33,6 +33,7 @@
             this.panelJugador = new System.Windows.Forms.Panel();
             this.nombreJugador = new System.Windows.Forms.Label();
             this.PanelJugador2 = new System.Windows.Forms.FlowLayoutPanel();
+            this.panelJugador3 = new System.Windows.Forms.FlowLayoutPanel();
             this.SuspendLayout();
             // 
             // panelMano
@@ -71,6 +72,14 @@
             this.PanelJugador2.TabIndex = 3;
             this.PanelJugador2.WrapContents = false;
             // 
+            // panelJugador3
+            // 
+            this.panelJugador3.Location = new System.Drawing.Point(686, 12);
+            this.panelJugador3.Name = "panelJugador3";
+            this.panelJugador3.Size = new System.Drawing.Size(87, 217);
+            this.panelJugador3.TabIndex = 4;
+            this.panelJugador3.WrapContents = false;
+            // 
             // UNO
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -78,6 +87,7 @@
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.ClientSize = new System.Drawing.Size(800, 389);
+            this.Controls.Add(this.panelJugador3);
             this.Controls.Add(this.PanelJugador2);
             this.Controls.Add(this.nombreJugador);
             this.Controls.Add(this.panelJugador);
@@ -96,6 +106,7 @@
         private System.Windows.Forms.Panel panelJugador;
         private System.Windows.Forms.Label nombreJugador;
         private System.Windows.Forms.FlowLayoutPanel PanelJugador2;
+        private System.Windows.Forms.FlowLayoutPanel panelJugador3;
     }
 }
 
