@@ -28,20 +28,63 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UNO));
+            this.panelMano = new System.Windows.Forms.FlowLayoutPanel();
+            this.panelJugador = new System.Windows.Forms.Panel();
+            this.nombreJugador = new System.Windows.Forms.Label();
             this.SuspendLayout();
+            // 
+            // panelMano
+            // 
+            this.panelMano.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.panelMano.Location = new System.Drawing.Point(186, 291);
+            this.panelMano.Name = "panelMano";
+            this.panelMano.Size = new System.Drawing.Size(499, 98);
+            this.panelMano.TabIndex = 0;
+            // 
+            // panelJugador
+            // 
+            this.panelJugador.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.panelJugador.BackColor = System.Drawing.Color.Cyan;
+            this.panelJugador.Location = new System.Drawing.Point(35, 289);
+            this.panelJugador.Name = "panelJugador";
+            this.panelJugador.Size = new System.Drawing.Size(85, 100);
+            this.panelJugador.TabIndex = 1;
+            // 
+            // nombreJugador
+            // 
+            this.nombreJugador.Location = new System.Drawing.Point(32, 264);
+            this.nombreJugador.Name = "nombreJugador";
+            this.nombreJugador.Size = new System.Drawing.Size(90, 24);
+            this.nombreJugador.TabIndex = 2;
+            this.nombreJugador.Text = "label1";
+            this.nombreJugador.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // UNO
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1462, 771);
-            this.Name = "proyectoUNO";
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
+            this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
+            this.ClientSize = new System.Drawing.Size(800, 389);
+            this.Controls.Add(this.nombreJugador);
+            this.Controls.Add(this.panelJugador);
+            this.Controls.Add(this.panelMano);
+            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.Name = "UNO";
             this.Text = "UNO";
+            this.Load += new System.EventHandler(this.UNO_Load);
             this.ResumeLayout(false);
 
         }
 
         #endregion
+
+        private System.Windows.Forms.FlowLayoutPanel panelMano;
+        private System.Windows.Forms.Panel panelJugador;
+        private System.Windows.Forms.Label nombreJugador;
     }
 }
 
