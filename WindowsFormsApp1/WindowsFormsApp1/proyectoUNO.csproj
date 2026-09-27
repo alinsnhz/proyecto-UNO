@@ -47,7 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Jugador.cs" />
-    <Compile Include="jugadorUNO.cs" />
+    <Compile Include="juegoUNO.cs" />
     <Compile Include="UNO.cs">
       <SubType>Form</SubType>
     </Compile>
