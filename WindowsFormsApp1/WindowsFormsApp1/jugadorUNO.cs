@@ -9,5 +9,7 @@ namespace proyectoUNO
     public class jugadorUNO
     {
         public List<Jugador> jugadores { get; set; }
+        public int jugadorActual { get; set; }
+
     }
 }
