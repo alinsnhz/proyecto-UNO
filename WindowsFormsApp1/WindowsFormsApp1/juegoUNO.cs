@@ -46,6 +46,7 @@ namespace proyectoUNO
             }
         }
 
+
         public void aplicarReversa()
         {
             Direccion = Direccion * -1;
