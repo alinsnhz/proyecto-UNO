@@ -164,7 +164,7 @@ namespace proyecto_UNO
             return esCartaValida(carta);
         }
 
-        public Carta RobarCarta()
+        public Carta robarCarta()
         {
             if (Mazo.Count == 0)
             {
@@ -173,6 +173,18 @@ namespace proyecto_UNO
 
             Carta carta = Mazo[0];
             Mazo.RemoveAt(0);
+
+            return carta;
+        }
+
+        public Carta agregaCartaRobada(Jugador jugador)
+        {
+            Carta carta = robarCarta();
+
+            if(carta != null)
+            {
+                jugador.agregarCarta(carta);
+            }
 
             return carta;
         }
