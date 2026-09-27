@@ -22,9 +22,23 @@ namespace proyectoUNO
             Direccion = 1;
     }
 
-     public void iniciarPartida()
+    public void iniciarPartida()
     {
             jugadorActual = 0;
             Direccion = 1;
+    }
+
+    public void cambiarTurno()
+    {
+            jugadorActual += Direccion;
+            if(jugadorActual >= jugadores.Count)
+            {
+                jugadorActual = 0;
+            }
+
+            if(jugadorActual < 0)
+            {
+                jugadorActual = jugadores.Count - 1;
+            }
     }
 }
