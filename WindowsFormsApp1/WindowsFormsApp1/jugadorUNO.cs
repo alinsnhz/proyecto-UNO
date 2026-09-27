@@ -10,6 +10,8 @@ namespace proyectoUNO
     {
         public List<Jugador> jugadores { get; set; }
         public int jugadorActual { get; set; }
+        public Carta? CartaActual { get; set; }
+
 
     }
 }
