@@ -80,5 +80,10 @@ namespace proyecto_UNO
         {
             return Jugadores[JugadorActual];
         }
+
+        public bool esTurnoDe(Jugador jugador)
+        {
+            return Jugadores[JugadorActual] == jugador;
+        }
     }
 }
