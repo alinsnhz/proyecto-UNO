@@ -46,5 +46,11 @@ namespace proyectoUNO
         {
             Direccion = Direccion * -1;
         }
+
+        public void aplicarSaltoTurno()
+        {
+            cambiarTurno();
+            cambiarTurno();
+        }
     }
 }
