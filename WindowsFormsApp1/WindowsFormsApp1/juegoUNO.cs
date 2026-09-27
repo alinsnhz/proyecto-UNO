@@ -75,5 +75,10 @@ namespace proyecto_UNO
             CartaActual.Color = color;
             CambiarTurno();
         }
+
+        public  Jugador obtenerJugadorActual()
+        {
+            return Jugadores[JugadorActual];
+        }
     }
 }
