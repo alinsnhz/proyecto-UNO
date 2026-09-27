@@ -163,4 +163,17 @@ namespace proyecto_UNO
             }
             return esCartaValida(carta);
         }
-}
+
+        public Carta RobarCarta()
+        {
+            if (Mazo.Count == 0)
+            {
+                return null;
+            }
+
+            Carta carta = Mazo[0];
+            Mazo.RemoveAt(0);
+
+            return carta;
+        }
+    }
