@@ -11,6 +11,7 @@ namespace proyectoUNO
         public List<Jugador> jugadores { get; set; }
         public int jugadorActual { get; set; }
         public Carta? CartaActual { get; set; }
+        public int Direccion { get; set; } // 1 - hacia adelante / -1 hacia atrás
 
 
     }
