@@ -31,9 +31,11 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UNO));
             this.panelMano = new System.Windows.Forms.FlowLayoutPanel();
             this.panelJugador = new System.Windows.Forms.Panel();
-            this.nombreJugador = new System.Windows.Forms.Label();
-            this.PanelJugador2 = new System.Windows.Forms.FlowLayoutPanel();
-            this.panelJugador3 = new System.Windows.Forms.FlowLayoutPanel();
+            this.lblNombreJ1 = new System.Windows.Forms.Label();
+            this.panelManoJugador2 = new System.Windows.Forms.FlowLayoutPanel();
+            this.panelManoJugador3 = new System.Windows.Forms.FlowLayoutPanel();
+            this.lblNombreJ2 = new System.Windows.Forms.Label();
+            this.lblNombreJ3 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // panelMano
@@ -55,30 +57,49 @@
             this.panelJugador.Size = new System.Drawing.Size(85, 100);
             this.panelJugador.TabIndex = 1;
             // 
-            // nombreJugador
+            // lblNombreJ1
             // 
-            this.nombreJugador.Location = new System.Drawing.Point(32, 264);
-            this.nombreJugador.Name = "nombreJugador";
-            this.nombreJugador.Size = new System.Drawing.Size(90, 24);
-            this.nombreJugador.TabIndex = 2;
-            this.nombreJugador.Text = "label1";
-            this.nombreJugador.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.lblNombreJ1.Location = new System.Drawing.Point(32, 264);
+            this.lblNombreJ1.Name = "lblNombreJ1";
+            this.lblNombreJ1.Size = new System.Drawing.Size(90, 24);
+            this.lblNombreJ1.TabIndex = 2;
+            this.lblNombreJ1.Text = "label1";
+            this.lblNombreJ1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // PanelJugador2
+            // panelManoJugador2
             // 
-            this.PanelJugador2.Location = new System.Drawing.Point(33, 12);
-            this.PanelJugador2.Name = "PanelJugador2";
-            this.PanelJugador2.Size = new System.Drawing.Size(87, 217);
-            this.PanelJugador2.TabIndex = 3;
-            this.PanelJugador2.WrapContents = false;
+            this.panelManoJugador2.Location = new System.Drawing.Point(33, 12);
+            this.panelManoJugador2.Name = "panelManoJugador2";
+            this.panelManoJugador2.Size = new System.Drawing.Size(87, 217);
+            this.panelManoJugador2.TabIndex = 3;
+            this.panelManoJugador2.WrapContents = false;
             // 
-            // panelJugador3
+            // panelManoJugador3
             // 
-            this.panelJugador3.Location = new System.Drawing.Point(686, 12);
-            this.panelJugador3.Name = "panelJugador3";
-            this.panelJugador3.Size = new System.Drawing.Size(87, 217);
-            this.panelJugador3.TabIndex = 4;
-            this.panelJugador3.WrapContents = false;
+            this.panelManoJugador3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.panelManoJugador3.Location = new System.Drawing.Point(686, 12);
+            this.panelManoJugador3.Name = "panelManoJugador3";
+            this.panelManoJugador3.Size = new System.Drawing.Size(87, 217);
+            this.panelManoJugador3.TabIndex = 4;
+            this.panelManoJugador3.WrapContents = false;
+            // 
+            // lblNombreJ2
+            // 
+            this.lblNombreJ2.Location = new System.Drawing.Point(126, 9);
+            this.lblNombreJ2.Name = "lblNombreJ2";
+            this.lblNombreJ2.Size = new System.Drawing.Size(90, 24);
+            this.lblNombreJ2.TabIndex = 5;
+            this.lblNombreJ2.Text = "label1";
+            this.lblNombreJ2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // lblNombreJ3
+            // 
+            this.lblNombreJ3.Location = new System.Drawing.Point(590, 12);
+            this.lblNombreJ3.Name = "lblNombreJ3";
+            this.lblNombreJ3.Size = new System.Drawing.Size(90, 24);
+            this.lblNombreJ3.TabIndex = 6;
+            this.lblNombreJ3.Text = "label2";
+            this.lblNombreJ3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // UNO
             // 
@@ -87,9 +108,11 @@
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.ClientSize = new System.Drawing.Size(800, 389);
-            this.Controls.Add(this.panelJugador3);
-            this.Controls.Add(this.PanelJugador2);
-            this.Controls.Add(this.nombreJugador);
+            this.Controls.Add(this.lblNombreJ3);
+            this.Controls.Add(this.lblNombreJ2);
+            this.Controls.Add(this.panelManoJugador3);
+            this.Controls.Add(this.panelManoJugador2);
+            this.Controls.Add(this.lblNombreJ1);
             this.Controls.Add(this.panelJugador);
             this.Controls.Add(this.panelMano);
             this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
@@ -104,9 +127,11 @@
 
         private System.Windows.Forms.FlowLayoutPanel panelMano;
         private System.Windows.Forms.Panel panelJugador;
-        private System.Windows.Forms.Label nombreJugador;
-        private System.Windows.Forms.FlowLayoutPanel PanelJugador2;
-        private System.Windows.Forms.FlowLayoutPanel panelJugador3;
+        private System.Windows.Forms.Label lblNombreJ1;
+        private System.Windows.Forms.FlowLayoutPanel panelManoJugador2;
+        private System.Windows.Forms.FlowLayoutPanel panelManoJugador3;
+        private System.Windows.Forms.Label lblNombreJ2;
+        private System.Windows.Forms.Label lblNombreJ3;
     }
 }
 
