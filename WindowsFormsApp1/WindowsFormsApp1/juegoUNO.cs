@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ namespace proyectoUNO
         public int jugadorActual { get; set; }
         public Carta? CartaActual { get; set; }
         public int Direccion { get; set; } // 1 - hacia adelante / -1 hacia atrás
+        public int cartasARobar { get; set; }
     }
 
     public juegoUNO()
@@ -20,12 +22,14 @@ namespace proyectoUNO
             jugadorActual = 0;
             CartaActual = null;
             Direccion = 1;
+            cartasARobar = 0;
         }
 
         public void iniciarPartida()
         {
             jugadorActual = 0;
             Direccion = 1;
+            cartasARobar = 0;
         }
 
         public void cambiarTurno()
@@ -42,40 +46,35 @@ namespace proyectoUNO
             }
         }
 
-        // cambiar nombre de las variables según la clase Carta
-        public bool esCartaValida(Carta carta)
+
+        public void aplicarReversa()
         {
-            if(CartaActual == null)
-            {
-                return true;
-            }
+            Direccion = Direccion * -1;
+        }
 
-            if(carta.Color == CartaActual.Color)
-            {
-                return true;
-            }
+        public void aplicarSaltoTurno()
+        {
+            cambiarTurno();
+            cambiarTurno();
+        }
 
-            if(carta.Numero == CartaActual.Numero)
-            {
-                return true;
-            }
+        public void aplicarMasDos()
+        {
+            //pediente aplicar mazo de cartas
+            cartasARobar += 2;
+            cambiarTurno();
+        }
 
-            if(carta.Simbolo == CartaActual.Simbolo)
-            {
-                return true;
-            }
+        public void aplicarComodin(string color)
+        {
+            CartaActual.Color = color;
+        }
 
-            if(carta.Tipo == "Comodin")
-            {
-                return true;
-            }
-
-            if(carta.Tipo == "+4")
-            {
-                return true;
-            }
-
-            return false;
+        public void aplicarMasCuatro(string color)
+        {
+            cartasARobar += 4;
+            CartaActual.Color = color;
+            cambiarTurno();
         }
     }
 }
