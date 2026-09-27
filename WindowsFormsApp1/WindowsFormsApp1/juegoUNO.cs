@@ -42,6 +42,7 @@ namespace proyectoUNO
             }
         }
 
+        // cambiar nombre de las variables según la clase Carta
         public bool esCartaValida(Carta carta)
         {
             if(CartaActual == null)
