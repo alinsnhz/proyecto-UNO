@@ -15,15 +15,19 @@ namespace proyecto_UNO
         public Carta? cartaActual { get; set; }
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
-
-        public JuegoUNO()
-        {
+        public List<Carta> Mazo { get; set; }
+        public List<string> registroAcciones { get; set; }
+    }
+    public JuegoUNO()
+    {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
             direccion = 1;
             cartasARobar = 0;
-        }
+            Mazo = new List<Carta>();
+            registroAcciones = new List<string>();
+    }
 
         public void iniciarPartida()
         {
@@ -161,5 +165,52 @@ namespace proyecto_UNO
             }
             return esCartaValida(carta);
         }
+
+        public Carta robarCarta()
+        {
+            if (Mazo.Count == 0)
+            {
+                return null;
+            }
+
+            Carta carta = Mazo[0];
+            Mazo.RemoveAt(0);
+
+            return carta;
+        }
+
+        public Carta agregaCartaRobada(Jugador jugador)
+        {
+            Carta carta = robarCarta();
+
+            if(carta != null)
+            {
+                jugador.agregarCarta(carta);
+                registroAcciones.Add(jugador.Nombre + " robó una carta");
+            }
+
+            return carta;
+        }
+
+        public bool puedeJugarCartaRobada(Jugador jugador, Carta carta)
+        {
+            return puedeJugar(jugador, carta);
+        }
+
+        public Carta robarDuranteTurno(Jugador jugador)
+        {
+            if(!esTurnoDe(jugador))
+            {
+                return null;
+            }
+
+            Carta carta = agregaCartaRobada(jugador);
+
+            if(carta != null)
+            {
+                bool puedeJugar = puedeJugarCartaRobada(jugador, carta);
+            }
+
+            return carta;
+        }
     }
-}
