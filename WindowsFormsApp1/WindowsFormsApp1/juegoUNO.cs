@@ -21,4 +21,10 @@ namespace proyectoUNO
             CartaActual = null;
             Direccion = 1;
     }
+
+     public void iniciarPartida()
+    {
+            jugadorActual = 0;
+            Direccion = 1;
+    }
 }
