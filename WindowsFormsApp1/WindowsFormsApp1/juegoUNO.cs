@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -61,6 +62,11 @@ namespace proyectoUNO
             //pediente aplicar mazo de cartas
             cartasARobar += 2;
             cambiarTurno();
+        }
+
+        public void aplicarComodin(string color)
+        {
+            CartaActual.Color = color;
         }
     }
 }
