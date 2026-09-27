@@ -1,40 +1,46 @@
-﻿using System;
+﻿using proyectoUNO;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace proyectoUNO
+namespace proyecto_UNO
 {
-    public class juegoUNO
+    public class JuegoUNO
     {
         public List<Jugador> jugadores { get; set; }
         public int jugadorActual { get; set; }
-        public Carta? CartaActual { get; set; }
-        public int Direccion { get; set; } // 1 - hacia adelante / -1 hacia atrás
+        public Carta? cartaActual { get; set; }
+        public int direccion { get; set; }
         public int cartasARobar { get; set; }
-    }
 
-    public juegoUNO()
+        public JuegoUNO()
         {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
-            CartaActual = null;
-            Direccion = 1;
+            cartaActual = null;
+            direccion = 1;
             cartasARobar = 0;
         }
 
         public void iniciarPartida()
         {
             jugadorActual = 0;
-            Direccion = 1;
+            direccion = 1;
             cartasARobar = 0;
         }
 
         public void cambiarTurno()
         {
-            jugadorActual += Direccion;
+            if(jugadores.Count == 0)
+            {
+                return;
+            }
+
+            jugadorActual += direccion;
+
             if (jugadorActual >= jugadores.Count)
             {
                 jugadorActual = 0;
@@ -46,13 +52,12 @@ namespace proyectoUNO
             }
         }
 
-
         public void aplicarReversa()
         {
-            Direccion = Direccion * -1;
+            cambiarDireccion();
         }
 
-        public void aplicarSaltoTurno()
+        public void aplicarSalta()
         {
             cambiarTurno();
             cambiarTurno();
@@ -60,21 +65,101 @@ namespace proyectoUNO
 
         public void aplicarMasDos()
         {
-            //pediente aplicar mazo de cartas
             cartasARobar += 2;
             cambiarTurno();
         }
 
         public void aplicarComodin(string color)
         {
-            CartaActual.Color = color;
+            cartaActual.Color = color;
         }
 
         public void aplicarMasCuatro(string color)
         {
             cartasARobar += 4;
-            CartaActual.Color = color;
+            cartaActual.Color = color;
             cambiarTurno();
+        }
+
+        public  Jugador obtenerJugadorActual()
+        {
+            return jugadores[jugadorActual];
+        }
+
+        public bool esTurnoDe(Jugador jugador)
+        {
+            return jugadores[jugadorActual] == jugador;
+        }
+
+        public void cambiarDireccion()
+        {
+            direccion = direccion * -1;
+        }
+
+        public void aplicarEfectoCarta(Carta carta)
+        {
+            if(carta.Tipo == "Reversa")
+            {
+                aplicarReversa();
+            }
+            else if (carta.Tipo == "Salta")
+            {
+                aplicarSalta();
+            }
+            else if (carta.Tipo == "+2")
+            {
+                aplicarMasDos();
+            }
+            else if (carta.Tipo == "Comodin")
+            {
+                // el color se selecciona aparte
+            }
+            else if (carta.Tipo == "+4")
+            {
+                //el color se selecciona aparte
+            }
+        }
+
+        public bool esCartaValida(Carta carta)
+        {
+            if(cartaActual == null)
+            {
+                return true;
+            }
+            if(carta.Color == cartaActual.Color)
+            {
+                return true;
+            }
+            if(carta.Numero == cartaActual.Numero)
+            {
+                return true;
+            }
+            if(carta.Simbolo == cartaActual.Simbolo)
+            {
+                return true;
+            }
+            if(carta.Tipo == "Comodin")
+            {
+                return true;
+            }
+            if(carta.Tipo == "+4")
+            {
+                return true;
+            }
+            if(carta.Tipo == "+2")
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool puedeJugar(Jugador jugador, Carta carta)
+        {
+            if(!esTurnoDe(jugador))
+            {
+                return false;
+            }
+            return esCartaValida(carta);
         }
     }
 }
