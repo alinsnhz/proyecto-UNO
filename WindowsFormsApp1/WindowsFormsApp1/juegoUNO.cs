@@ -208,7 +208,7 @@ namespace proyecto_UNO
 
             if(carta != null)
             {
-                bool puedeJugar = puedeJugar(jugador, carta);
+                bool puedeJugar = puedeJugarCartaRobada(jugador, carta);
             }
 
             return carta;
