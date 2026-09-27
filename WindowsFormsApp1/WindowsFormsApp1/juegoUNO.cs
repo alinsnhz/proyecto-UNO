@@ -15,15 +15,17 @@ namespace proyecto_UNO
         public Carta? cartaActual { get; set; }
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
-
-        public JuegoUNO()
-        {
+        public List<Carta> Mazo { get; set; }
+    }
+    public JuegoUNO()
+    {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
             direccion = 1;
             cartasARobar = 0;
-        }
+            Mazo = new List<Carta>();
+    }
 
         public void iniciarPartida()
         {
@@ -161,5 +163,4 @@ namespace proyecto_UNO
             }
             return esCartaValida(carta);
         }
-    }
 }
