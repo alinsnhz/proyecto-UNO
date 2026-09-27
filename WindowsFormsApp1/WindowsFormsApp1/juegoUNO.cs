@@ -16,6 +16,7 @@ namespace proyecto_UNO
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
         public List<Carta> Mazo { get; set; }
+        public List<string> registroAcciones { get; set; }
     }
     public JuegoUNO()
     {
@@ -25,6 +26,7 @@ namespace proyecto_UNO
             direccion = 1;
             cartasARobar = 0;
             Mazo = new List<Carta>();
+            registroAcciones = new List<string>();
     }
 
         public void iniciarPartida()
@@ -184,6 +186,7 @@ namespace proyecto_UNO
             if(carta != null)
             {
                 jugador.agregarCarta(carta);
+                registroAcciones.Add(jugador.Nombre + " robó una carta");
             }
 
             return carta;
