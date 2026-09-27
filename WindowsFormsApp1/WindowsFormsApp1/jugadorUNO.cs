@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace proyectoUNO
 {
-    public class juegoUNO
+    public class jugadorUNO
     {
-        public List<Jugador> Jugadores { get; set; }
-
+        public List<Jugador> jugadores { get; set; }
     }
 }
