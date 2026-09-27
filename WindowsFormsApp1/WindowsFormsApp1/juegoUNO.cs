@@ -15,30 +15,36 @@ namespace proyectoUNO
     }
 
     public juegoUNO()
-    {
+        {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             CartaActual = null;
             Direccion = 1;
-    }
+        }
 
-    public void iniciarPartida()
-    {
+        public void iniciarPartida()
+        {
             jugadorActual = 0;
             Direccion = 1;
-    }
+        }
 
-    public void cambiarTurno()
-    {
+        public void cambiarTurno()
+        {
             jugadorActual += Direccion;
-            if(jugadorActual >= jugadores.Count)
+            if (jugadorActual >= jugadores.Count)
             {
                 jugadorActual = 0;
             }
 
-            if(jugadorActual < 0)
+            if (jugadorActual < 0)
             {
                 jugadorActual = jugadores.Count - 1;
             }
+        }
+
+        public void aplicarReversa()
+        {
+            Direccion = Direccion * -1;
+        }
     }
 }
