@@ -193,4 +193,21 @@ namespace proyecto_UNO
         {
             return puedeJugar(jugador, carta);
         }
+
+        public Carta robarDuranteTurno(Jugador jugador)
+        {
+            if(!esTurnoDe(jugador))
+            {
+                return null;
+            }
+
+            Carta carta = agregaCartaRobada(jugador);
+
+            if(carta != null)
+            {
+                bool puedeJugar = puedeJugar(jugador, carta);
+            }
+
+            return carta;
+        }
     }
