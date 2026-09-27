@@ -54,7 +54,7 @@ namespace proyecto_UNO
 
         public void AplicarReversa()
         {
-            Direccion = Direccion * -1;
+            cambiarDireccion();
         }
 
         public void AplicarSalta()
@@ -89,6 +89,11 @@ namespace proyecto_UNO
         public bool esTurnoDe(Jugador jugador)
         {
             return Jugadores[JugadorActual] == jugador;
+        }
+
+        public void cambiarDireccion()
+        {
+            Direccion = Direccion * -1;
         }
     }
 }
