@@ -34,6 +34,11 @@ namespace proyecto_UNO
 
         public void CambiarTurno()
         {
+            if(Jugadores.Count)
+            {
+                return;
+            }
+
             JugadorActual += Direccion;
 
             if (JugadorActual >= Jugadores.Count)
