@@ -95,5 +95,29 @@ namespace proyecto_UNO
         {
             Direccion = Direccion * -1;
         }
+
+        public void aplicarEfectoCarta(Carta carta)
+        {
+            if(carta.Tipo == "Reversa")
+            {
+                AplicarReversa();
+            }
+            else if (carta.Tipo == "Salta")
+            {
+                AplicarSalta();
+            }
+            else if (carta.Tipo == "+2")
+            {
+                AplicarMasDos();
+            }
+            else if (carta.Tipo == "Comodin")
+            {
+                // el color se selecciona aparte
+            }
+            else if (carta.Tipo == "+4")
+            {
+                //el color se selecciona aparte
+            }
+        }
     }
 }
