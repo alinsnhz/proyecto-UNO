@@ -68,5 +68,12 @@ namespace proyectoUNO
         {
             CartaActual.Color = color;
         }
+
+        public void aplicarMasCuatro(string color)
+        {
+            cartasARobar += 4;
+            CartaActual.Color = color;
+            cambiarTurno();
+        }
     }
 }
