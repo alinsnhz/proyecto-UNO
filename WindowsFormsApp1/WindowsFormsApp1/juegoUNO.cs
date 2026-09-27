@@ -15,30 +15,66 @@ namespace proyectoUNO
     }
 
     public juegoUNO()
-    {
+        {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             CartaActual = null;
             Direccion = 1;
-    }
+        }
 
-    public void iniciarPartida()
-    {
+        public void iniciarPartida()
+        {
             jugadorActual = 0;
             Direccion = 1;
-    }
+        }
 
-    public void cambiarTurno()
-    {
+        public void cambiarTurno()
+        {
             jugadorActual += Direccion;
-            if(jugadorActual >= jugadores.Count)
+            if (jugadorActual >= jugadores.Count)
             {
                 jugadorActual = 0;
             }
 
-            if(jugadorActual < 0)
+            if (jugadorActual < 0)
             {
                 jugadorActual = jugadores.Count - 1;
             }
+        }
+
+        public bool esCartaValida(Carta carta)
+        {
+            if(CartaActual == null)
+            {
+                return true;
+            }
+
+            if(carta.Color == CartaActual.Color)
+            {
+                return true;
+            }
+
+            if(carta.Numero == CartaActual.Numero)
+            {
+                return true;
+            }
+
+            if(carta.Simbolo == CartaActual.Simbolo)
+            {
+                return true;
+            }
+
+            if(carta.Tipo == "Comodin")
+            {
+                return true;
+            }
+
+            if(carta.Tipo == "+4")
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 }
