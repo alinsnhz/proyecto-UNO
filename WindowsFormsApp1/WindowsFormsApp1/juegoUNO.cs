@@ -188,4 +188,9 @@ namespace proyecto_UNO
 
             return carta;
         }
+
+        public bool puedeJugarCartaRobada(Jugador jugador, Carta carta)
+        {
+            return puedeJugar(jugador, carta);
+        }
     }
