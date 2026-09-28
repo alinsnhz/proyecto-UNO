@@ -127,6 +127,7 @@
             this.BtnRobar.TabIndex = 8;
             this.BtnRobar.Text = "Robar";
             this.BtnRobar.UseVisualStyleBackColor = true;
+            this.BtnRobar.Click += new System.EventHandler(this.BtnRobar_Click_1);
             // 
             // panelJugador2
             // 
