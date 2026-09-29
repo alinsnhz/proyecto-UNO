@@ -21,7 +21,7 @@ namespace proyecto_UNO
         public bool oportunidadUNO { get; set; }
     }
     public JuegoUNO()
-    {
+        {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
@@ -31,7 +31,7 @@ namespace proyecto_UNO
             registroAcciones = new List<string>();
             declaroUNO = false;
             oportunidadUNO = false;
-    }
+        }
 
         public void iniciarPartida()
         {
@@ -42,7 +42,7 @@ namespace proyecto_UNO
 
         public void cambiarTurno()
         {
-            if(jugadores.Count == 0)
+            if (jugadores.Count == 0)
             {
                 return;
             }
@@ -89,7 +89,7 @@ namespace proyecto_UNO
             cambiarTurno();
         }
 
-        public  Jugador obtenerJugadorActual()
+        public Jugador obtenerJugadorActual()
         {
             return jugadores[jugadorActual];
         }
@@ -106,7 +106,7 @@ namespace proyecto_UNO
 
         public void aplicarEfectoCarta(Carta carta)
         {
-            if(carta.Tipo == "Reversa")
+            if (carta.Tipo == "Reversa")
             {
                 aplicarReversa();
             }
@@ -130,31 +130,31 @@ namespace proyecto_UNO
 
         public bool esCartaValida(Carta carta)
         {
-            if(cartaActual == null)
+            if (cartaActual == null)
             {
                 return true;
             }
-            if(carta.Color == cartaActual.Color)
+            if (carta.Color == cartaActual.Color)
             {
                 return true;
             }
-            if(carta.Numero == cartaActual.Numero)
+            if (carta.Numero == cartaActual.Numero)
             {
                 return true;
             }
-            if(carta.Simbolo == cartaActual.Simbolo)
+            if (carta.Simbolo == cartaActual.Simbolo)
             {
                 return true;
             }
-            if(carta.Tipo == "Comodin")
+            if (carta.Tipo == "Comodin")
             {
                 return true;
             }
-            if(carta.Tipo == "+4")
+            if (carta.Tipo == "+4")
             {
                 return true;
             }
-            if(carta.Tipo == "+2")
+            if (carta.Tipo == "+2")
             {
                 return true;
             }
@@ -163,7 +163,7 @@ namespace proyecto_UNO
 
         public bool puedeJugar(Jugador jugador, Carta carta)
         {
-            if(!esTurnoDe(jugador))
+            if (!esTurnoDe(jugador))
             {
                 return false;
             }
@@ -187,7 +187,7 @@ namespace proyecto_UNO
         {
             Carta carta = robarCarta();
 
-            if(carta != null)
+            if (carta != null)
             {
                 jugador.agregarCarta(carta);
                 registroAcciones.Add(jugador.Nombre + " robó una carta");
@@ -203,14 +203,14 @@ namespace proyecto_UNO
 
         public Carta robarDuranteTurno(Jugador jugador)
         {
-            if(!esTurnoDe(jugador))
+            if (!esTurnoDe(jugador))
             {
                 return null;
             }
 
             Carta carta = agregaCartaRobada(jugador);
 
-            if(carta != null)
+            if (carta != null)
             {
                 bool puedeJugar = puedeJugarCartaRobada(jugador, carta);
             }
@@ -223,19 +223,19 @@ namespace proyecto_UNO
             return jugador.Cartas.Count == 1;
         }
 
-        public bool debeDecirUNO (Jugador jugador)
+        public bool debeDecirUNO(Jugador jugador)
         {
             return jugador.Cartas.Count == 1 && !declaroUNO;
         }
 
         public bool declararUNO(Jugador jugador)
         {
-            if(!esTurnoDe(jugador))
+            if (!esTurnoDe(jugador))
             {
                 return false;
             }
 
-            if(!debeDeclararUNO(jugador))
+            if (!debeDeclararUNO(jugador))
             {
                 return false;
             }
@@ -247,10 +247,21 @@ namespace proyecto_UNO
 
         public void activarOportunidadUNO(Jugador jugador)
         {
-            if(jugador.Cartas.Count == 1)
+            if (jugador.Cartas.Count == 1)
             {
                 oportunidadUNO = true;
                 declaroUNO = false;
             }
         }
+
+        public void terminarOportunidadUNO()
+        {
+            oportunidadUNO = false;
+        }
+
+        public bool noDeclaroUNO(Jugador jugador)
+        {
+            return jugador.Cartas.Count == 1 && oportunidadUNO && !declaroUNO;
+        }
     }
+}
