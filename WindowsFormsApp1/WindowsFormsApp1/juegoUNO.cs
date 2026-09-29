@@ -241,7 +241,7 @@ namespace proyecto_UNO
             }
 
             declaroUNO = true;
-            registroAcciones.Add(jugador.Nombre + "declaró UNO");
+            registroAcciones.Add(jugador.Nombre + " declaró UNO");
             return true;
         }
 
@@ -262,6 +262,21 @@ namespace proyecto_UNO
         public bool noDeclaroUNO(Jugador jugador)
         {
             return jugador.Cartas.Count == 1 && oportunidadUNO && !declaroUNO;
+        }
+
+        public void penalizarUNO(Jugador jugador)
+        {
+            if(!noDeclaroUNO(jugador))
+            {
+                return;
+            }
+
+            for(int i = 0; i<2; i++)
+            {
+                agregaCartaRobada(jugador);
+            }
+
+            registroAcciones.Add(jugador.Nombre + " recibió una penalización de 2 cartas por no declarar UNO");
         }
     }
 }
