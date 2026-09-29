@@ -220,4 +220,9 @@ namespace proyecto_UNO
         {
             return jugador.Cartas.Count == 1;
         }
+
+        public bool debeDecirUNO (Jugador jugador)
+        {
+            return jugador.Cartas.Count == 1 && !declaroUNO;
+        }
     }
