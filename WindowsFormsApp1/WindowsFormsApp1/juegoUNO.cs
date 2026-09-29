@@ -225,4 +225,21 @@ namespace proyecto_UNO
         {
             return jugador.Cartas.Count == 1 && !declaroUNO;
         }
+
+        public bool declararUNO(Jugador jugador)
+        {
+            if(!esTurnoDe(jugador))
+            {
+                return false;
+            }
+
+            if(!debeDeclararUNO(jugador))
+            {
+                return false;
+            }
+
+            declaroUNO = true;
+            registroAcciones.Add(jugador.Nombre + "declaró UNO");
+            return true;
+        }
     }
