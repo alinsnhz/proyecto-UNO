@@ -16,15 +16,44 @@ namespace WindowsFormsApp1
 
         private string[] nombresJugadores = { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int turnoActual = 0;
+        private string cartaEnMesa = "Rojo 5";
+        private Timer timerMensaje;
 
         public UNO()
         {
             InitializeComponent();
+            this.Resize += UNO_Resize;
+            lblAvisoUno.Visible = false;
+
+            timerMensaje = new Timer();
+            timerMensaje.Interval = 2000;
+            timerMensaje.Tick += timerMensaje_Tick;
+
+            if (UnoJ1 != null) UnoJ1.Click += UnoJ1_Click;
+            if (UnoJ2 != null) UnoJ2.Click += UnoJ2_Click;
+            if (UnoJ3 != null) UnoJ3.Click += UnoJ3_Click;
         }
 
         private void UNO_Load(object sender, EventArgs e)
         {
+            CentrarCarta();
             ActualizarInterfaz();
+        }
+
+        private void UNO_Resize(object sender, EventArgs e)
+        {
+            CentrarCarta();
+        }
+
+        private void CentrarCarta()
+        {
+            if (cartaCentro != null)
+            {
+                cartaCentro.Location = new Point(
+                    (this.ClientSize.Width - cartaCentro.Width) / 2,
+                    (this.ClientSize.Height - cartaCentro.Height) / 2
+                );
+            }
         }
 
         private void ActualizarInterfaz()
@@ -36,6 +65,22 @@ namespace WindowsFormsApp1
             MostrarCartas(panelMano, manosJugadores[0], 0);
             MostrarCartas(panelManoJugador2, manosJugadores[1], 1);
             MostrarCartas(panelManoJugador3, manosJugadores[2], 2);
+
+            if (cartaCentro != null)
+            {
+                cartaCentro.Text = cartaEnMesa;
+                cartaCentro.BackColor = ColorSegunTexto(cartaEnMesa);
+                cartaCentro.ForeColor = Color.Black;
+                cartaCentro.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            }
+
+            UnoJ1.Visible = (turnoActual == 0 && manosJugadores[0].Count == 1);
+            UnoJ2.Visible = (turnoActual == 1 && manosJugadores[1].Count == 1);
+            UnoJ3.Visible = (turnoActual == 2 && manosJugadores[2].Count == 1);
+
+            RobarJ1.Visible = (turnoActual == 0);
+            RobarJ2.Visible = (turnoActual == 1);
+            RobarJ3.Visible = (turnoActual == 2);
 
             lblNombreJ1.Font = new Font("Segoe UI", 11, turnoActual == 0 ? FontStyle.Bold : FontStyle.Regular);
             lblNombreJ2.Font = new Font("Segoe UI", 11, turnoActual == 1 ? FontStyle.Bold : FontStyle.Regular);
@@ -57,7 +102,7 @@ namespace WindowsFormsApp1
 
             float angulo = 0;
             if (indiceJugador == 1) angulo = 90;
-            else if (indiceJugador == 2) angulo = 270; 
+            else if (indiceJugador == 2) angulo = 270;
 
             foreach (var carta in cartas)
             {
@@ -78,7 +123,7 @@ namespace WindowsFormsApp1
                     btn.Width = panel.ClientSize.Width - 10;
 
                     int altoDisponible = (panel.ClientSize.Height / cantidad) - margen;
-                    btn.Height = Math.Min(altoFijo, altoDisponible); 
+                    btn.Height = Math.Min(altoFijo, altoDisponible);
                 }
                 else
                 {
@@ -92,6 +137,21 @@ namespace WindowsFormsApp1
             }
         }
 
+        private void BtnRobar_Click_1(object sender, EventArgs e)
+        {
+            BtnRobar_Click(sender, e);
+        }
+
+        private void RobarJ2_Click(object sender, EventArgs e)
+        {
+            BtnRobar_Click(sender, e);
+        }
+
+        private void RobarJ3_Click(object sender, EventArgs e)
+        {
+            BtnRobar_Click(sender, e);
+        }
+
         private void BtnCarta_Click(object sender, EventArgs e)
         {
             var btn = (Button)sender;
@@ -100,6 +160,8 @@ namespace WindowsFormsApp1
             int indiceJugador = (int)datos[1];
 
             if (indiceJugador != turnoActual) return;
+
+            cartaEnMesa = cartaJugada;
 
             manosJugadores[indiceJugador].Remove(cartaJugada);
             lblMensaje.Text = $"{nombresJugadores[indiceJugador]} jugó: {cartaJugada}";
@@ -122,7 +184,7 @@ namespace WindowsFormsApp1
             return Color.LightGray;
         }
 
-        private void BtnRobar_Click_1(object sender, EventArgs e)
+        private void BtnRobar_Click(object sender, EventArgs e)
         {
             string[] cartasPosibles = { "Rojo 4", "Azul 8", "Verde 2", "Amarillo 5" };
             string cartaNueva = cartasPosibles[new Random().Next(cartasPosibles.Length)];
@@ -132,9 +194,45 @@ namespace WindowsFormsApp1
 
             ActualizarInterfaz();
         }
+
+        private void MostrarAvisoUno()
+        {
+            if (lblAvisoUno != null)
+            {
+                timerMensaje.Stop();
+                lblAvisoUno.Text = $"¡{nombresJugadores[turnoActual].ToUpper()} DIJO UNO!";
+                lblAvisoUno.ForeColor = Color.Red;
+                lblAvisoUno.BringToFront();
+                lblAvisoUno.Visible = true;
+                timerMensaje.Start();
+            }
+        }
+
+        private void UnoJ1_Click(object sender, EventArgs e) 
+        {
+            MostrarAvisoUno(); 
+        }
+        private void UnoJ2_Click(object sender, EventArgs e) 
+        { 
+            MostrarAvisoUno(); 
+        }
+        private void UnoJ3_Click(object sender, EventArgs e) 
+        { 
+            MostrarAvisoUno(); 
+        }
+
+        private void timerMensaje_Tick(object sender, EventArgs e)
+        {
+            timerMensaje.Stop();
+            if (lblAvisoUno != null)
+            {
+                lblAvisoUno.Text = "";
+                lblAvisoUno.Visible = false;
+            }
+        }
+
     }
 
-    //Rotar tarjetas de los jugadores
     public class BotonRotado : Button
     {
         public float Angulo { get; set; } = 0;
