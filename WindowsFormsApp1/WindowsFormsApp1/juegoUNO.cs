@@ -278,5 +278,11 @@ namespace proyecto_UNO
 
             registroAcciones.Add(jugador.Nombre + " recibió una penalización de 2 cartas por no declarar UNO");
         }
+
+        public void reiniciarUNO()
+        {
+            oportunidadUNO = false;
+            declaroUNO = false;
+        }
     }
 }
