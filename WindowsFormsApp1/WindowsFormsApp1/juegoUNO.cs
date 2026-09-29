@@ -284,5 +284,15 @@ namespace proyecto_UNO
             oportunidadUNO = false;
             declaroUNO = false;
         }
+
+        public void procesarUNO(Jugador jugador)
+        {
+            if(noDeclaroUNO(jugador))
+            {
+                penalizarUNO(jugador);
+            }
+
+            reiniciarUNO();
+        }
     }
 }
