@@ -18,6 +18,7 @@ namespace proyecto_UNO
         public List<Carta> Mazo { get; set; }
         public List<string> registroAcciones { get; set; }
         public bool declaroUNO { get; set; }
+        public bool oportunidadUNO { get; set; }
     }
     public JuegoUNO()
     {
@@ -29,6 +30,7 @@ namespace proyecto_UNO
             Mazo = new List<Carta>();
             registroAcciones = new List<string>();
             declaroUNO = false;
+            oportunidadUNO = false;
     }
 
         public void iniciarPartida()
@@ -241,5 +243,14 @@ namespace proyecto_UNO
             declaroUNO = true;
             registroAcciones.Add(jugador.Nombre + "declaró UNO");
             return true;
+        }
+
+        public void activarOportunidadUNO(Jugador jugador)
+        {
+            if(jugador.Cartas.Count == 1)
+            {
+                oportunidadUNO = true;
+                declaroUNO = false;
+            }
         }
     }
