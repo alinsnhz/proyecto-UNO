@@ -80,6 +80,12 @@ namespace WindowsFormsApp1
             }
         }
 
-        
+        public int ObtenerOCrear(string nombre)
+        {
+            var existente = ObtenerPorNombre(nombre);
+            return existente != null ? existente.IdJugador : Crear(nombre);
+        }
+
+
     }
 }
