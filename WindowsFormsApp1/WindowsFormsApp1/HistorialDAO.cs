@@ -41,5 +41,24 @@ namespace WindowsFormsApp1
                 }
             }
         }
+
+        public void GuardarParticipantes(int idPartida, List<string> nombresJugadores)
+        {
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+                foreach (var nombre in nombresJugadores)
+                {
+                    int idJugador = jugadorDAO.ObtenerOCrear(nombre);
+                    using (var cmd = new MySqlCommand(
+                        "INSERT INTO ResultadoPartida (IdPartida, IdJugador, CartasRestantes, Gano) VALUES (@p, @j, 0, FALSE);", con))
+                    {
+                        cmd.Parameters.AddWithValue("@p", idPartida);
+                        cmd.Parameters.AddWithValue("@j", idJugador);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
     }
 }
