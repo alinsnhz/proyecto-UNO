@@ -86,6 +86,21 @@ namespace WindowsFormsApp1
             return existente != null ? existente.IdJugador : Crear(nombre);
         }
 
+        public List<JugadorRegistro> ObtenerTodos()
+        {
+            var lista = new List<JugadorRegistro>();
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand("SELECT IdJugador, Nombre FROM Jugador ORDER BY Nombre", con))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                        lista.Add(new JugadorRegistro { IdJugador = reader.GetInt32(0), Nombre = reader.GetString(1) });
+                }
+            }
+            return lista;
+        }
 
     }
 }
