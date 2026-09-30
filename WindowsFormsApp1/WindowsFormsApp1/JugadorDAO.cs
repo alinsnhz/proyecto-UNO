@@ -23,7 +23,7 @@ namespace WindowsFormsApp1
     {
         public int Crear(string nombre)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand(
@@ -37,7 +37,7 @@ namespace WindowsFormsApp1
 
         public bool Actualizar(int id, string nuevoNombre)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand("UPDATE Jugador SET Nombre=@n WHERE IdJugador=@id", con))
@@ -51,7 +51,7 @@ namespace WindowsFormsApp1
 
         public bool Eliminar(int id)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand("DELETE FROM Jugador WHERE IdJugador=@id", con))
@@ -64,7 +64,7 @@ namespace WindowsFormsApp1
 
         public JugadorRegistro ObtenerPorNombre(string nombre)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand("SELECT IdJugador, Nombre FROM Jugador WHERE Nombre=@n", con))
@@ -89,7 +89,7 @@ namespace WindowsFormsApp1
         public List<JugadorRegistro> ObtenerTodos()
         {
             var lista = new List<JugadorRegistro>();
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand("SELECT IdJugador, Nombre FROM Jugador ORDER BY Nombre", con))
@@ -104,7 +104,7 @@ namespace WindowsFormsApp1
 
         public JugadorRegistro ObtenerPorId(int id)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand("SELECT IdJugador, Nombre FROM Jugador WHERE IdJugador=@id", con))
@@ -127,7 +127,7 @@ namespace WindowsFormsApp1
             var jugador = ObtenerPorId(idJugador);
             stats.Nombre = jugador != null ? jugador.Nombre : "(desconocido)";
 
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
 
