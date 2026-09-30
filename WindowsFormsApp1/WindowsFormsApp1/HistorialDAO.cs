@@ -78,5 +78,23 @@ namespace WindowsFormsApp1
                 }
             }
         }
+
+        public void RegistrarGanadasPerdidas(int idPartida, string nombreGanador)
+        {
+            int idGanador = jugadorDAO.ObtenerOCrear(nombreGanador);
+
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var cmd = new MySqlCommand(
+                    "UPDATE ResultadoPartida SET Gano=TRUE WHERE IdPartida=@p AND IdJugador=@j", con))
+                {
+                    cmd.Parameters.AddWithValue("@p", idPartida);
+                    cmd.Parameters.AddWithValue("@j", idGanador);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
     }
 }
