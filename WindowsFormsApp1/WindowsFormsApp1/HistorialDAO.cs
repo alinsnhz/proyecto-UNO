@@ -24,5 +24,22 @@ namespace WindowsFormsApp1
                 }
             }
         }
+
+        public void GuardarGanador(int idPartida, string nombreGanador)
+        {
+            int idGanador = jugadorDAO.ObtenerOCrear(nombreGanador);
+
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand(
+                    "UPDATE Partida SET IdJugadorGanador=@g WHERE IdPartida=@p", con))
+                {
+                    cmd.Parameters.AddWithValue("@g", idGanador);
+                    cmd.Parameters.AddWithValue("@p", idPartida);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
     }
 }
