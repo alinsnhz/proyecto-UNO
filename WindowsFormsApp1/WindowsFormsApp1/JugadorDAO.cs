@@ -62,6 +62,24 @@ namespace WindowsFormsApp1
             }
         }
 
+        public JugadorRegistro ObtenerPorNombre(string nombre)
+        {
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand("SELECT IdJugador, Nombre FROM Jugador WHERE Nombre=@n", con))
+                {
+                    cmd.Parameters.AddWithValue("@n", nombre);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                            return new JugadorRegistro { IdJugador = reader.GetInt32(0), Nombre = reader.GetString(1) };
+                        return null;
+                    }
+                }
+            }
+        }
+
         
     }
 }
