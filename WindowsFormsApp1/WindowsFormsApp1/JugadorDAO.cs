@@ -49,6 +49,19 @@ namespace WindowsFormsApp1
             }
         }
 
-       
+        public bool Eliminar(int id)
+        {
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand("DELETE FROM Jugador WHERE IdJugador=@id", con))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        
     }
 }
