@@ -119,5 +119,44 @@ namespace WindowsFormsApp1
                 }
             }
         }
+
+        public EstadisticasJugador ObtenerEstadisticas(int idJugador)
+        {
+            var stats = new EstadisticasJugador();
+
+            var jugador = ObtenerPorId(idJugador);
+            stats.Nombre = jugador != null ? jugador.Nombre : "(desconocido)";
+
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var cmd = new MySqlCommand(
+                    "SELECT COUNT(*) FROM ResultadoPartida WHERE IdJugador=@id", con))
+                {
+                    cmd.Parameters.AddWithValue("@id", idJugador);
+                    stats.PartidasJugadas = Convert.ToInt32(cmd.ExecuteScalar());
+                }
+
+                using (var cmd = new MySqlCommand(
+                    "SELECT COUNT(*) FROM Partida WHERE IdJugadorGanador=@id", con))
+                {
+                    cmd.Parameters.AddWithValue("@id", idJugador);
+                    stats.PartidasGanadas = Convert.ToInt32(cmd.ExecuteScalar());
+                }
+
+                using (var cmd = new MySqlCommand(
+                    "SELECT AVG(CartasRestantes) FROM ResultadoPartida WHERE IdJugador=@id", con))
+                {
+                    cmd.Parameters.AddWithValue("@id", idJugador);
+                    var resultado = cmd.ExecuteScalar();
+                    stats.PromedioCartasRestantes = (resultado == DBNull.Value || resultado == null)
+                        ? 0
+                        : Convert.ToDouble(resultado);
+                }
+            }
+
+            return stats;
+        }
     }
 }
