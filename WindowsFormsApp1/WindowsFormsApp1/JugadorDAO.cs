@@ -1,12 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using MySql.Data.MySqlClient;
 
 namespace WindowsFormsApp1
 {
-    internal class Class1
+    public class JugadorRegistro
     {
+        public int IdJugador { get; set; }
+        public string Nombre { get; set; }
+        public override string ToString() => $"[{IdJugador}] {Nombre}";
+    }
+
+    public class EstadisticasJugador
+    {
+        public string Nombre { get; set; }
+        public int PartidasJugadas { get; set; }
+        public int PartidasGanadas { get; set; }
+        public double PromedioCartasRestantes { get; set; }
+    }
+
+    public class JugadorDAO
+    {
+        public int Crear(string nombre)
+        {
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO Jugador (Nombre) VALUES (@n); SELECT LAST_INSERT_ID();", con))
+                {
+                    cmd.Parameters.AddWithValue("@n", nombre);
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
+        
     }
 }
