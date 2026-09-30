@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -93,6 +94,27 @@ namespace WindowsFormsApp1
                     cmd.Parameters.AddWithValue("@p", idPartida);
                     cmd.Parameters.AddWithValue("@j", idGanador);
                     cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public DataTable ConsultarHistorial()
+        {
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+                string sql = @"
+                    SELECT p.IdPartida AS Partida, p.Fecha, j.Nombre AS Ganador
+                    FROM Partida p
+                    LEFT JOIN Jugador j ON p.IdJugadorGanador = j.IdJugador
+                    ORDER BY p.Fecha DESC;";
+
+                using (var cmd = new MySqlCommand(sql, con))
+                using (var adaptador = new MySqlDataAdapter(cmd))
+                {
+                    var tabla = new DataTable();
+                    adaptador.Fill(tabla);
+                    return tabla;
                 }
             }
         }

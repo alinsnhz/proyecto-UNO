@@ -30,3 +30,8 @@ CREATE TABLE LogJuego (
 INSERT INTO Jugador (Nombre) VALUES ('Jugador1'), ('Jugador2'), ('Jugador3');
  
 SELECT * FROM Jugador;
+
+ALTER TABLE ResultadoPartida
+ADD COLUMN Gano BOOLEAN NOT NULL DEFAULT FALSE;
+
+DESCRIBE resultadopartida;
