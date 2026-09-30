@@ -35,6 +35,20 @@ namespace WindowsFormsApp1
             }
         }
 
-        
+        public bool Actualizar(int id, string nuevoNombre)
+        {
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand("UPDATE Jugador SET Nombre=@n WHERE IdJugador=@id", con))
+                {
+                    cmd.Parameters.AddWithValue("@n", nuevoNombre);
+                    cmd.Parameters.AddWithValue("@id", id);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+       
     }
 }
