@@ -60,5 +60,23 @@ namespace WindowsFormsApp1
                 }
             }
         }
+
+        public void GuardarResultado(int idPartida, string nombreJugador, int cartasRestantes)
+        {
+            int idJugador = jugadorDAO.ObtenerOCrear(nombreJugador);
+
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+                using (var cmd = new MySqlCommand(
+                    "UPDATE ResultadoPartida SET CartasRestantes=@c WHERE IdPartida=@p AND IdJugador=@j", con))
+                {
+                    cmd.Parameters.AddWithValue("@c", cartasRestantes);
+                    cmd.Parameters.AddWithValue("@p", idPartida);
+                    cmd.Parameters.AddWithValue("@j", idJugador);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
     }
 }
