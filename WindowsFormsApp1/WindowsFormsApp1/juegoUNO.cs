@@ -304,5 +304,14 @@ namespace proyecto_UNO
         {
             return jugador.Cartas.Count == 0;
         }
+
+        public void comprobarGanador(Jugador jugador)
+        {
+            if(esGanador(jugador))
+            {
+                Ganador = jugador;
+                partidaTerminada = true;
+            }
+        }
     }
 }
