@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace proyecto_UNO
 {
@@ -19,9 +20,12 @@ namespace proyecto_UNO
         public List<string> registroAcciones { get; set; }
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
+        public bool partidaTerminada { get; set; }
+        public Jugador? Ganador { get; set; }
     }
+
     public JuegoUNO()
-        {
+    {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
@@ -31,7 +35,9 @@ namespace proyecto_UNO
             registroAcciones = new List<string>();
             declaroUNO = false;
             oportunidadUNO = false;
-        }
+            partidaTerminada = false;
+            Ganador = null;
+    }
 
         public void iniciarPartida()
         {
@@ -163,6 +169,10 @@ namespace proyecto_UNO
 
         public bool puedeJugar(Jugador jugador, Carta carta)
         {
+            if(partidaTerminada)
+            {
+                return false;
+            }
             if (!esTurnoDe(jugador))
             {
                 return false;
@@ -293,6 +303,48 @@ namespace proyecto_UNO
             }
 
             reiniciarUNO();
+        }
+
+        public bool esGanador(Jugador jugador)
+        {
+            return jugador.Cartas.Count == 0;
+        }
+
+        public void comprobarGanador(Jugador jugador)
+        {
+            if(esGanador(jugador))
+            {
+                Ganador = jugador;
+                partidaTerminada = true;
+            }
+        }
+
+        public List<Jugador> obtenerPerdedores()
+        {
+            List<Jugador> perdedores = new List<Jugador>();
+            foreach(Jugador jugador in jugadores)
+            {
+                if(jugador != Ganador)
+                {
+                    perdedores.Add(jugador);
+                }
+            }
+            return perdedores;
+        }
+
+        public String obtenerResultado()
+        {
+            if(Ganador == null)
+            {
+                return "La partida no ha terminado";
+            }
+            string resultado = "Ganador: " + Ganador.Nombre + "\n";
+            resultado += "Perdedores: \n";
+            foreach(Jugador jugador in obtenerPerdedores())
+            {
+                resultado += jugador.Nombre + "\n";
+            }
+            return resultado;
         }
     }
 }
