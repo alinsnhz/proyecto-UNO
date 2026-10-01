@@ -20,9 +20,11 @@ namespace proyecto_UNO
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
         public bool partidaTerminada { get; set; }
+        public Jugador? Ganador { get; set; }
     }
+
     public JuegoUNO()
-        {
+    {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
@@ -33,7 +35,8 @@ namespace proyecto_UNO
             declaroUNO = false;
             oportunidadUNO = false;
             partidaTerminada = false;
-        }
+            Ganador = null;
+    }
 
         public void iniciarPartida()
         {
