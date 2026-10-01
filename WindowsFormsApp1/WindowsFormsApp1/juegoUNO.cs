@@ -296,5 +296,10 @@ namespace proyecto_UNO
 
             reiniciarUNO();
         }
+
+        public bool esGanador(Jugador jugador)
+        {
+            return jugador.Cartas.Count == 0;
+        }
     }
 }
