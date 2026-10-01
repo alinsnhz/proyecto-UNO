@@ -318,5 +318,18 @@ namespace proyecto_UNO
                 partidaTerminada = true;
             }
         }
+
+        public List<Jugador> obtenerPerdedores()
+        {
+            List<Jugador> perdedores = new List<Jugador>();
+            foreach(Jugador jugador in jugadores)
+            {
+                if(jugador != Ganador)
+                {
+                    perdedores.Add(jugador);
+                }
+            }
+            return perdedores;
+        }
     }
 }
