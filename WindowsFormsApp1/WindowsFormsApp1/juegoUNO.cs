@@ -19,6 +19,7 @@ namespace proyecto_UNO
         public List<string> registroAcciones { get; set; }
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
+        public bool partidaTerminada { get; set; }
     }
     public JuegoUNO()
         {
@@ -31,6 +32,7 @@ namespace proyecto_UNO
             registroAcciones = new List<string>();
             declaroUNO = false;
             oportunidadUNO = false;
+            partidaTerminada = false;
         }
 
         public void iniciarPartida()
