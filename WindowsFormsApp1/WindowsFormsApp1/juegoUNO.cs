@@ -331,5 +331,20 @@ namespace proyecto_UNO
             }
             return perdedores;
         }
+
+        public String obtenerResultado()
+        {
+            if(Ganador == null)
+            {
+                return "La partida no ha terminado";
+            }
+            string resultado = "Ganador: " + Ganador.Nombre + "\n";
+            resultado += "Perdedores: \n";
+            foreach(Jugador jugador in obtenerPerdedores())
+            {
+                resultado += jugador.Nombre + "\n";
+            }
+            return resultado;
+        }
     }
 }
