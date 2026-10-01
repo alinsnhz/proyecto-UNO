@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace proyecto_UNO
 {
@@ -168,6 +169,10 @@ namespace proyecto_UNO
 
         public bool puedeJugar(Jugador jugador, Carta carta)
         {
+            if(partidaTerminada)
+            {
+                return false;
+            }
             if (!esTurnoDe(jugador))
             {
                 return false;
