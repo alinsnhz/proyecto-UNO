@@ -35,3 +35,9 @@ ALTER TABLE ResultadoPartida
 ADD COLUMN Gano BOOLEAN NOT NULL DEFAULT FALSE;
 
 DESCRIBE resultadopartida;
+
+ALTER TABLE logjuego
+ADD COLUMN IdJugador INT NULL,
+ADD CONSTRAINT fk_logjuego_jugador FOREIGN KEY (IdJugador) REFERENCES jugador(IdJugador);
+ 
+DESCRIBE logjuego;
