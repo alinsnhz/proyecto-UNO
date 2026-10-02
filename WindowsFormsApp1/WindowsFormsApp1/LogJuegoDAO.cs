@@ -39,5 +39,10 @@ namespace WindowsFormsApp1
         {
             InsertarEvento(idPartida, idJugador, $"{nombreJugador} cambió el color a: {nuevoColor}");
         }
+
+        public void RegistrarTurno(int idPartida, int idJugador, string nombreJugador)
+        {
+            InsertarEvento(idPartida, idJugador, $"Comienza el turno de {nombreJugador}");
+        }
     }
 }
