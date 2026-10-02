@@ -22,7 +22,6 @@ namespace proyecto_UNO
         public bool oportunidadUNO { get; set; }
         public bool partidaTerminada { get; set; }
         public Jugador? Ganador { get; set; }
-    }
 
     public JuegoUNO()
     {
@@ -39,8 +38,54 @@ namespace proyecto_UNO
             Ganador = null;
     }
 
+        public void crearMazo()
+        {
+            Mazo.Clear();
+
+            string[] colores = {"Rojo", "Azul", "Amarillo", "Verde"};
+
+            foreach(string color in colores)
+            {
+                Mazo.Add(new Carta(color, "0", "Número"));
+
+            for (int numero = 1; numero <= 9; numero++)
+            {
+                Mazo.Add(new Carta(color, numero.ToString(), "Número"));
+                Mazo.Add(new Carta(color, numero.ToString(), "Número"));
+            }
+
+            Mazo.Add(new Carta(color, "Reversa", "Reversa"));
+            Mazo.Add(new Carta(color, "Reversa", "Reversa"));
+
+        
+            Mazo.Add(new Carta(color, "Salta", "Salta"));
+            Mazo.Add(new Carta(color, "Salta", "Salta"));
+
+            Mazo.Add(new Carta(color, "+2", "+2"));
+            Mazo.Add(new Carta(color, "+2", "+2"));
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                Mazo.Add(new Carta("Negro", "Comodin", "Comodin"));
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                Mazo.Add(new Carta("Negro", "+4", "+4"));
+            }
+
+        }
+
+        public bool mazoTieneCantidadCorrecta()
+        {
+            return Mazo.Count == 108;
+        }
+        
         public void iniciarPartida()
         {
+            crearMazo();
+
             jugadorActual = 0;
             direccion = 1;
             cartasARobar = 0;
