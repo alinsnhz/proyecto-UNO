@@ -68,5 +68,29 @@ namespace WindowsFormsApp1
             }
             InsertarEvento(idPartida, idJugador, mensaje);
         }
-    }
+
+        public DataTable ObtenerLogDePartida(int idPartida)
+        {
+            using (var con = ConexionBD.NuevaConexion())
+            {
+                con.Open();
+                string sql = @"
+                    SELECT l.Fecha, j.Nombre AS Jugador, l.Mensaje
+                    FROM logjuego l
+                    LEFT JOIN jugador j ON l.IdJugador = j.IdJugador
+                    WHERE l.IdPartida = @p
+                    ORDER BY l.Fecha ASC;";
+
+                using (var cmd = new MySqlCommand(sql, con))
+                {
+                    cmd.Parameters.AddWithValue("@p", idPartida);
+                    using (var adaptador = new MySqlDataAdapter(cmd))
+                    {
+                        var tabla = new DataTable();
+                        adaptador.Fill(tabla);
+                        return tabla;
+                    }
+                }
+            }
+        }
 }
