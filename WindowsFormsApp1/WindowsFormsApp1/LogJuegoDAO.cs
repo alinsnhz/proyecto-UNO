@@ -44,5 +44,29 @@ namespace WindowsFormsApp1
         {
             InsertarEvento(idPartida, idJugador, $"Comienza el turno de {nombreJugador}");
         }
+
+        public void RegistrarAccionEspecial(int idPartida, int idJugador, string nombreJugador, string tipoAccion)
+        {
+            string mensaje;
+            switch (tipoAccion)
+            {
+                case "Salto":
+                    mensaje = $"{nombreJugador} jugó Salto: el siguiente jugador pierde su turno";
+                    break;
+                case "Reversa":
+                    mensaje = $"{nombreJugador} jugó Reversa: cambia el sentido del juego";
+                    break;
+                case "+2":
+                    mensaje = $"{nombreJugador} jugó +2: el siguiente jugador roba 2 cartas";
+                    break;
+                case "+4":
+                    mensaje = $"{nombreJugador} jugó Comodín +4: el siguiente jugador roba 4 cartas";
+                    break;
+                default:
+                    mensaje = $"{nombreJugador} jugó una carta especial: {tipoAccion}";
+                    break;
+            }
+            InsertarEvento(idPartida, idJugador, mensaje);
+        }
     }
 }
