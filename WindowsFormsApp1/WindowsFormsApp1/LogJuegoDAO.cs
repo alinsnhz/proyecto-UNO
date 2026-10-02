@@ -34,5 +34,10 @@ namespace WindowsFormsApp1
         {
             InsertarEvento(idPartida, idJugador, $"{nombreJugador} robó una carta: {carta}");
         }
+
+        public void RegistrarCambioColor(int idPartida, int idJugador, string nombreJugador, string nuevoColor)
+        {
+            InsertarEvento(idPartida, idJugador, $"{nombreJugador} cambió el color a: {nuevoColor}");
+        }
     }
 }
