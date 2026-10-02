@@ -24,5 +24,12 @@ namespace WindowsFormsApp1
                 }
             }
         }
+
+        public void RegistrarCartaJugada(int idPartida, int idJugador, string nombreJugador, string carta)
+        {
+            InsertarEvento(idPartida, idJugador, $"{nombreJugador} jugó: {carta}");
+        }
+
+
     }
 }
