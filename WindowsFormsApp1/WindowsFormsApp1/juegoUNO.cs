@@ -16,7 +16,7 @@ namespace proyecto_UNO
         public Carta? cartaActual { get; set; }
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
-        public List<Carta> Mazo { get; set; }
+        public Mazo Mazo { get; set; }
         public List<string> registroAcciones { get; set; }
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
@@ -30,7 +30,7 @@ namespace proyecto_UNO
             cartaActual = null;
             direccion = 1;
             cartasARobar = 0;
-            Mazo = new List<Carta>();
+            Mazo = new Mazo();
             registroAcciones = new List<string>();
             declaroUNO = false;
             oportunidadUNO = false;
@@ -38,53 +38,10 @@ namespace proyecto_UNO
             Ganador = null;
     }
 
-        public void crearMazo()
-        {
-            Mazo.Clear();
-
-            string[] colores = {"Rojo", "Azul", "Amarillo", "Verde"};
-
-            foreach(string color in colores)
-            {
-                Mazo.Add(new Carta(color, "0", "Número"));
-
-            for (int numero = 1; numero <= 9; numero++)
-            {
-                Mazo.Add(new Carta(color, numero.ToString(), "Número"));
-                Mazo.Add(new Carta(color, numero.ToString(), "Número"));
-            }
-
-            Mazo.Add(new Carta(color, "Reversa", "Reversa"));
-            Mazo.Add(new Carta(color, "Reversa", "Reversa"));
-
-        
-            Mazo.Add(new Carta(color, "Salta", "Salta"));
-            Mazo.Add(new Carta(color, "Salta", "Salta"));
-
-            Mazo.Add(new Carta(color, "+2", "+2"));
-            Mazo.Add(new Carta(color, "+2", "+2"));
-            }
-
-            for (int i = 0; i < 4; i++)
-            {
-                Mazo.Add(new Carta("Negro", "Comodin", "Comodin"));
-            }
-
-            for (int i = 0; i < 4; i++)
-            {
-                Mazo.Add(new Carta("Negro", "+4", "+4"));
-            }
-
-        }
-
-        public bool mazoTieneCantidadCorrecta()
-        {
-            return Mazo.Count == 108;
-        }
-        
         public void iniciarPartida()
         {
-            crearMazo();
+            Mazo.crearMazo();
+            Mazo.barajar();
 
             jugadorActual = 0;
             direccion = 1;
@@ -225,22 +182,9 @@ namespace proyecto_UNO
             return esCartaValida(carta);
         }
 
-        public Carta robarCarta()
-        {
-            if (Mazo.Count == 0)
-            {
-                return null;
-            }
-
-            Carta carta = Mazo[0];
-            Mazo.RemoveAt(0);
-
-            return carta;
-        }
-
         public Carta agregaCartaRobada(Jugador jugador)
         {
-            Carta carta = robarCarta();
+            Carta carta = Mazo.robarCarta();
 
             if (carta != null)
             {
