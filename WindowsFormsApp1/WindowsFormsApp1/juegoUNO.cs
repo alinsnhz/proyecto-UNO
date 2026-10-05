@@ -46,6 +46,32 @@ namespace proyecto_UNO
             jugadorActual = 0;
             direccion = 1;
             cartasARobar = 0;
+
+            repartirCartasIniciales();
+
+        }
+
+        public bool puedeRepartirCartasIniciales()
+        {
+            return jugadores.Count == 3 && Mazo.cartasRestantes() >= 21;
+        }
+
+        public void repartirCartasIniciales()
+        {
+            foreach (Jugador jugador in jugadores)
+            {
+                for (int i = 0; i < 7; i++)
+                {
+                    Carta carta = Mazo.robarCarta();
+
+                    if (carta == null)
+                    {
+                        return;
+                    }
+
+                    jugador.agregarCarta(carta);
+                }
+            }
         }
 
         public void cambiarTurno()
