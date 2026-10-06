@@ -21,7 +21,7 @@ namespace proyecto_UNO
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
         public bool partidaTerminada { get; set; }
-        public Jugador? Ganador { get; set; }
+        public Jugador Ganador { get; set; }
 
     public JuegoUNO()
     {
