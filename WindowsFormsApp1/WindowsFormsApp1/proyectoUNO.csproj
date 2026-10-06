@@ -46,8 +46,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Carta.cs" />
+    <Compile Include="conexionBD.cs" />
+    <Compile Include="HistorialDAO.cs" />
     <Compile Include="Jugador.cs" />
     <Compile Include="juegoUNO.cs" />
+    <Compile Include="JugadorDAO.cs" />
+    <Compile Include="LogJuegoDAO.cs" />
+    <Compile Include="Mazo.cs" />
     <Compile Include="UNO.cs">
       <SubType>Form</SubType>
     </Compile>
