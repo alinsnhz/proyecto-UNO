@@ -1,45 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
+using proyectoUNO;
+using proyecto_UNO;
 
 namespace WindowsFormsApp1
 {
     public partial class UNO : Form
     {
-        private List<List<string>> manosJugadores = new List<List<string>>
-        {
-            new List<string> { "Rojo 5", "Azul 7", "Verde 7", "Amarillo 1", "Amarillo 3", "Amarillo 6" },
-            new List<string> { "Rojo 2", "Verde 9", "Azul 4" },
-            new List<string> { "Amarillo 8", "Rojo 6", "Verde 1", "Azul 3" }
-        };
-
-        private string[] nombresJugadores = { "Jugador 1", "Jugador 2", "Jugador 3" };
-        private int turnoActual = 0;
-        private string cartaEnMesa = "Rojo 5";
+        private JuegoUNO juego;
         private Timer timerMensaje;
 
         public UNO()
         {
             InitializeComponent();
+
+            juego = new JuegoUNO();
+
+            juego.jugadores.Add(new Jugador(1, "Jugador 1"));
+            juego.jugadores.Add(new Jugador(2, "Jugador 2"));
+            juego.jugadores.Add(new Jugador(3, "Jugador 3"));
+
             this.Resize += UNO_Resize;
+
             lblAvisoUno.Visible = false;
 
             timerMensaje = new Timer();
             timerMensaje.Interval = 2000;
             timerMensaje.Tick += timerMensaje_Tick;
 
-            if (UnoJ1 != null) UnoJ1.Click += UnoJ1_Click;
-            if (UnoJ2 != null) UnoJ2.Click += UnoJ2_Click;
-            if (UnoJ3 != null) UnoJ3.Click += UnoJ3_Click;
+            if (UnoJ1 != null)
+                UnoJ1.Click += UnoJ1_Click;
+
+            if (UnoJ2 != null)
+                UnoJ2.Click += UnoJ2_Click;
+
+            if (UnoJ3 != null)
+                UnoJ3.Click += UnoJ3_Click;
         }
 
+        // INICIO DEL JUEGO
         private void UNO_Load(object sender, EventArgs e)
         {
+            juego.iniciarPartida();
+
+            // Sacamos la primera carta del mazo para colocarla
+            // en el centro.
+            juego.cartaActual = juego.Mazo.robarCarta();
+
             CentrarCarta();
             ActualizarInterfaz();
         }
 
+        // AJUSTAR CARTA CENTRAL
         private void UNO_Resize(object sender, EventArgs e)
         {
             CentrarCarta();
@@ -56,75 +71,180 @@ namespace WindowsFormsApp1
             }
         }
 
+        // ACTUALIZAR TODA LA INTERFAZ
         private void ActualizarInterfaz()
         {
-            lblNombreJ1.Text = nombresJugadores[0];
-            lblNombreJ2.Text = nombresJugadores[1];
-            lblNombreJ3.Text = nombresJugadores[2];
+            if (juego.jugadores.Count < 3)
+                return;
 
-            MostrarCartas(panelMano, manosJugadores[0], 0);
-            MostrarCartas(panelManoJugador2, manosJugadores[1], 1);
-            MostrarCartas(panelManoJugador3, manosJugadores[2], 2);
+            lblNombreJ1.Text = juego.jugadores[0].Nombre;
+            lblNombreJ2.Text = juego.jugadores[1].Nombre;
+            lblNombreJ3.Text = juego.jugadores[2].Nombre;
 
-            if (cartaCentro != null)
-            {
-                cartaCentro.Text = cartaEnMesa;
-                cartaCentro.BackColor = ColorSegunTexto(cartaEnMesa);
-                cartaCentro.ForeColor = Color.Black;
-                cartaCentro.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            }
+            // Mostrar cartas de cada jugador
+            MostrarCartas(panelMano, juego.jugadores[0].Cartas, 0);
 
-            UnoJ1.Visible = (turnoActual == 0 && manosJugadores[0].Count == 1);
-            UnoJ2.Visible = (turnoActual == 1 && manosJugadores[1].Count == 1);
-            UnoJ3.Visible = (turnoActual == 2 && manosJugadores[2].Count == 1);
+            MostrarCartas(panelManoJugador2, juego.jugadores[1].Cartas, 1);
 
-            RobarJ1.Visible = (turnoActual == 0);
-            RobarJ2.Visible = (turnoActual == 1);
-            RobarJ3.Visible = (turnoActual == 2);
+            MostrarCartas(panelManoJugador3, juego.jugadores[2].Cartas, 2);
 
-            lblNombreJ1.Font = new Font("Segoe UI", 11, turnoActual == 0 ? FontStyle.Bold : FontStyle.Regular);
-            lblNombreJ2.Font = new Font("Segoe UI", 11, turnoActual == 1 ? FontStyle.Bold : FontStyle.Regular);
-            lblNombreJ3.Font = new Font("Segoe UI", 11, turnoActual == 2 ? FontStyle.Bold : FontStyle.Regular);
+            // Mostrar carta del centro
+            MostrarCartaCentro();
+
+            // Mostrar botón UNO solamente cuando el jugador actual tiene una carta
+            UnoJ1.Visible =
+                juego.jugadorActual == 0 &&
+                juego.jugadores[0].Cartas.Count == 1;
+
+            UnoJ2.Visible =
+                juego.jugadorActual == 1 &&
+                juego.jugadores[1].Cartas.Count == 1;
+
+            UnoJ3.Visible =
+                juego.jugadorActual == 2 &&
+                juego.jugadores[2].Cartas.Count == 1;
+
+            // Mostrar botón ROBAR solamente para el jugador que tiene el turno
+            RobarJ1.Visible = juego.jugadorActual == 0;
+            RobarJ2.Visible = juego.jugadorActual == 1;
+            RobarJ3.Visible = juego.jugadorActual == 2;
+
+            // Resaltar al jugador actual
+            lblNombreJ1.Font = new Font( "Segoe UI", 11, juego.jugadorActual == 0 ? FontStyle.Bold : FontStyle.Regular);
+
+            lblNombreJ2.Font = new Font("Segoe UI", 11, juego.jugadorActual == 1 ? FontStyle.Bold : FontStyle.Regular);
+
+            lblNombreJ3.Font = new Font("Segoe UI", 11, juego.jugadorActual == 2 ? FontStyle.Bold : FontStyle.Regular);
         }
 
-        private void MostrarCartas(FlowLayoutPanel panel, List<string> cartas, int indiceJugador)
+        // OBTENER IMAGEN DE UNA CARTA
+        private string ObtenerRutaImagen(Carta carta)
+        {
+            string carpetaImagenes = Path.Combine(Application.StartupPath, "Imagenes");
+
+            string nombreColor = carta.Color.ToLower();
+
+            string carpeta;
+            string nombreArchivo;
+
+            // COMODÍN
+            if (carta.Tipo == "Comodin")
+            {
+                carpeta = "Comodines";
+                nombreArchivo = "comodin_cambioColor.png";
+            }
+
+            // +4
+            else if (carta.Tipo == "+4")
+            {
+                carpeta = "Comodines";
+                nombreArchivo = "comodin_+4.png";
+            }
+
+            // CARTAS DE COLORES
+            else
+            {
+                carpeta = carta.Color;
+
+                // CARTA NUMÉRICA
+                if (carta.Tipo == "Número")
+                {
+                    nombreArchivo = nombreColor + "_" + carta.Valor + ".png"; 
+                }
+
+                // +2
+                else if (carta.Tipo == "+2")
+                {
+                    nombreArchivo = nombreColor + "_+2.png"; 
+                }
+
+                // REVERSA
+                else if (carta.Tipo == "Reversa")
+                {
+                    nombreArchivo = nombreColor + "_reversa.png";
+                }
+
+                // SALTA / CANCELAR
+                else if (carta.Tipo == "Salta")
+                {
+                    nombreArchivo = nombreColor + "_cancelar.png";
+                }
+
+                else
+                {
+                    return "";
+                }
+            }
+
+            return Path.Combine(carpetaImagenes, carpeta, nombreArchivo);
+        }
+
+        // MOSTRAR CARTAS DE UN JUGADOR
+        private void MostrarCartas(FlowLayoutPanel panel, List<Carta> cartas, int indiceJugador)
         {
             panel.Controls.Clear();
 
-            int cantidad = cartas.Count;
-            if (cantidad == 0)
-            {
-                MessageBox.Show($"{nombresJugadores[indiceJugador]} se quedó sin cartas. ¡Ganó!");
+            if (cartas == null || cartas.Count == 0)
                 return;
-            }
 
+            int cantidad = cartas.Count;
             int margen = 4;
 
             float angulo = 0;
-            if (indiceJugador == 1) angulo = 90;
-            else if (indiceJugador == 2) angulo = 270;
 
-            foreach (var carta in cartas)
+            if (indiceJugador == 1)
+                angulo = 90;
+
+            else if (indiceJugador == 2)
+                angulo = 270;
+
+            foreach (Carta carta in cartas)
             {
-                var btn = new BotonRotado
+                BotonRotado btn = new BotonRotado();
+
+                btn.Text = "";
+
+                btn.Margin = new Padding(margen / 2);
+
+                // Guardamos la carta REAL en el botón
+                btn.Tag = new object[]
                 {
-                    Text = carta,
-                    BackColor = ColorSegunTexto(carta),
-                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                    Margin = new Padding(margen / 2),
-                    Tag = new object[] { carta, indiceJugador },
-                    Enabled = (indiceJugador == turnoActual),
-                    Angulo = angulo
+                    carta,
+                    indiceJugador
                 };
 
+                btn.Angulo = angulo;
+
+                // Solo puede seleccionar cartas el jugador que tiene el turno.
+                btn.Enabled = indiceJugador == juego.jugadorActual;
+                btn.BackgroundImageLayout = ImageLayout.Stretch;
+                string rutaImagen = ObtenerRutaImagen(carta);
+
+                if (File.Exists(rutaImagen))
+                {
+                    using (Image imagen = Image.FromFile(rutaImagen))
+                    {
+                        btn.BackgroundImage = new Bitmap(imagen);
+                    }
+                }
+                else
+                {
+                    // Si no encuentra la imagen, mostramos información de la carta
+                    btn.Text = carta.Color + "\n" + carta.Valor;
+
+                    btn.BackColor = ColorSegunCarta(carta);
+                }
+
+                // JUGADORES LATERALES
                 if (indiceJugador == 1 || indiceJugador == 2)
                 {
                     int altoFijo = 60;
                     btn.Width = panel.ClientSize.Width - 10;
-
                     int altoDisponible = (panel.ClientSize.Height / cantidad) - margen;
-                    btn.Height = Math.Min(altoFijo, altoDisponible);
+                    btn.Height = Math.Max(30, Math.Min(altoFijo, altoDisponible));
                 }
+
+                // JUGADOR PRINCIPAL
                 else
                 {
                     int anchoDisponible = panel.ClientSize.Width - (margen * (cantidad + 1));
@@ -137,93 +257,325 @@ namespace WindowsFormsApp1
             }
         }
 
+        // MOSTRAR CARTA CENTRAL
+        private void MostrarCartaCentro()
+        {
+            if (cartaCentro == null)
+                return;
+
+            if (juego.cartaActual == null)
+                return;
+
+            Carta carta = juego.cartaActual;
+
+            string rutaImagen = ObtenerRutaImagen(carta);
+
+            cartaCentro.Text = "";
+            cartaCentro.BackgroundImageLayout = ImageLayout.Stretch;
+
+            if (File.Exists(rutaImagen))
+            {
+                using (Image imagen = Image.FromFile(rutaImagen))
+                {
+                    cartaCentro.BackgroundImage = new Bitmap(imagen);
+                }
+            }
+            else
+            {
+                cartaCentro.BackgroundImage = null;
+                cartaCentro.Text = carta.Color + "\n" + carta.Valor;
+                cartaCentro.BackColor = ColorSegunCarta(carta);
+                cartaCentro.ForeColor = Color.Black;
+                cartaCentro.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            }
+        }
+
+        // JUGAR CARTA
+        private void BtnCarta_Click(object sender, EventArgs e)
+        {
+            Button btn = (Button)sender;
+
+            object[] datos = (object[])btn.Tag;
+
+            Carta cartaJugada = (Carta)datos[0];
+
+            int indiceJugador = (int)datos[1];
+
+            if (indiceJugador != juego.jugadorActual)
+                return;
+
+            Jugador jugador = juego.jugadores[indiceJugador];
+
+            // Revisar si puede jugarla
+            if (!juego.puedeJugar(jugador, cartaJugada))
+            {
+                MessageBox.Show("No puedes jugar esa carta", "Carta no válida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Quitar carta de la mano
+            jugador.quitarCarta(cartaJugada);
+
+            // Colocarla en el centro
+            juego.cartaActual = cartaJugada;
+            lblMensaje.Text = jugador.Nombre + " jugó: " + cartaJugada.Valor;
+
+            // COMODÍN
+            if (cartaJugada.Tipo == "Comodin")
+            {
+                string color = SeleccionarColor();
+
+                if (color == "")
+                {
+                    // Si cancela, regresamos la carta a su mano
+                    jugador.agregarCarta(cartaJugada);
+
+                    ActualizarInterfaz();
+                    return;
+                }
+                juego.aplicarComodin(color);
+            }
+
+            // +4
+            else if (cartaJugada.Tipo == "+4")
+            {
+                string color = SeleccionarColor();
+
+                if (color == "")
+                {
+                    jugador.agregarCarta(cartaJugada);
+
+                    ActualizarInterfaz();
+                    return;
+                }
+                juego.aplicarMasCuatro(color);
+            }
+
+            // COMPROBAR GANADOR
+            if (juego.esGanador(jugador))
+            {
+                juego.comprobarGanador(jugador);
+
+                ActualizarInterfaz();
+                MessageBox.Show(jugador.Nombre + " ganó la partida. 🎉", "¡Tenemos ganador!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                return;
+            }
+
+            // EFECTOS DE CARTAS
+            if (cartaJugada.Tipo == "Reversa")
+            {
+                // Cambia dirección
+                juego.aplicarReversa();
+
+                // Después de reversa pasa al siguiente jugador
+                juego.cambiarTurno();
+            }
+
+            else if (cartaJugada.Tipo == "Salta")
+            {
+                // aplicarSalta ya cambia dos veces el turno
+                juego.aplicarSalta();
+            }
+
+            else if (cartaJugada.Tipo == "+2")
+            {
+                // aplicarMasDos aumenta las cartas por robar y cambia turno
+                juego.aplicarMasDos();
+            }
+
+            else if (cartaJugada.Tipo != "Comodin" && cartaJugada.Tipo != "+4")
+            {
+                // Carta numérica normal
+                juego.cambiarTurno();
+            }
+
+            else if (cartaJugada.Tipo == "Comodin" || cartaJugada.Tipo == "+4")
+            {
+                // +4 ya cambia turno dentro de aplicarMasCuatro
+                if (cartaJugada.Tipo == "Comodin")
+                {
+                    juego.cambiarTurno();
+                }
+            }
+
+            ActualizarInterfaz();
+        }
+
+        // ROBAR
+        private void BtnRobar_Click(object sender, EventArgs e)
+        {
+            Jugador jugador = juego.obtenerJugadorActual();
+            Carta cartaNueva = juego.robarDuranteTurno(jugador);
+
+            if (cartaNueva == null)
+            {
+                MessageBox.Show("No quedan cartas en el mazo", "Mazo vacío", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            lblMensaje.Text = jugador.Nombre + " robó una carta.";
+
+            // Si la carta robada puede jugarse,
+            // el jugador conserva el turno para decidir si la juega
+            if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
+            {
+                lblMensaje.Text = jugador.Nombre + " robó una carta que puede jugar.";
+            }
+            ActualizarInterfaz();
+        }
+
         private void BtnRobar_Click_1(object sender, EventArgs e)
         {
             BtnRobar_Click(sender, e);
         }
 
-        private void RobarJ2_Click(object sender, EventArgs e)
+        private void RobarJ2_Click(
+            object sender,
+            EventArgs e)
         {
             BtnRobar_Click(sender, e);
         }
 
-        private void RobarJ3_Click(object sender, EventArgs e)
+        private void RobarJ3_Click(
+            object sender,
+            EventArgs e)
         {
             BtnRobar_Click(sender, e);
         }
 
-        private void BtnCarta_Click(object sender, EventArgs e)
+        // SELECCIONAR COLOR
+        private string SeleccionarColor()
         {
-            var btn = (Button)sender;
-            var datos = (object[])btn.Tag;
-            string cartaJugada = (string)datos[0];
-            int indiceJugador = (int)datos[1];
+            Form ventanaColor = new Form();
+            ventanaColor.Text = "Elige un color";
 
-            if (indiceJugador != turnoActual) return;
+            ventanaColor.StartPosition = FormStartPosition.CenterParent;
+            ventanaColor.FormBorderStyle = FormBorderStyle.FixedDialog;
 
-            cartaEnMesa = cartaJugada;
+            ventanaColor.MaximizeBox = false;
+            ventanaColor.MinimizeBox = false;
 
-            manosJugadores[indiceJugador].Remove(cartaJugada);
-            lblMensaje.Text = $"{nombresJugadores[indiceJugador]} jugó: {cartaJugada}";
+            ventanaColor.Width = 420;
+            ventanaColor.Height = 160;
 
-            PasarTurno();
-        }
+            Label mensaje = new Label();
 
-        private void PasarTurno()
-        {
-            turnoActual = (turnoActual + 1) % nombresJugadores.Length;
-            ActualizarInterfaz();
-        }
+            mensaje.Text = "¿Qué color quieres elegir?";
 
-        private Color ColorSegunTexto(string carta)
-        {
-            if (carta.StartsWith("Rojo")) return Color.LightCoral;
-            if (carta.StartsWith("Azul")) return Color.LightSkyBlue;
-            if (carta.StartsWith("Verde")) return Color.LightGreen;
-            if (carta.StartsWith("Amarillo")) return Color.LightYellow;
-            return Color.LightGray;
-        }
+            mensaje.AutoSize = true;
+            mensaje.Location = new Point(20, 15);
 
-        private void BtnRobar_Click(object sender, EventArgs e)
-        {
-            string[] cartasPosibles = { "Rojo 4", "Azul 8", "Verde 2", "Amarillo 5" };
-            string cartaNueva = cartasPosibles[new Random().Next(cartasPosibles.Length)];
+            ventanaColor.Controls.Add(mensaje);
 
-            manosJugadores[turnoActual].Add(cartaNueva);
-            lblMensaje.Text = $"{nombresJugadores[turnoActual]} robó una carta";
+            string colorSeleccionado = "";
 
-            ActualizarInterfaz();
-        }
+            Button rojo = CrearBotonColor("Rojo", Color.Red);
 
-        private void MostrarAvisoUno()
-        {
-            if (lblAvisoUno != null)
+            rojo.Location = new Point(20, 55);
+
+            rojo.Click += (s, e) =>
             {
-                timerMensaje.Stop();
-                lblAvisoUno.Text = $"¡{nombresJugadores[turnoActual].ToUpper()} DIJO UNO!";
-                lblAvisoUno.ForeColor = Color.Red;
-                lblAvisoUno.BringToFront();
-                lblAvisoUno.Visible = true;
-                timerMensaje.Start();
-            }
+                colorSeleccionado = "Rojo";
+                ventanaColor.Close();
+            };
+
+            Button azul = CrearBotonColor("Azul", Color.Blue);
+            azul.Location = new Point(115, 55);
+
+            azul.Click += (s, e) =>
+            {
+                colorSeleccionado = "Azul";
+                ventanaColor.Close();
+            };
+
+            Button verde = CrearBotonColor("Verde", Color.Green);
+            verde.Location = new Point(210, 55);
+
+            verde.Click += (s, e) =>
+            {
+                colorSeleccionado = "Verde";
+                ventanaColor.Close();
+            };
+
+            Button amarillo = CrearBotonColor("Amarillo", Color.Gold);
+
+            amarillo.Location = new Point(305, 55);
+
+            amarillo.Click += (s, e) =>
+            {
+                colorSeleccionado = "Amarillo";
+                ventanaColor.Close();
+            };
+
+            ventanaColor.Controls.Add(rojo);
+            ventanaColor.Controls.Add(azul);
+            ventanaColor.Controls.Add(verde);
+            ventanaColor.Controls.Add(amarillo);
+            ventanaColor.ShowDialog(this);
+
+            return colorSeleccionado;
         }
 
-        private void UnoJ1_Click(object sender, EventArgs e) 
+        private Button CrearBotonColor(string texto, Color color)
         {
-            MostrarAvisoUno(); 
+            Button boton = new Button();
+            boton.Text = texto;
+            boton.Width = 85;
+            boton.Height = 40;
+            boton.BackColor = color;
+            boton.ForeColor = texto == "Amarillo" ? Color.Black : Color.White;
+            boton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+
+            return boton;
         }
-        private void UnoJ2_Click(object sender, EventArgs e) 
-        { 
-            MostrarAvisoUno(); 
+
+        // BOTONES UNO
+        private void MostrarAvisoUno(int indiceJugador)
+        {
+            if (lblAvisoUno == null)
+                return;
+
+            Jugador jugador =
+                juego.jugadores[indiceJugador];
+
+            if (!juego.declararUNO(jugador))
+            {
+                return;
+            }
+
+            timerMensaje.Stop();
+
+            lblAvisoUno.Text = "¡" + jugador.Nombre.ToUpper() + " DIJO UNO!";
+
+            lblAvisoUno.ForeColor = Color.Red;
+            lblAvisoUno.BringToFront();
+            lblAvisoUno.Visible = true;
+            timerMensaje.Start();
         }
-        private void UnoJ3_Click(object sender, EventArgs e) 
-        { 
-            MostrarAvisoUno(); 
+
+        private void UnoJ1_Click(object sender, EventArgs e)
+        {
+            if (juego.jugadorActual == 0)
+                MostrarAvisoUno(0);
+        }
+
+        private void UnoJ2_Click(object sender, EventArgs e)
+        {
+            if (juego.jugadorActual == 1)
+                MostrarAvisoUno(1);
+        }
+
+        private void UnoJ3_Click(object sender, EventArgs e)
+        {
+            if (juego.jugadorActual == 2)
+                MostrarAvisoUno(2);
         }
 
         private void timerMensaje_Tick(object sender, EventArgs e)
         {
             timerMensaje.Stop();
+
             if (lblAvisoUno != null)
             {
                 lblAvisoUno.Text = "";
@@ -231,32 +583,75 @@ namespace WindowsFormsApp1
             }
         }
 
+        // COLOR DE RESPALDO
+        private Color ColorSegunCarta(
+            Carta carta)
+        {
+            if (carta.Color == "Rojo")
+                return Color.LightCoral;
+
+            if (carta.Color == "Azul")
+                return Color.LightSkyBlue;
+
+            if (carta.Color == "Verde")
+                return Color.LightGreen;
+
+            if (carta.Color == "Amarillo")
+                return Color.LightYellow;
+
+            return Color.LightGray;
+        }
     }
+
+    // BOTÓN QUE PERMITE ROTAR LAS CARTAS DE LOS JUGADORES LATERALES
 
     public class BotonRotado : Button
     {
-        public float Angulo { get; set; } = 0;
+        public float Angulo { get; set; }
 
-        protected override void OnPaint(PaintEventArgs pevent)
+        public BotonRotado()
         {
-            if (Angulo == 0) { base.OnPaint(pevent); return; }
+            Angulo = 0;
+        }
+
+        protected override void OnPaint(
+            PaintEventArgs pevent)
+        {
+            if (Angulo == 0)
+            {
+                base.OnPaint(pevent);
+                return;
+            }
 
             Graphics g = pevent.Graphics;
-            g.Clear(Parent.BackColor);
-
-            using (Brush b = new SolidBrush(Enabled ? BackColor : Color.LightGray))
-                g.FillRectangle(b, ClientRectangle);
-
-            g.DrawRectangle(Pens.Gray, 0, 0, Width - 1, Height - 1);
-
+            g.Clear(Parent != null ? Parent.BackColor : SystemColors.Control);
             g.TranslateTransform(Width / 2f, Height / 2f);
             g.RotateTransform(Angulo);
 
-            using (Brush bTexto = new SolidBrush(ForeColor))
-            using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+            Rectangle rect = new Rectangle(-Height / 2, -Width / 2, Height, Width);
+
+            if (BackgroundImage != null)
             {
-                g.DrawString(Text, Font, bTexto, 0, 0, sf);
+                g.DrawImage(BackgroundImage, rect);
             }
+            else
+            {
+                using (Brush fondo = new SolidBrush(Enabled ? BackColor : Color.LightGray))
+                {
+                    g.FillRectangle(fondo, rect);
+                }
+
+                using (Brush texto = new SolidBrush(ForeColor))
+                {
+                    using (StringFormat sf = new StringFormat())
+                    {
+                        sf.Alignment = StringAlignment.Center;
+                        sf.LineAlignment = StringAlignment.Center;
+                        g.DrawString(Text, Font, texto, 0, 0, sf);
+                    }
+                }
+            }
+            g.ResetTransform();
         }
     }
 }

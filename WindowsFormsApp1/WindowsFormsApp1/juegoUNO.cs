@@ -13,7 +13,7 @@ namespace proyecto_UNO
     {
         public List<Jugador> jugadores { get; set; }
         public int jugadorActual { get; set; }
-        public Carta? cartaActual { get; set; }
+        public Carta cartaActual { get; set; }
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
         public Mazo Mazo { get; set; }
