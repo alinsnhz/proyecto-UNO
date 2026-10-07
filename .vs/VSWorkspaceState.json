@@ -2,8 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\WindowsFormsApp1",
-    "\\WindowsFormsApp1\\WindowsFormsApp1"
+    "\\WindowsFormsApp1\\WindowsFormsApp1",
+    "\\WindowsFormsApp1\\WindowsFormsApp1\\Imagenes",
+    "\\WindowsFormsApp1\\WindowsFormsApp1\\Imagenes\\Amarillo"
   ],
-  "SelectedNode": "\\WindowsFormsApp1\\WindowsFormsApp1\\juegoUNO.cs",
+  "SelectedNode": "\\WindowsFormsApp1\\WindowsFormsApp1\\Jugador.cs",
   "PreviewInSolutionExplorer": false
 }

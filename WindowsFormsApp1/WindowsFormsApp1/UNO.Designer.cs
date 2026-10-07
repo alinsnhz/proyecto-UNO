@@ -82,7 +82,7 @@
             this.panelManoJugador2.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.panelManoJugador2.Location = new System.Drawing.Point(127, 23);
             this.panelManoJugador2.Name = "panelManoJugador2";
-            this.panelManoJugador2.Size = new System.Drawing.Size(87, 283);
+            this.panelManoJugador2.Size = new System.Drawing.Size(87, 314);
             this.panelManoJugador2.TabIndex = 3;
             this.panelManoJugador2.WrapContents = false;
             // 
@@ -92,7 +92,7 @@
             this.panelManoJugador3.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.panelManoJugador3.Location = new System.Drawing.Point(763, 12);
             this.panelManoJugador3.Name = "panelManoJugador3";
-            this.panelManoJugador3.Size = new System.Drawing.Size(87, 294);
+            this.panelManoJugador3.Size = new System.Drawing.Size(87, 325);
             this.panelManoJugador3.TabIndex = 4;
             this.panelManoJugador3.WrapContents = false;
             // 
@@ -194,7 +194,6 @@
             // 
             // RobarJ2
             // 
-            this.RobarJ2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.RobarJ2.Location = new System.Drawing.Point(15, 169);
             this.RobarJ2.Name = "RobarJ2";
             this.RobarJ2.Size = new System.Drawing.Size(75, 23);
@@ -205,7 +204,7 @@
             // 
             // RobarJ3
             // 
-            this.RobarJ3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.RobarJ3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.RobarJ3.Location = new System.Drawing.Point(866, 169);
             this.RobarJ3.Name = "RobarJ3";
             this.RobarJ3.Size = new System.Drawing.Size(75, 23);

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using proyectoUNO;
 using proyecto_UNO;
@@ -13,15 +14,26 @@ namespace WindowsFormsApp1
         private JuegoUNO juego;
         private Timer timerMensaje;
 
+        // Instancias de BD y control de sesión/partida
+        private HistorialDAO historialDAO = new HistorialDAO();
+        private LogJuegoDAO logJuegoDAO = new LogJuegoDAO();
+        private JugadorDAO jugadorDAO = new JugadorDAO();
+
+        private int idPartidaActual = 0;
+        private bool partidaFinalizada = false;
+
+        private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
+        private int[] idsJugadores = new int[3];
+
         public UNO()
         {
             InitializeComponent();
 
             juego = new JuegoUNO();
 
-            juego.jugadores.Add(new Jugador(1, "Jugador 1"));
-            juego.jugadores.Add(new Jugador(2, "Jugador 2"));
-            juego.jugadores.Add(new Jugador(3, "Jugador 3"));
+            juego.jugadores.Add(new Jugador(1, nombresJugadores[0]));
+            juego.jugadores.Add(new Jugador(2, nombresJugadores[1]));
+            juego.jugadores.Add(new Jugador(3, nombresJugadores[2]));
 
             this.Resize += UNO_Resize;
 
@@ -31,14 +43,9 @@ namespace WindowsFormsApp1
             timerMensaje.Interval = 2000;
             timerMensaje.Tick += timerMensaje_Tick;
 
-            if (UnoJ1 != null)
-                UnoJ1.Click += UnoJ1_Click;
-
-            if (UnoJ2 != null)
-                UnoJ2.Click += UnoJ2_Click;
-
-            if (UnoJ3 != null)
-                UnoJ3.Click += UnoJ3_Click;
+            if (UnoJ1 != null) UnoJ1.Click += UnoJ1_Click;
+            if (UnoJ2 != null) UnoJ2.Click += UnoJ2_Click;
+            if (UnoJ3 != null) UnoJ3.Click += UnoJ3_Click;
         }
 
         // INICIO DEL JUEGO
@@ -46,11 +53,22 @@ namespace WindowsFormsApp1
         {
             juego.iniciarPartida();
 
-            // Sacamos la primera carta del mazo para colocarla
-            // en el centro.
+            // Sacamos la primera carta del mazo para colocarla en el centro.
             juego.cartaActual = juego.Mazo.robarCarta();
 
             CentrarCarta();
+
+            // 1. Obtener o crear los IDs de los jugadores en la BD
+            for (int i = 0; i < nombresJugadores.Length; i++)
+            {
+                idsJugadores[i] = jugadorDAO.ObtenerOCrear(nombresJugadores[i]);
+            }
+
+            // 2. Crear registro de la partida en la BD
+            idPartidaActual = historialDAO.GuardarPartida();
+            historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+
             ActualizarInterfaz();
         }
 
@@ -83,26 +101,16 @@ namespace WindowsFormsApp1
 
             // Mostrar cartas de cada jugador
             MostrarCartas(panelMano, juego.jugadores[0].Cartas, 0);
-
             MostrarCartas(panelManoJugador2, juego.jugadores[1].Cartas, 1);
-
             MostrarCartas(panelManoJugador3, juego.jugadores[2].Cartas, 2);
 
             // Mostrar carta del centro
             MostrarCartaCentro();
 
             // Mostrar botón UNO solamente cuando el jugador actual tiene una carta
-            UnoJ1.Visible =
-                juego.jugadorActual == 0 &&
-                juego.jugadores[0].Cartas.Count == 1;
-
-            UnoJ2.Visible =
-                juego.jugadorActual == 1 &&
-                juego.jugadores[1].Cartas.Count == 1;
-
-            UnoJ3.Visible =
-                juego.jugadorActual == 2 &&
-                juego.jugadores[2].Cartas.Count == 1;
+            UnoJ1.Visible = juego.jugadorActual == 0 && juego.jugadores[0].Cartas.Count == 1;
+            UnoJ2.Visible = juego.jugadorActual == 1 && juego.jugadores[1].Cartas.Count == 1;
+            UnoJ3.Visible = juego.jugadorActual == 2 && juego.jugadores[2].Cartas.Count == 1;
 
             // Mostrar botón ROBAR solamente para el jugador que tiene el turno
             RobarJ1.Visible = juego.jugadorActual == 0;
@@ -110,66 +118,52 @@ namespace WindowsFormsApp1
             RobarJ3.Visible = juego.jugadorActual == 2;
 
             // Resaltar al jugador actual
-            lblNombreJ1.Font = new Font( "Segoe UI", 11, juego.jugadorActual == 0 ? FontStyle.Bold : FontStyle.Regular);
-
+            lblNombreJ1.Font = new Font("Segoe UI", 11, juego.jugadorActual == 0 ? FontStyle.Bold : FontStyle.Regular);
             lblNombreJ2.Font = new Font("Segoe UI", 11, juego.jugadorActual == 1 ? FontStyle.Bold : FontStyle.Regular);
-
             lblNombreJ3.Font = new Font("Segoe UI", 11, juego.jugadorActual == 2 ? FontStyle.Bold : FontStyle.Regular);
         }
 
         // OBTENER IMAGEN DE UNA CARTA
         private string ObtenerRutaImagen(Carta carta)
         {
-            string carpetaImagenes = Path.Combine(Application.StartupPath, "Imagenes");
+            if (carta == null) return "";
 
-            string nombreColor = carta.Color.ToLower();
+            string carpetaImagenes = Path.Combine(Application.StartupPath, "Imagenes");
+            string nombreColor = carta.Color != null ? carta.Color.ToLower() : "";
 
             string carpeta;
             string nombreArchivo;
 
-            // COMODÍN
             if (carta.Tipo == "Comodin")
             {
                 carpeta = "Comodines";
                 nombreArchivo = "comodin_cambioColor.png";
             }
-
-            // +4
             else if (carta.Tipo == "+4")
             {
                 carpeta = "Comodines";
                 nombreArchivo = "comodin_+4.png";
             }
-
-            // CARTAS DE COLORES
             else
             {
                 carpeta = carta.Color;
 
-                // CARTA NUMÉRICA
                 if (carta.Tipo == "Número")
                 {
-                    nombreArchivo = nombreColor + "_" + carta.Valor + ".png"; 
+                    nombreArchivo = nombreColor + "_" + carta.Valor + ".png";
                 }
-
-                // +2
                 else if (carta.Tipo == "+2")
                 {
-                    nombreArchivo = nombreColor + "_+2.png"; 
+                    nombreArchivo = nombreColor + "_+2.png";
                 }
-
-                // REVERSA
                 else if (carta.Tipo == "Reversa")
                 {
                     nombreArchivo = nombreColor + "_reversa.png";
                 }
-
-                // SALTA / CANCELAR
                 else if (carta.Tipo == "Salta")
                 {
                     nombreArchivo = nombreColor + "_cancelar.png";
                 }
-
                 else
                 {
                     return "";
@@ -184,40 +178,37 @@ namespace WindowsFormsApp1
         {
             panel.Controls.Clear();
 
-            if (cartas == null || cartas.Count == 0)
-                return;
+            if (cartas == null) return;
 
             int cantidad = cartas.Count;
-            int margen = 4;
 
+            if (cantidad == 0 && !partidaFinalizada)
+            {
+                partidaFinalizada = true;
+                FinalizarPartidaBD(indiceJugador);
+                MessageBox.Show($"{nombresJugadores[indiceJugador]} se quedó sin cartas. ¡Ganó y sus datos fueron guardados!");
+                return;
+            }
+
+            int margen = 4;
             float angulo = 0;
 
             if (indiceJugador == 1)
                 angulo = 90;
-
             else if (indiceJugador == 2)
                 angulo = 270;
 
             foreach (Carta carta in cartas)
             {
                 BotonRotado btn = new BotonRotado();
-
                 btn.Text = "";
-
                 btn.Margin = new Padding(margen / 2);
 
-                // Guardamos la carta REAL en el botón
-                btn.Tag = new object[]
-                {
-                    carta,
-                    indiceJugador
-                };
-
+                btn.Tag = new object[] { carta, indiceJugador };
                 btn.Angulo = angulo;
-
-                // Solo puede seleccionar cartas el jugador que tiene el turno.
-                btn.Enabled = indiceJugador == juego.jugadorActual;
+                btn.Enabled = (indiceJugador == juego.jugadorActual);
                 btn.BackgroundImageLayout = ImageLayout.Stretch;
+
                 string rutaImagen = ObtenerRutaImagen(carta);
 
                 if (File.Exists(rutaImagen))
@@ -229,9 +220,7 @@ namespace WindowsFormsApp1
                 }
                 else
                 {
-                    // Si no encuentra la imagen, mostramos información de la carta
                     btn.Text = carta.Color + "\n" + carta.Valor;
-
                     btn.BackColor = ColorSegunCarta(carta);
                 }
 
@@ -240,15 +229,14 @@ namespace WindowsFormsApp1
                 {
                     int altoFijo = 60;
                     btn.Width = panel.ClientSize.Width - 10;
-                    int altoDisponible = (panel.ClientSize.Height / cantidad) - margen;
+                    int altoDisponible = (panel.ClientSize.Height / Math.Max(1, cantidad)) - margen;
                     btn.Height = Math.Max(30, Math.Min(altoFijo, altoDisponible));
                 }
-
                 // JUGADOR PRINCIPAL
                 else
                 {
                     int anchoDisponible = panel.ClientSize.Width - (margen * (cantidad + 1));
-                    btn.Width = Math.Max(55, Math.Min(anchoDisponible / cantidad, 110));
+                    btn.Width = Math.Max(55, Math.Min(anchoDisponible / Math.Max(1, cantidad), 110));
                     btn.Height = panel.ClientSize.Height - 10;
                 }
 
@@ -257,17 +245,26 @@ namespace WindowsFormsApp1
             }
         }
 
+        private void FinalizarPartidaBD(int indiceGanador)
+        {
+            string nombreGanador = nombresJugadores[indiceGanador];
+
+            historialDAO.GuardarGanador(idPartidaActual, nombreGanador);
+            historialDAO.RegistrarGanadasPerdidas(idPartidaActual, nombreGanador);
+
+            for (int i = 0; i < nombresJugadores.Length; i++)
+            {
+                historialDAO.GuardarResultado(idPartidaActual, nombresJugadores[i], juego.jugadores[i].Cartas.Count);
+            }
+        }
+
         // MOSTRAR CARTA CENTRAL
         private void MostrarCartaCentro()
         {
-            if (cartaCentro == null)
-                return;
-
-            if (juego.cartaActual == null)
+            if (cartaCentro == null || juego.cartaActual == null)
                 return;
 
             Carta carta = juego.cartaActual;
-
             string rutaImagen = ObtenerRutaImagen(carta);
 
             cartaCentro.Text = "";
@@ -294,11 +291,9 @@ namespace WindowsFormsApp1
         private void BtnCarta_Click(object sender, EventArgs e)
         {
             Button btn = (Button)sender;
-
             object[] datos = (object[])btn.Tag;
 
             Carta cartaJugada = (Carta)datos[0];
-
             int indiceJugador = (int)datos[1];
 
             if (indiceJugador != juego.jugadorActual)
@@ -306,7 +301,6 @@ namespace WindowsFormsApp1
 
             Jugador jugador = juego.jugadores[indiceJugador];
 
-            // Revisar si puede jugarla
             if (!juego.puedeJugar(jugador, cartaJugada))
             {
                 MessageBox.Show("No puedes jugar esa carta", "Carta no válida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -316,6 +310,9 @@ namespace WindowsFormsApp1
             // Quitar carta de la mano
             jugador.quitarCarta(cartaJugada);
 
+            // Registrar carta jugada en la BD
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada);
+
             // Colocarla en el centro
             juego.cartaActual = cartaJugada;
             lblMensaje.Text = jugador.Nombre + " jugó: " + cartaJugada.Valor;
@@ -324,79 +321,56 @@ namespace WindowsFormsApp1
             if (cartaJugada.Tipo == "Comodin")
             {
                 string color = SeleccionarColor();
-
                 if (color == "")
                 {
-                    // Si cancela, regresamos la carta a su mano
                     jugador.agregarCarta(cartaJugada);
-
                     ActualizarInterfaz();
                     return;
                 }
                 juego.aplicarComodin(color);
+                juego.cambiarTurno();
             }
-
             // +4
             else if (cartaJugada.Tipo == "+4")
             {
                 string color = SeleccionarColor();
-
                 if (color == "")
                 {
                     jugador.agregarCarta(cartaJugada);
-
                     ActualizarInterfaz();
                     return;
                 }
                 juego.aplicarMasCuatro(color);
             }
+            // EFECTOS DE OTRAS CARTAS
+            else if (cartaJugada.Tipo == "Reversa")
+            {
+                juego.aplicarReversa();
+                juego.cambiarTurno();
+            }
+            else if (cartaJugada.Tipo == "Salta")
+            {
+                juego.aplicarSalta();
+            }
+            else if (cartaJugada.Tipo == "+2")
+            {
+                juego.aplicarMasDos();
+            }
+            else
+            {
+                juego.cambiarTurno();
+            }
+
+            // Registrar cambio de turno en BD
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
             // COMPROBAR GANADOR
             if (juego.esGanador(jugador))
             {
                 juego.comprobarGanador(jugador);
-
                 ActualizarInterfaz();
                 MessageBox.Show(jugador.Nombre + " ganó la partida. 🎉", "¡Tenemos ganador!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 return;
-            }
-
-            // EFECTOS DE CARTAS
-            if (cartaJugada.Tipo == "Reversa")
-            {
-                // Cambia dirección
-                juego.aplicarReversa();
-
-                // Después de reversa pasa al siguiente jugador
-                juego.cambiarTurno();
-            }
-
-            else if (cartaJugada.Tipo == "Salta")
-            {
-                // aplicarSalta ya cambia dos veces el turno
-                juego.aplicarSalta();
-            }
-
-            else if (cartaJugada.Tipo == "+2")
-            {
-                // aplicarMasDos aumenta las cartas por robar y cambia turno
-                juego.aplicarMasDos();
-            }
-
-            else if (cartaJugada.Tipo != "Comodin" && cartaJugada.Tipo != "+4")
-            {
-                // Carta numérica normal
-                juego.cambiarTurno();
-            }
-
-            else if (cartaJugada.Tipo == "Comodin" || cartaJugada.Tipo == "+4")
-            {
-                // +4 ya cambia turno dentro de aplicarMasCuatro
-                if (cartaJugada.Tipo == "Comodin")
-                {
-                    juego.cambiarTurno();
-                }
             }
 
             ActualizarInterfaz();
@@ -414,104 +388,64 @@ namespace WindowsFormsApp1
                 return;
             }
 
+            // Registrar carta robada en la BD
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva);
+
             lblMensaje.Text = jugador.Nombre + " robó una carta.";
 
-            // Si la carta robada puede jugarse,
-            // el jugador conserva el turno para decidir si la juega
             if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
             {
                 lblMensaje.Text = jugador.Nombre + " robó una carta que puede jugar.";
             }
+
             ActualizarInterfaz();
         }
 
-        private void BtnRobar_Click_1(object sender, EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
-        }
-
-        private void RobarJ2_Click(
-            object sender,
-            EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
-        }
-
-        private void RobarJ3_Click(
-            object sender,
-            EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
-        }
+        private void BtnRobar_Click_1(object sender, EventArgs e) => BtnRobar_Click(sender, e);
+        private void RobarJ2_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
+        private void RobarJ3_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
 
         // SELECCIONAR COLOR
         private string SeleccionarColor()
         {
             Form ventanaColor = new Form();
             ventanaColor.Text = "Elige un color";
-
             ventanaColor.StartPosition = FormStartPosition.CenterParent;
             ventanaColor.FormBorderStyle = FormBorderStyle.FixedDialog;
-
             ventanaColor.MaximizeBox = false;
             ventanaColor.MinimizeBox = false;
-
             ventanaColor.Width = 420;
             ventanaColor.Height = 160;
 
             Label mensaje = new Label();
-
             mensaje.Text = "¿Qué color quieres elegir?";
-
             mensaje.AutoSize = true;
             mensaje.Location = new Point(20, 15);
-
             ventanaColor.Controls.Add(mensaje);
 
             string colorSeleccionado = "";
 
             Button rojo = CrearBotonColor("Rojo", Color.Red);
-
             rojo.Location = new Point(20, 55);
-
-            rojo.Click += (s, e) =>
-            {
-                colorSeleccionado = "Rojo";
-                ventanaColor.Close();
-            };
+            rojo.Click += (s, e) => { colorSeleccionado = "Rojo"; ventanaColor.Close(); };
 
             Button azul = CrearBotonColor("Azul", Color.Blue);
             azul.Location = new Point(115, 55);
-
-            azul.Click += (s, e) =>
-            {
-                colorSeleccionado = "Azul";
-                ventanaColor.Close();
-            };
+            azul.Click += (s, e) => { colorSeleccionado = "Azul"; ventanaColor.Close(); };
 
             Button verde = CrearBotonColor("Verde", Color.Green);
             verde.Location = new Point(210, 55);
-
-            verde.Click += (s, e) =>
-            {
-                colorSeleccionado = "Verde";
-                ventanaColor.Close();
-            };
+            verde.Click += (s, e) => { colorSeleccionado = "Verde"; ventanaColor.Close(); };
 
             Button amarillo = CrearBotonColor("Amarillo", Color.Gold);
-
             amarillo.Location = new Point(305, 55);
-
-            amarillo.Click += (s, e) =>
-            {
-                colorSeleccionado = "Amarillo";
-                ventanaColor.Close();
-            };
+            amarillo.Click += (s, e) => { colorSeleccionado = "Amarillo"; ventanaColor.Close(); };
 
             ventanaColor.Controls.Add(rojo);
             ventanaColor.Controls.Add(azul);
             ventanaColor.Controls.Add(verde);
             ventanaColor.Controls.Add(amarillo);
+
             ventanaColor.ShowDialog(this);
 
             return colorSeleccionado;
@@ -536,8 +470,7 @@ namespace WindowsFormsApp1
             if (lblAvisoUno == null)
                 return;
 
-            Jugador jugador =
-                juego.jugadores[indiceJugador];
+            Jugador jugador = juego.jugadores[indiceJugador];
 
             if (!juego.declararUNO(jugador))
             {
@@ -545,9 +478,7 @@ namespace WindowsFormsApp1
             }
 
             timerMensaje.Stop();
-
             lblAvisoUno.Text = "¡" + jugador.Nombre.ToUpper() + " DIJO UNO!";
-
             lblAvisoUno.ForeColor = Color.Red;
             lblAvisoUno.BringToFront();
             lblAvisoUno.Visible = true;
@@ -584,27 +515,21 @@ namespace WindowsFormsApp1
         }
 
         // COLOR DE RESPALDO
-        private Color ColorSegunCarta(
-            Carta carta)
+        private Color ColorSegunCarta(Carta carta)
         {
-            if (carta.Color == "Rojo")
-                return Color.LightCoral;
+            if (carta == null || carta.Color == null)
+                return Color.LightGray;
 
-            if (carta.Color == "Azul")
-                return Color.LightSkyBlue;
-
-            if (carta.Color == "Verde")
-                return Color.LightGreen;
-
-            if (carta.Color == "Amarillo")
-                return Color.LightYellow;
+            if (carta.Color == "Rojo") return Color.LightCoral;
+            if (carta.Color == "Azul") return Color.LightSkyBlue;
+            if (carta.Color == "Verde") return Color.LightGreen;
+            if (carta.Color == "Amarillo") return Color.LightYellow;
 
             return Color.LightGray;
         }
     }
 
     // BOTÓN QUE PERMITE ROTAR LAS CARTAS DE LOS JUGADORES LATERALES
-
     public class BotonRotado : Button
     {
         public float Angulo { get; set; }
@@ -614,8 +539,7 @@ namespace WindowsFormsApp1
             Angulo = 0;
         }
 
-        protected override void OnPaint(
-            PaintEventArgs pevent)
+        protected override void OnPaint(PaintEventArgs pevent)
         {
             if (Angulo == 0)
             {

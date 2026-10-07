@@ -1,6 +1,7 @@
 ﻿using proyectoUNO;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -17,11 +18,12 @@ namespace proyecto_UNO
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
         public Mazo Mazo { get; set; }
+        public List<Carta> pilaDescarte { get; set; }
         public List<string> registroAcciones { get; set; }
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
         public bool partidaTerminada { get; set; }
-        public Jugador? Ganador { get; set; }
+        public Jugador Ganador { get; set; }
 
     public JuegoUNO()
     {
@@ -31,6 +33,7 @@ namespace proyecto_UNO
             direccion = 1;
             cartasARobar = 0;
             Mazo = new Mazo();
+            pilaDescarte = new List<Carta>();
             registroAcciones = new List<string>();
             declaroUNO = false;
             oportunidadUNO = false;
@@ -42,6 +45,9 @@ namespace proyecto_UNO
         {
             Mazo.crearMazo();
             Mazo.barajar();
+            
+            pilaDescarte.Clear();
+            cartaActual= null;
 
             jugadorActual = 0;
             direccion = 1;
@@ -92,6 +98,43 @@ namespace proyecto_UNO
             {
                 jugadorActual = jugadores.Count - 1;
             }
+        }
+
+        public void agregarCartaDescarte(Carta carta)
+        {
+            pilaDescarte.Add(carta);
+            cartaActual = carta;
+        }
+
+        public Carta obtenerCartaSuperior()
+        {
+            if (pilaDescarte.Count == 0)
+            {
+                return null;
+            }
+
+            return pilaDescarte[pilaDescarte.Count - 1];
+        }
+
+        public void reciclarMazo()
+        {
+            if (Mazo.cartasRestantes() > 0)
+            {
+                return;
+            }
+
+            if (pilaDescarte.Count <= 1)
+            {
+                return;
+            }
+
+            
+            Carta cartaActual = obtenerCartaSuperior();
+            pilaDescarte.RemoveAt(pilaDescarte.Count - 1);
+            Mazo.Cartas.AddRange(pilaDescarte);
+            pilaDescarte.Clear();
+            pilaDescarte.Add(cartaActual);
+            Mazo.barajar();
         }
 
         public void aplicarReversa()
@@ -210,6 +253,11 @@ namespace proyecto_UNO
 
         public Carta agregaCartaRobada(Jugador jugador)
         {
+            if (Mazo.cartasRestantes() == 0)
+            {
+                reciclarMazo();
+            }
+
             Carta carta = Mazo.robarCarta();
 
             if (carta != null)
