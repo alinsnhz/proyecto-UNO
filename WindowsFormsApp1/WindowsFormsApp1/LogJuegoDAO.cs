@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Data;
+using MySql.Data.MySqlClient;
 
 namespace WindowsFormsApp1
 {
@@ -10,7 +12,7 @@ namespace WindowsFormsApp1
     {
         private void InsertarEvento(int idPartida, int idJugador, string mensaje)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 using (var cmd = new MySqlCommand(
@@ -71,7 +73,7 @@ namespace WindowsFormsApp1
 
         public DataTable ObtenerLogDePartida(int idPartida)
         {
-            using (var con = ConexionBD.NuevaConexion())
+            using (var con = conexionBD.NuevaConexion())
             {
                 con.Open();
                 string sql = @"
@@ -93,4 +95,5 @@ namespace WindowsFormsApp1
                 }
             }
         }
+    }
 }

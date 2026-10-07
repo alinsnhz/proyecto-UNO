@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace WindowsFormsApp1
@@ -15,9 +16,17 @@ namespace WindowsFormsApp1
         };
 
         private string[] nombresJugadores = { "Jugador 1", "Jugador 2", "Jugador 3" };
+        private int[] idsJugadores = new int[3];
         private int turnoActual = 0;
         private string cartaEnMesa = "Rojo 5";
         private Timer timerMensaje;
+
+        // Instancias de BD
+        private HistorialDAO historialDAO = new HistorialDAO();
+        private LogJuegoDAO logJuegoDAO = new LogJuegoDAO();
+        private JugadorDAO jugadorDAO = new JugadorDAO();
+        private int idPartidaActual = 0;
+        private bool partidaFinalizada = false;
 
         public UNO()
         {
@@ -37,6 +46,18 @@ namespace WindowsFormsApp1
         private void UNO_Load(object sender, EventArgs e)
         {
             CentrarCarta();
+
+            // 1. Obtener o crear los IDs de los jugadores en la BD
+            for (int i = 0; i < nombresJugadores.Length; i++)
+            {
+                idsJugadores[i] = jugadorDAO.ObtenerOCrear(nombresJugadores[i]);
+            }
+
+            // 2. Crear registro de la partida en la BD
+            idPartidaActual = historialDAO.GuardarPartida();
+            historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[turnoActual], nombresJugadores[turnoActual]);
+
             ActualizarInterfaz();
         }
 
@@ -92,14 +113,15 @@ namespace WindowsFormsApp1
             panel.Controls.Clear();
 
             int cantidad = cartas.Count;
-            if (cantidad == 0)
+            if (cantidad == 0 && !partidaFinalizada)
             {
-                MessageBox.Show($"{nombresJugadores[indiceJugador]} se quedó sin cartas. ¡Ganó!");
+                partidaFinalizada = true;
+                FinalizarPartidaBD(indiceJugador);
+                MessageBox.Show($"{nombresJugadores[indiceJugador]} se quedó sin cartas. ¡Ganó y sus datos fueron guardados!");
                 return;
             }
 
             int margen = 4;
-
             float angulo = 0;
             if (indiceJugador == 1) angulo = 90;
             else if (indiceJugador == 2) angulo = 270;
@@ -121,14 +143,13 @@ namespace WindowsFormsApp1
                 {
                     int altoFijo = 60;
                     btn.Width = panel.ClientSize.Width - 10;
-
-                    int altoDisponible = (panel.ClientSize.Height / cantidad) - margen;
+                    int altoDisponible = (panel.ClientSize.Height / Math.Max(1, cantidad)) - margen;
                     btn.Height = Math.Min(altoFijo, altoDisponible);
                 }
                 else
                 {
                     int anchoDisponible = panel.ClientSize.Width - (margen * (cantidad + 1));
-                    btn.Width = Math.Max(55, Math.Min(anchoDisponible / cantidad, 110));
+                    btn.Width = Math.Max(55, Math.Min(anchoDisponible / Math.Max(1, cantidad), 110));
                     btn.Height = panel.ClientSize.Height - 10;
                 }
 
@@ -137,20 +158,24 @@ namespace WindowsFormsApp1
             }
         }
 
-        private void BtnRobar_Click_1(object sender, EventArgs e)
+        private void FinalizarPartidaBD(int indiceGanador)
         {
-            BtnRobar_Click(sender, e);
+            string nombreGanador = nombresJugadores[indiceGanador];
+
+            // Registrar al ganador de la partida
+            historialDAO.GuardarGanador(idPartidaActual, nombreGanador);
+            historialDAO.RegistrarGanadasPerdidas(idPartidaActual, nombreGanador);
+
+            // Guardar cartas restantes de cada jugador
+            for (int i = 0; i < nombresJugadores.Length; i++)
+            {
+                historialDAO.GuardarResultado(idPartidaActual, nombresJugadores[i], manosJugadores[i].Count);
+            }
         }
 
-        private void RobarJ2_Click(object sender, EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
-        }
-
-        private void RobarJ3_Click(object sender, EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
-        }
+        private void BtnRobar_Click_1(object sender, EventArgs e) => BtnRobar_Click(sender, e);
+        private void RobarJ2_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
+        private void RobarJ3_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
 
         private void BtnCarta_Click(object sender, EventArgs e)
         {
@@ -162,9 +187,11 @@ namespace WindowsFormsApp1
             if (indiceJugador != turnoActual) return;
 
             cartaEnMesa = cartaJugada;
-
             manosJugadores[indiceJugador].Remove(cartaJugada);
             lblMensaje.Text = $"{nombresJugadores[indiceJugador]} jugó: {cartaJugada}";
+
+            // Registrar carta jugada en la BD
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada);
 
             PasarTurno();
         }
@@ -172,6 +199,7 @@ namespace WindowsFormsApp1
         private void PasarTurno()
         {
             turnoActual = (turnoActual + 1) % nombresJugadores.Length;
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[turnoActual], nombresJugadores[turnoActual]);
             ActualizarInterfaz();
         }
 
@@ -192,6 +220,9 @@ namespace WindowsFormsApp1
             manosJugadores[turnoActual].Add(cartaNueva);
             lblMensaje.Text = $"{nombresJugadores[turnoActual]} robó una carta";
 
+            // Registrar carta robada en la BD
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[turnoActual], nombresJugadores[turnoActual], cartaNueva);
+
             ActualizarInterfaz();
         }
 
@@ -208,18 +239,9 @@ namespace WindowsFormsApp1
             }
         }
 
-        private void UnoJ1_Click(object sender, EventArgs e) 
-        {
-            MostrarAvisoUno(); 
-        }
-        private void UnoJ2_Click(object sender, EventArgs e) 
-        { 
-            MostrarAvisoUno(); 
-        }
-        private void UnoJ3_Click(object sender, EventArgs e) 
-        { 
-            MostrarAvisoUno(); 
-        }
+        private void UnoJ1_Click(object sender, EventArgs e) => MostrarAvisoUno();
+        private void UnoJ2_Click(object sender, EventArgs e) => MostrarAvisoUno();
+        private void UnoJ3_Click(object sender, EventArgs e) => MostrarAvisoUno();
 
         private void timerMensaje_Tick(object sender, EventArgs e)
         {
@@ -230,7 +252,6 @@ namespace WindowsFormsApp1
                 lblAvisoUno.Visible = false;
             }
         }
-
     }
 
     public class BotonRotado : Button
