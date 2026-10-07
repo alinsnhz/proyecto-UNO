@@ -21,6 +21,8 @@ namespace WindowsFormsApp1
 
         private int idPartidaActual = 0;
         private bool partidaFinalizada = false;
+        private bool yaRobo = false;
+        private Carta cartaRobadaEnTurno = null;
 
         private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int[] idsJugadores = new int[3];
@@ -54,7 +56,7 @@ namespace WindowsFormsApp1
             juego.iniciarPartida();
 
             // Sacamos la primera carta del mazo para colocarla en el centro.
-            juego.cartaActual = juego.Mazo.robarCarta();
+            juego.colocarCartaInicial();
 
             CentrarCarta();
 
@@ -108,9 +110,9 @@ namespace WindowsFormsApp1
             MostrarCartaCentro();
 
             // Mostrar botón UNO solamente cuando el jugador actual tiene una carta
-            UnoJ1.Visible = juego.jugadorActual == 0 && juego.jugadores[0].Cartas.Count == 1;
-            UnoJ2.Visible = juego.jugadorActual == 1 && juego.jugadores[1].Cartas.Count == 1;
-            UnoJ3.Visible = juego.jugadorActual == 2 && juego.jugadores[2].Cartas.Count == 1;
+            UnoJ1.Visible = juego.jugadorActual == 0 && juego.jugadores[0].Cartas.Count == 2;
+            UnoJ2.Visible = juego.jugadorActual == 1 && juego.jugadores[1].Cartas.Count == 2;
+            UnoJ3.Visible = juego.jugadorActual == 2 && juego.jugadores[2].Cartas.Count == 2;
 
             // Mostrar botón ROBAR solamente para el jugador que tiene el turno
             RobarJ1.Visible = juego.jugadorActual == 0;
@@ -300,6 +302,15 @@ namespace WindowsFormsApp1
                 return;
 
             Jugador jugador = juego.jugadores[indiceJugador];
+            int idJugador = idsJugadores[indiceJugador];
+
+            // Después de robar solo puede jugar la carta robada
+            if (yaRobo && cartaJugada != cartaRobadaEnTurno)
+            {
+                MessageBox.Show("Después de robar solo puedes jugar la carta que robaste, o pasar el turno haciendo clic en el mazo.",
+                    "Carta no válida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             if (!juego.puedeJugar(jugador, cartaJugada))
             {
@@ -307,97 +318,149 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            // Quitar carta de la mano
+            // Elegir color ANTES de jugar (si cancela, la carta sigue en la mano)
+            string colorElegido = "";
+            if (cartaJugada.Tipo == "Comodin" || cartaJugada.Tipo == "+4")
+            {
+                colorElegido = SeleccionarColor();
+                if (colorElegido == "")
+                    return;
+            }
+
             jugador.quitarCarta(cartaJugada);
+            juego.agregarCartaDescarte(cartaJugada);
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
 
-            // Registrar carta jugada en la BD
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
+            string mensaje = jugador.Nombre + " jugó: " + cartaJugada.Valor;
 
-            // Colocarla en el centro
-            juego.cartaActual = cartaJugada;
-            lblMensaje.Text = jugador.Nombre + " jugó: " + cartaJugada.Valor;
-
-            // COMODÍN
-            if (cartaJugada.Tipo == "Comodin")
+            // Penalización por no decir UNO
+            if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
             {
-                string color = SeleccionarColor();
-                if (color == "")
-                {
-                    jugador.agregarCarta(cartaJugada);
-                    ActualizarInterfaz();
-                    return;
-                }
-                juego.aplicarComodin(color);
-                juego.cambiarTurno();
-            }
-            // +4
-            else if (cartaJugada.Tipo == "+4")
-            {
-                string color = SeleccionarColor();
-                if (color == "")
-                {
-                    jugador.agregarCarta(cartaJugada);
-                    ActualizarInterfaz();
-                    return;
-                }
-                juego.aplicarMasCuatro(color);
-            }
-            // EFECTOS DE OTRAS CARTAS
-            else if (cartaJugada.Tipo == "Reversa")
-            {
-                juego.aplicarReversa();
-                juego.cambiarTurno();
-            }
-            else if (cartaJugada.Tipo == "Salta")
-            {
-                juego.aplicarSalta();
-            }
-            else if (cartaJugada.Tipo == "+2")
-            {
-                juego.aplicarMasDos();
-            }
-            else
-            {
-                juego.cambiarTurno();
+                juego.agregaCartaRobada(jugador);
+                juego.agregaCartaRobada(jugador);
+                logJuegoDAO.registrarMensaje(idPartidaActual, idJugador,
+                    jugador.Nombre + " no declaró UNO y robó 2 cartas de penalización");
+                mensaje += ". No dijo UNO y roba 2 cartas";
             }
 
-            // Registrar cambio de turno en BD
-            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+            Jugador afectado;
+
+            switch (cartaJugada.Tipo)
+            {
+                case "Comodin":
+                    juego.aplicarComodin(colorElegido);
+                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
+                    mensaje += " (color: " + colorElegido + ")";
+                    juego.cambiarTurno();
+                    break;
+
+                case "+4":
+                    afectado = juego.aplicarMasCuatro(colorElegido);
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+4");
+                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
+                    mensaje += " (color: " + colorElegido + "). " + afectado.Nombre + " roba 4 y pierde su turno";
+                    break;
+
+                case "Reversa":
+                    if (juego.jugadores.Count == 2)
+                    {
+                        juego.aplicarSalta();   // con 2 jugadores la reversa funciona como salto
+                    }
+                    else
+                    {
+                        juego.aplicarReversa();
+                        juego.cambiarTurno();
+                    }
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
+                    break;
+
+                case "Salta":
+                    juego.aplicarSalta();
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Salto");
+                    break;
+
+                case "+2":
+                    afectado = juego.aplicarMasDos();
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+2");
+                    mensaje += ". " + afectado.Nombre + " roba 2 y pierde su turno";
+                    break;
+
+                default:
+                    juego.cambiarTurno();
+                    break;
+            }
+
+            lblMensaje.Text = mensaje;
 
             // COMPROBAR GANADOR
             if (juego.esGanador(jugador))
             {
                 juego.comprobarGanador(jugador);
-                ActualizarInterfaz();
-                MessageBox.Show(jugador.Nombre + " ganó la partida. 🎉", "¡Tenemos ganador!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                logJuegoDAO.registrarMensaje(idPartidaActual, idJugador, jugador.Nombre + " ganó la partida");
+                ActualizarInterfaz();   // aquí MostrarCartas guarda el resultado y muestra el aviso
                 return;
             }
 
-            ActualizarInterfaz();
+            finalizarTurno();
         }
 
-        // ROBAR
+        //ROBAR
         private void BtnRobar_Click(object sender, EventArgs e)
         {
+            if (juego.partidaTerminada)
+                return;
+
             Jugador jugador = juego.obtenerJugadorActual();
+
+            // Segundo clic en el mazo en el mismo turno = pasar turno
+            if (yaRobo)
+            {
+                pasarTurno(jugador);
+                return;
+            }
+
             Carta cartaNueva = juego.robarDuranteTurno(jugador);
 
             if (cartaNueva == null)
             {
-                MessageBox.Show("No quedan cartas en el mazo", "Mazo vacío", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("No quedan cartas en el mazo. Se pasa el turno.", "Mazo vacío",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                pasarTurno(jugador);
                 return;
             }
 
-            // Registrar carta robada en la BD
-            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
+                nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
 
-            lblMensaje.Text = jugador.Nombre + " robó una carta.";
+            yaRobo = true;
+            cartaRobadaEnTurno = cartaNueva;
 
             if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
             {
-                lblMensaje.Text = jugador.Nombre + " robó una carta que puede jugar.";
+                lblMensaje.Text = jugador.Nombre + " robó una carta que puede jugar. Juégala o haz clic en el mazo para pasar.";
+                ActualizarInterfaz();
             }
+            else
+            {
+                lblMensaje.Text = jugador.Nombre + " robó una carta y no puede jugarla. Pasa el turno.";
+                pasarTurno(jugador);
+            }
+        }
 
+        private void pasarTurno(Jugador jugador)
+        {
+            logJuegoDAO.registrarMensaje(idPartidaActual, idsJugadores[juego.jugadorActual], jugador.Nombre + " pasó su turno");
+            juego.cambiarTurno();
+            finalizarTurno();
+        }
+
+        private void finalizarTurno()
+        {
+            yaRobo = false;
+            cartaRobadaEnTurno = null;
+            juego.declaroUNO = false;
+
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
             ActualizarInterfaz();
         }
 
@@ -476,6 +539,8 @@ namespace WindowsFormsApp1
             {
                 return;
             }
+
+            logJuegoDAO.registrarMensaje(idPartidaActual, idsJugadores[indiceJugador], jugador.Nombre + " declaró UNO");
 
             timerMensaje.Stop();
             lblAvisoUno.Text = "¡" + jugador.Nombre.ToUpper() + " DIJO UNO!";
