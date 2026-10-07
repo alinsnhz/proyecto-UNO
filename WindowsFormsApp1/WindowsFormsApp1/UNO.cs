@@ -186,14 +186,14 @@ namespace WindowsFormsApp1
             if (!File.Exists(ruta)) return;
 
             Image reverso;
-            using (Image tmp = Image.FromFile(ruta)
+            using Image tmp = Image.FromFile(ruta)
             {
                 reverso = new Bitmap(tmp);
             }
             foreach(Button boton in new Button[] { RobarJ1, RobarJ2_Click, RobarJ3_Click})
             {
                 boton.BackgroundImage = reverso;
-                boton.BackgroungImageLayout = ImageLayout.Stretch;
+                boton.BackgroundImageLayout = ImageLayout.Stretch;
             }
         }
 
