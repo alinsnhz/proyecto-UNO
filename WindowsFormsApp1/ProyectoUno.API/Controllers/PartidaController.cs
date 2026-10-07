@@ -1,8 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
-using proyectoUNO;
+using ProyectoUno.API;
 using ProyectoUno.API.DTOs;
-using WindowsFormsApp1;
 
 namespace ProyectoUno.API.Controllers
 {
@@ -38,15 +37,18 @@ namespace ProyectoUno.API.Controllers
         [HttpPost("log-jugada")]
         public IActionResult RegistrarJugada([FromBody] RegistrarJugadaDto dto)
         {
-            Carta carta = new Carta(dto.Carta.Color, dto.Carta.Valor, dto.Carta.Tipo);
-            _logJuegoDAO.RegistrarCartaJugada(dto.IdPartida, dto.IdJugador, dto.NombreJugador, carta?.ToString() ?? "");
+            if (dto.Carta != null)
+            {
+                Carta carta = new Carta(dto.Carta.Color ?? "", dto.Carta.Valor ?? "", dto.Carta.Tipo ?? "");
+                _logJuegoDAO.RegistrarCartaJugada(dto.IdPartida, dto.IdJugador, dto.NombreJugador ?? "", carta.ToString());
+            }
             return Ok(new { Mensaje = "Jugada registrada correctamente" });
         }
 
         [HttpPost("log-turno")]
         public IActionResult RegistrarTurno([FromBody] RegistrarJugadaDto dto)
         {
-            _logJuegoDAO.RegistrarTurno(dto.IdPartida, dto.IdJugador, dto.NombreJugador);
+            _logJuegoDAO.RegistrarTurno(dto.IdPartida, dto.IdJugador, dto.NombreJugador ?? "");
             return Ok(new { Mensaje = "Turno registrado correctamente" });
         }
     }

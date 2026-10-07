@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-namespace proyectoUNO
+namespace ProyectoUno.API
 {
     public class Jugador
     {

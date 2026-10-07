@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
 
-namespace WindowsFormsApp1
+namespace ProyectoUno.API
 {
     internal class HistorialDAO
     {

@@ -2,7 +2,7 @@ using System;
 using System.Data;
 using MySql.Data.MySqlClient;
 
-namespace WindowsFormsApp1
+namespace ProyectoUno.API
 {
     public class LogJuegoDAO
     {

@@ -2,7 +2,7 @@
 using System.Data;
 using MySql.Data.MySqlClient;
 
-namespace WindowsFormsApp1
+namespace ProyectoUno.API
 {
     public static class conexionBD
     {
@@ -72,12 +72,12 @@ namespace WindowsFormsApp1
             }
             catch (MySqlException ex)
             {
-                System.Windows.Forms.MessageBox.Show(ObtenerMensajeError(ex), "Error de base de datos");
+                Console.WriteLine(ObtenerMensajeError(ex));
                 return -1;
             }
         }
 
-        public static object EjecutarEscalar(string sql, params MySqlParameter[] parametros)
+        public static object? EjecutarEscalar(string sql, params MySqlParameter[] parametros)
         {
             try
             {
@@ -96,7 +96,7 @@ namespace WindowsFormsApp1
             }
             catch (MySqlException ex)
             {
-                System.Windows.Forms.MessageBox.Show(ObtenerMensajeError(ex), "Error de base de datos");
+                Console.WriteLine(ObtenerMensajeError(ex));
                 return null;
             }
         }
@@ -125,7 +125,7 @@ namespace WindowsFormsApp1
             }
             catch (MySqlException ex)
             {
-                System.Windows.Forms.MessageBox.Show(ObtenerMensajeError(ex), "Error de base de datos");
+                Console.WriteLine(ObtenerMensajeError(ex));
             }
             return tabla;
         }

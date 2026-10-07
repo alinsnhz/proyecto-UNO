@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 
-namespace WindowsFormsApp1
+namespace ProyectoUno.API
 {
     public class JugadorRegistro
     {
