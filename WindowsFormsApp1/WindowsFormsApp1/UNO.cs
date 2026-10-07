@@ -69,6 +69,7 @@ namespace WindowsFormsApp1
             historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
+            aplicarReversoMazo();
             ActualizarInterfaz();
         }
 
@@ -171,6 +172,29 @@ namespace WindowsFormsApp1
             }
 
             return Path.Combine(carpetaImagenes, carpeta, nombreArchivo);
+        }
+
+        //OBTENER RUTA CARTA REVERSO
+        private string obtenerRutaReverso()
+        {
+            return Path.Combine(Application.StartupPath, "Imagenes", "card_reverse.png");
+        }
+
+        private void aplicarReversoMazo()
+        {
+            string ruta = obtenerRutaReverso();
+            if (!File.Exists(ruta)) return;
+
+            Image reverso;
+            using (Image tmp = Image.FromFile(ruta)
+            {
+                reverso = new Bitmap(tmp);
+            }
+            foreach(Button boton in new Button[] { RobarJ1, RobarJ2_Click, RobarJ3_Click})
+            {
+                boton.BackgroundImage = reverso;
+                boton.BackgroungImageLayout = ImageLayout.Stretch;
+            }
         }
 
         // MOSTRAR CARTAS DE UN JUGADOR
@@ -311,7 +335,7 @@ namespace WindowsFormsApp1
             jugador.quitarCarta(cartaJugada);
 
             // Registrar carta jugada en la BD
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada);
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
 
             // Colocarla en el centro
             juego.cartaActual = cartaJugada;
@@ -389,7 +413,7 @@ namespace WindowsFormsApp1
             }
 
             // Registrar carta robada en la BD
-            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva);
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
 
             lblMensaje.Text = jugador.Nombre + " robó una carta.";
 
