@@ -13,6 +13,9 @@ namespace WindowsFormsApp1
     {
         private JuegoUNO juego;
         private Timer timerMensaje;
+        private string carpetaImagenes = null;
+        private bool avisoImagenesMostrado = false;
+        private Dictionary<string, Image> cacheImagenes = new Dictionary<string, Image>();
 
         // Instancias de BD y control de sesión/partida
         private HistorialDAO historialDAO = new HistorialDAO();
@@ -71,10 +74,14 @@ namespace WindowsFormsApp1
             historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
+<<<<<<< HEAD
+            AplicarReversoMazo();
+=======
             aplicarReversoMazo();
             // --- API ---
             _ = APICliente.IniciarPartidaAsync(nombresJugadores.ToList());
 
+>>>>>>> da1edc0be732475117ab144004ffe3bfad868869
             ActualizarInterfaz();
         }
 
@@ -82,6 +89,57 @@ namespace WindowsFormsApp1
         private void UNO_Resize(object sender, EventArgs e)
         {
             CentrarCarta();
+        }
+
+        // Busca la carpeta "Imagenes" junto al .exe y, si no está, sube por las carpetas padre
+        private string buscarCarpetaImagenes()
+        {
+            if (carpetaImagenes != null)
+                return carpetaImagenes;
+
+            string[] bases = { Application.StartupPath, AppDomain.CurrentDomain.BaseDirectory };
+
+            foreach (string inicio in bases)
+            {
+                DirectoryInfo dir = new DirectoryInfo(inicio);
+
+                for (int i = 0; i < 6 && dir != null; i++)
+                {
+                    string candidata = Path.Combine(dir.FullName, "Imagenes");
+                    if (Directory.Exists(candidata))
+                    {
+                        carpetaImagenes = candidata;
+                        return carpetaImagenes;
+                    }
+                    dir = dir.Parent;
+                }
+            }
+
+            if (!avisoImagenesMostrado)
+            {
+                avisoImagenesMostrado = true;
+                MessageBox.Show("No se encontró la carpeta 'Imagenes'. Se buscó desde:\n" + Application.StartupPath,
+                    "Imágenes no encontradas", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            return null;
+        }
+
+        // Carga una imagen una sola vez y la reutiliza (no deja el archivo bloqueado)
+        private Image cargarImagen(string ruta)
+        {
+            if (string.IsNullOrEmpty(ruta) || !File.Exists(ruta))
+                return null;
+
+            Image img;
+            if (!cacheImagenes.TryGetValue(ruta, out img))
+            {
+                using (Image temporal = Image.FromFile(ruta))
+                {
+                    img = new Bitmap(temporal);
+                }
+                cacheImagenes[ruta] = img;
+            }
+            return img;
         }
 
         private void CentrarCarta()
@@ -134,7 +192,9 @@ namespace WindowsFormsApp1
         {
             if (carta == null) return "";
 
-            string carpetaImagenes = Path.Combine(Application.StartupPath, "Imagenes");
+            string carpetaBase = buscarCarpetaImagenes();
+            if (carpetaBase == null) return "";
+
             string nombreColor = carta.Color != null ? carta.Color.ToLower() : "";
 
             string carpeta;
@@ -155,47 +215,29 @@ namespace WindowsFormsApp1
                 carpeta = carta.Color;
 
                 if (carta.Tipo == "Número")
-                {
                     nombreArchivo = nombreColor + "_" + carta.Valor + ".png";
-                }
                 else if (carta.Tipo == "+2")
-                {
                     nombreArchivo = nombreColor + "_+2.png";
-                }
                 else if (carta.Tipo == "Reversa")
-                {
                     nombreArchivo = nombreColor + "_reversa.png";
-                }
                 else if (carta.Tipo == "Salta")
-                {
                     nombreArchivo = nombreColor + "_cancelar.png";
-                }
                 else
-                {
                     return "";
-                }
             }
 
-            return Path.Combine(carpetaImagenes, carpeta, nombreArchivo);
+            return Path.Combine(carpetaBase, carpeta, nombreArchivo);
         }
 
-        //OBTENER RUTA CARTA REVERSO
-        private string obtenerRutaReverso()
+        private void AplicarReversoMazo()
         {
-            return Path.Combine(Application.StartupPath, "Imagenes", "card_reverse.png");
-        }
+            string carpetaBase = buscarCarpetaImagenes();
+            if (carpetaBase == null) return;
 
-        private void aplicarReversoMazo()
-        {
-            string ruta = obtenerRutaReverso();
-            if (!File.Exists(ruta)) return;
+            Image reverso = cargarImagen(Path.Combine(carpetaBase, "reverso.png"));
+            if (reverso == null) return;
 
-            Image reverso;
-            using Image tmp = Image.FromFile(ruta)
-            {
-                reverso = new Bitmap(tmp);
-            }
-            foreach(Button boton in new Button[] { RobarJ1, RobarJ2_Click, RobarJ3_Click})
+            foreach (Button boton in new Button[] { RobarJ1, RobarJ2, RobarJ3 })
             {
                 boton.BackgroundImage = reverso;
                 boton.BackgroundImageLayout = ImageLayout.Stretch;
@@ -205,7 +247,8 @@ namespace WindowsFormsApp1
         // MOSTRAR CARTAS DE UN JUGADOR
         private void MostrarCartas(FlowLayoutPanel panel, List<Carta> cartas, int indiceJugador)
         {
-            panel.Controls.Clear();
+            while (panel.Controls.Count > 0)
+                panel.Controls[0].Dispose();
 
             if (cartas == null) return;
 
@@ -232,20 +275,19 @@ namespace WindowsFormsApp1
                 BotonRotado btn = new BotonRotado();
                 btn.Text = "";
                 btn.Margin = new Padding(margen / 2);
+                btn.FlatStyle = FlatStyle.Flat;
+                btn.FlatAppearance.BorderSize = 0;
 
                 btn.Tag = new object[] { carta, indiceJugador };
                 btn.Angulo = angulo;
                 btn.Enabled = (indiceJugador == juego.jugadorActual);
                 btn.BackgroundImageLayout = ImageLayout.Stretch;
 
-                string rutaImagen = ObtenerRutaImagen(carta);
+                Image imagen = cargarImagen(ObtenerRutaImagen(carta));
 
-                if (File.Exists(rutaImagen))
+                if (imagen != null)
                 {
-                    using (Image imagen = Image.FromFile(rutaImagen))
-                    {
-                        btn.BackgroundImage = new Bitmap(imagen);
-                    }
+                    btn.BackgroundImage = imagen;
                 }
                 else
                 {
@@ -294,17 +336,14 @@ namespace WindowsFormsApp1
                 return;
 
             Carta carta = juego.cartaActual;
-            string rutaImagen = ObtenerRutaImagen(carta);
+            Image imagen = cargarImagen(ObtenerRutaImagen(carta));
 
-            cartaCentro.Text = "";
             cartaCentro.BackgroundImageLayout = ImageLayout.Stretch;
 
-            if (File.Exists(rutaImagen))
+            if (imagen != null)
             {
-                using (Image imagen = Image.FromFile(rutaImagen))
-                {
-                    cartaCentro.BackgroundImage = new Bitmap(imagen);
-                }
+                cartaCentro.Text = "";
+                cartaCentro.BackgroundImage = imagen;
             }
             else
             {
