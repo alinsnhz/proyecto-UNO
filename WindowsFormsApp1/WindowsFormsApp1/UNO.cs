@@ -71,6 +71,7 @@ namespace WindowsFormsApp1
             historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
+            aplicarReversoMazo();
             // --- API ---
             _ = APICliente.IniciarPartidaAsync(nombresJugadores.ToList());
 
@@ -176,6 +177,29 @@ namespace WindowsFormsApp1
             }
 
             return Path.Combine(carpetaImagenes, carpeta, nombreArchivo);
+        }
+
+        //OBTENER RUTA CARTA REVERSO
+        private string obtenerRutaReverso()
+        {
+            return Path.Combine(Application.StartupPath, "Imagenes", "card_reverse.png");
+        }
+
+        private void aplicarReversoMazo()
+        {
+            string ruta = obtenerRutaReverso();
+            if (!File.Exists(ruta)) return;
+
+            Image reverso;
+            using Image tmp = Image.FromFile(ruta)
+            {
+                reverso = new Bitmap(tmp);
+            }
+            foreach(Button boton in new Button[] { RobarJ1, RobarJ2_Click, RobarJ3_Click})
+            {
+                boton.BackgroundImage = reverso;
+                boton.BackgroundImageLayout = ImageLayout.Stretch;
+            }
         }
 
         // MOSTRAR CARTAS DE UN JUGADOR
@@ -330,6 +354,7 @@ namespace WindowsFormsApp1
                     return;
             }
 
+<<<<<<< HEAD
             jugador.quitarCarta(cartaJugada);
             juego.agregarCartaDescarte(cartaJugada);
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
@@ -337,6 +362,10 @@ namespace WindowsFormsApp1
 <<<<<<< HEAD
             string mensaje = jugador.Nombre + " jugó: " + cartaJugada.Valor;
 =======
+=======
+            // Registrar carta jugada en la BD
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
+>>>>>>> c77e6d4b03b61a3715e0a12478ad1cc7db797d25
             string colorCarta = cartaJugada.Color ?? "SinColor";
             string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
             string tipoCarta = cartaJugada.Tipo;
@@ -461,9 +490,14 @@ namespace WindowsFormsApp1
             }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
             logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
                 nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
 =======
+=======
+            // Registrar carta robada en la BD
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
+>>>>>>> c77e6d4b03b61a3715e0a12478ad1cc7db797d25
             string colorCarta = cartaNueva.Color ?? "SinColor";
             string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
             string tipoCarta = cartaNueva.Tipo;
