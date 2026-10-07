@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.Serialization.Formatters;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -25,8 +26,9 @@ namespace proyecto_UNO
         public bool partidaTerminada { get; set; }
         public Jugador Ganador { get; set; }
 
-    public JuegoUNO()
-    {
+
+        public JuegoUNO()
+        {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
@@ -39,15 +41,15 @@ namespace proyecto_UNO
             oportunidadUNO = false;
             partidaTerminada = false;
             Ganador = null;
-    }
+        }
 
         public void iniciarPartida()
         {
             Mazo.crearMazo();
             Mazo.barajar();
-            
+
             pilaDescarte.Clear();
-            cartaActual= null;
+            cartaActual = null;
 
             jugadorActual = 0;
             direccion = 1;
@@ -128,13 +130,34 @@ namespace proyecto_UNO
                 return;
             }
 
-            
-            Carta cartaActual = obtenerCartaSuperior();
+            Carta superior = obtenerCartaSuperior();
             pilaDescarte.RemoveAt(pilaDescarte.Count - 1);
+            foreach (Carta c in pilaDescarte)
+            {
+                if(c.Tipo == "Conodin" || c.Tipo == "+4")
+                {
+                    c.Color = "Negro";
+                }
+            }
+
             Mazo.Cartas.AddRange(pilaDescarte);
             pilaDescarte.Clear();
-            pilaDescarte.Add(cartaActual);
+            pilaDescarte.Add(superior);
             Mazo.barajar();
+        }
+
+        public void colocarCartaInicial()
+        {
+            Carta carta = Mazo.robarCarta();
+            while (carta != null && carta.Tipo != "Número")
+            {
+                Mazo.Cartas.Add(carta);
+                carta = Mazo.robarCarta();
+            }
+            if (carta != null)
+            {
+                agregarCartaDescarte(carta);
+            }
         }
 
         public void aplicarReversa()
@@ -148,10 +171,21 @@ namespace proyecto_UNO
             cambiarTurno();
         }
 
-        public void aplicarMasDos()
+        public Jugador aplicarPenalizacionRobo(int cantidad)
         {
-            cartasARobar += 2;
             cambiarTurno();
+            Jugador afectado = jugadores[jugadorActual];
+            for (int i = 0; i < cantidad; i++)
+            {
+                agregaCartaRobada(afectado);
+            }
+            cambiarTurno();
+            return afectado;
+        }
+
+        public Jugador aplicarMasDos()
+        {
+            return aplicarPenalizacionRobo(2);
         }
 
         public void aplicarComodin(string color)
@@ -159,11 +193,10 @@ namespace proyecto_UNO
             cartaActual.Color = color;
         }
 
-        public void aplicarMasCuatro(string color)
+        public Jugador aplicarMasCuatro(string color)
         {
-            cartasARobar += 4;
             cartaActual.Color = color;
-            cambiarTurno();
+            return aplicarPenalizacionRobo(4);
         }
 
         public Jugador obtenerJugadorActual()
@@ -223,24 +256,21 @@ namespace proyecto_UNO
             {
                 return true;
             }
-            if (carta.Tipo == "Comodin")
+            if (carta.Tipo == "Comodin" || carta.Tipo == "+4")
             {
                 return true;
             }
-            if (carta.Tipo == "+4")
+            if (carta.Valor == cartaActual.Valor)
             {
                 return true;
             }
-            if (carta.Tipo == "+2")
-            {
-                return true;
-            }
+
             return false;
         }
 
         public bool puedeJugar(Jugador jugador, Carta carta)
         {
-            if(partidaTerminada)
+            if (partidaTerminada)
             {
                 return false;
             }
@@ -293,7 +323,7 @@ namespace proyecto_UNO
 
         public bool debeDeclararUNO(Jugador jugador)
         {
-            return jugador.Cartas.Count == 1;
+            return jugador.Cartas.Count == 2;
         }
 
         public bool debeDecirUNO(Jugador jugador)
@@ -339,12 +369,12 @@ namespace proyecto_UNO
 
         public void penalizarUNO(Jugador jugador)
         {
-            if(!noDeclaroUNO(jugador))
+            if (!noDeclaroUNO(jugador))
             {
                 return;
             }
 
-            for(int i = 0; i<2; i++)
+            for (int i = 0; i < 2; i++)
             {
                 agregaCartaRobada(jugador);
             }
@@ -360,7 +390,7 @@ namespace proyecto_UNO
 
         public void procesarUNO(Jugador jugador)
         {
-            if(noDeclaroUNO(jugador))
+            if (noDeclaroUNO(jugador))
             {
                 penalizarUNO(jugador);
             }
@@ -375,7 +405,7 @@ namespace proyecto_UNO
 
         public void comprobarGanador(Jugador jugador)
         {
-            if(esGanador(jugador))
+            if (esGanador(jugador))
             {
                 Ganador = jugador;
                 partidaTerminada = true;
@@ -385,9 +415,9 @@ namespace proyecto_UNO
         public List<Jugador> obtenerPerdedores()
         {
             List<Jugador> perdedores = new List<Jugador>();
-            foreach(Jugador jugador in jugadores)
+            foreach (Jugador jugador in jugadores)
             {
-                if(jugador != Ganador)
+                if (jugador != Ganador)
                 {
                     perdedores.Add(jugador);
                 }
@@ -397,13 +427,13 @@ namespace proyecto_UNO
 
         public String obtenerResultado()
         {
-            if(Ganador == null)
+            if (Ganador == null)
             {
                 return "La partida no ha terminado";
             }
             string resultado = "Ganador: " + Ganador.Nombre + "\n";
             resultado += "Perdedores: \n";
-            foreach(Jugador jugador in obtenerPerdedores())
+            foreach (Jugador jugador in obtenerPerdedores())
             {
                 resultado += jugador.Nombre + "\n";
             }
