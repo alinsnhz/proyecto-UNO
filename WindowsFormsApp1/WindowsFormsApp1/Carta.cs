@@ -4,6 +4,8 @@ namespace proyectoUNO
     {
         public string Color { get; set; }
         public string Valor { get; set; }
+        public string Numero { get; set; }
+        public string Simbolo { get; set; }
         public string Tipo { get; set; }
         public string Numero { get; set; }
         public string Simbolo { get; set; }
@@ -12,6 +14,8 @@ namespace proyectoUNO
         {
             Color = color;
             Valor = valor;
+            Numero = valor;
+            Simbolo = valor;
             Tipo = tipo;
             Numero = valor;  
             Simbolo = valor; 

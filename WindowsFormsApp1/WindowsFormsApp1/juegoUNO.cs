@@ -16,13 +16,12 @@ namespace proyecto_UNO
         public Carta cartaActual { get; set; }
         public int direccion { get; set; }
         public int cartasARobar { get; set; }
-        public List<Carta> Mazo { get; set; }
+        public Mazo Mazo { get; set; }
         public List<string> registroAcciones { get; set; }
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
         public bool partidaTerminada { get; set; }
         public Jugador Ganador { get; set; }
-    
 
     public JuegoUNO()
     {
@@ -31,7 +30,7 @@ namespace proyecto_UNO
             cartaActual = null;
             direccion = 1;
             cartasARobar = 0;
-            Mazo = new List<Carta>();
+            Mazo = new Mazo();
             registroAcciones = new List<string>();
             declaroUNO = false;
             oportunidadUNO = false;
@@ -41,9 +40,38 @@ namespace proyecto_UNO
 
         public void iniciarPartida()
         {
+            Mazo.crearMazo();
+            Mazo.barajar();
+
             jugadorActual = 0;
             direccion = 1;
             cartasARobar = 0;
+
+            repartirCartasIniciales();
+
+        }
+
+        public bool puedeRepartirCartasIniciales()
+        {
+            return jugadores.Count == 3 && Mazo.cartasRestantes() >= 21;
+        }
+
+        public void repartirCartasIniciales()
+        {
+            foreach (Jugador jugador in jugadores)
+            {
+                for (int i = 0; i < 7; i++)
+                {
+                    Carta carta = Mazo.robarCarta();
+
+                    if (carta == null)
+                    {
+                        return;
+                    }
+
+                    jugador.agregarCarta(carta);
+                }
+            }
         }
 
         public void cambiarTurno()
@@ -180,22 +208,9 @@ namespace proyecto_UNO
             return esCartaValida(carta);
         }
 
-        public Carta robarCarta()
-        {
-            if (Mazo.Count == 0)
-            {
-                return null;
-            }
-
-            Carta carta = Mazo[0];
-            Mazo.RemoveAt(0);
-
-            return carta;
-        }
-
         public Carta agregaCartaRobada(Jugador jugador)
         {
-            Carta carta = robarCarta();
+            Carta carta = Mazo.robarCarta();
 
             if (carta != null)
             {

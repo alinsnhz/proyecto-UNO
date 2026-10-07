@@ -77,6 +77,7 @@
     <Compile Include="juegoUNO.cs" />
     <Compile Include="JugadorDAO.cs" />
     <Compile Include="LogJuegoDAO.cs" />
+    <Compile Include="Mazo.cs" />
     <Compile Include="UNO.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -104,7 +105,7 @@
     </None>
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
+      <DependentUpon>Settings.Designer.cs</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
   </ItemGroup>
