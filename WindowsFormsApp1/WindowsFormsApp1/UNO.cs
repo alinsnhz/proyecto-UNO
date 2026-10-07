@@ -71,6 +71,9 @@ namespace WindowsFormsApp1
             historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
+            // --- API ---
+            _ = APICliente.IniciarPartidaAsync(nombresJugadores.ToList());
+
             ActualizarInterfaz();
         }
 
@@ -331,7 +334,29 @@ namespace WindowsFormsApp1
             juego.agregarCartaDescarte(cartaJugada);
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
 
+<<<<<<< HEAD
             string mensaje = jugador.Nombre + " jugó: " + cartaJugada.Valor;
+=======
+            string colorCarta = cartaJugada.Color ?? "SinColor";
+            string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
+            string tipoCarta = cartaJugada.Tipo;
+
+            // Texto descriptivo de la carta para el cuarto argumento de la BD
+            string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
+
+            // Registrar carta jugada en BD (4 argumentos)
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], descripcionCartaBD);
+
+            // Registrar carta jugada en la API
+            _ = APICliente.RegistrarJugadaAsync(
+                idPartidaActual,
+                idsJugadores[indiceJugador],
+                nombresJugadores[indiceJugador],
+                colorCarta,
+                valorCarta,
+                tipoCarta
+            );
+>>>>>>> 8a199ee1524f602e87b55d7c4ff29631403192d0
 
             // Penalización por no decir UNO
             if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
@@ -343,6 +368,7 @@ namespace WindowsFormsApp1
                 mensaje += ". No dijo UNO y roba 2 cartas";
             }
 
+<<<<<<< HEAD
             Jugador afectado;
 
             switch (cartaJugada.Tipo)
@@ -391,6 +417,11 @@ namespace WindowsFormsApp1
             }
 
             lblMensaje.Text = mensaje;
+=======
+            // Registrar cambio de turno en BD y API
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+            _ = APICliente.RegistrarTurnoAsync(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+>>>>>>> 8a199ee1524f602e87b55d7c4ff29631403192d0
 
             // COMPROBAR GANADOR
             if (juego.esGanador(jugador))
@@ -429,8 +460,30 @@ namespace WindowsFormsApp1
                 return;
             }
 
+<<<<<<< HEAD
             logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
                 nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
+=======
+            string colorCarta = cartaNueva.Color ?? "SinColor";
+            string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
+            string tipoCarta = cartaNueva.Tipo;
+
+            // Texto descriptivo de la carta para el cuarto argumento de la BD
+            string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
+
+            // Registrar carta robada en BD (4 argumentos)
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], descripcionCartaBD);
+
+            // Registrar carta robada en la API
+            _ = APICliente.RegistrarCartaRobadaAsync(
+                idPartidaActual,
+                idsJugadores[juego.jugadorActual],
+                nombresJugadores[juego.jugadorActual],
+                colorCarta,
+                valorCarta,
+                tipoCarta
+            );
+>>>>>>> 8a199ee1524f602e87b55d7c4ff29631403192d0
 
             yaRobo = true;
             cartaRobadaEnTurno = cartaNueva;
