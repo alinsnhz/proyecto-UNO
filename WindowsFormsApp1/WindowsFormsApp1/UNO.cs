@@ -70,6 +70,9 @@ namespace WindowsFormsApp1
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
             aplicarReversoMazo();
+            // --- API ---
+            _ = APICliente.IniciarPartidaAsync(nombresJugadores.ToList());
+
             ActualizarInterfaz();
         }
 
@@ -336,6 +339,25 @@ namespace WindowsFormsApp1
 
             // Registrar carta jugada en la BD
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
+            string colorCarta = cartaJugada.Color ?? "SinColor";
+            string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
+            string tipoCarta = cartaJugada.Tipo;
+
+            // Texto descriptivo de la carta para el cuarto argumento de la BD
+            string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
+
+            // Registrar carta jugada en BD (4 argumentos)
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], descripcionCartaBD);
+
+            // Registrar carta jugada en la API
+            _ = APICliente.RegistrarJugadaAsync(
+                idPartidaActual,
+                idsJugadores[indiceJugador],
+                nombresJugadores[indiceJugador],
+                colorCarta,
+                valorCarta,
+                tipoCarta
+            );
 
             // Colocarla en el centro
             juego.cartaActual = cartaJugada;
@@ -385,8 +407,9 @@ namespace WindowsFormsApp1
                 juego.cambiarTurno();
             }
 
-            // Registrar cambio de turno en BD
+            // Registrar cambio de turno en BD y API
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+            _ = APICliente.RegistrarTurnoAsync(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
             // COMPROBAR GANADOR
             if (juego.esGanador(jugador))
@@ -414,6 +437,25 @@ namespace WindowsFormsApp1
 
             // Registrar carta robada en la BD
             logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
+            string colorCarta = cartaNueva.Color ?? "SinColor";
+            string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
+            string tipoCarta = cartaNueva.Tipo;
+
+            // Texto descriptivo de la carta para el cuarto argumento de la BD
+            string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
+
+            // Registrar carta robada en BD (4 argumentos)
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], descripcionCartaBD);
+
+            // Registrar carta robada en la API
+            _ = APICliente.RegistrarCartaRobadaAsync(
+                idPartidaActual,
+                idsJugadores[juego.jugadorActual],
+                nombresJugadores[juego.jugadorActual],
+                colorCarta,
+                valorCarta,
+                tipoCarta
+            );
 
             lblMensaje.Text = jugador.Nombre + " robó una carta.";
 

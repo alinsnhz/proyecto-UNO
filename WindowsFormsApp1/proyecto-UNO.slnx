@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="ProyectoUno.API/ProyectoUno.API.csproj" Id="b212b0cf-e74d-44ed-a076-922e113dabf0" />
   <Project Path="WindowsFormsApp1/proyectoUNO.csproj" Id="876c7e3f-f595-4d48-94ef-90c961a860e9" />
 </Solution>
