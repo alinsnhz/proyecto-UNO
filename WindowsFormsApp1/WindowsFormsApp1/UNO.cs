@@ -311,7 +311,7 @@ namespace WindowsFormsApp1
             jugador.quitarCarta(cartaJugada);
 
             // Registrar carta jugada en la BD
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada);
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
 
             // Colocarla en el centro
             juego.cartaActual = cartaJugada;
@@ -389,7 +389,7 @@ namespace WindowsFormsApp1
             }
 
             // Registrar carta robada en la BD
-            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva);
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
 
             lblMensaje.Text = jugador.Nombre + " robó una carta.";
 
