@@ -72,7 +72,7 @@ namespace WindowsFormsApp1
             historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
-            aplicarReversoMazo();
+            AplicarReversoMazo();
             ActualizarInterfaz();
         }
 
@@ -183,7 +183,7 @@ namespace WindowsFormsApp1
         {
             if (carta == null) return "";
 
-            string carpetaBase = BuscarCarpetaImagenes();
+            string carpetaBase = buscarCarpetaImagenes();
             if (carpetaBase == null) return "";
 
             string nombreColor = carta.Color != null ? carta.Color.ToLower() : "";
@@ -215,17 +215,17 @@ namespace WindowsFormsApp1
                     nombreArchivo = nombreColor + "_cancelar.png";
                 else
                     return "";
-                }
+            }
 
             return Path.Combine(carpetaBase, carpeta, nombreArchivo);
         }
 
         private void AplicarReversoMazo()
         {
-            string carpetaBase = BuscarCarpetaImagenes();
+            string carpetaBase = buscarCarpetaImagenes();
             if (carpetaBase == null) return;
 
-            Image reverso = CargarImagen(Path.Combine(carpetaBase, "reverso.png"));
+            Image reverso = cargarImagen(Path.Combine(carpetaBase, "reverso.png"));
             if (reverso == null) return;
 
             foreach (Button boton in new Button[] { RobarJ1, RobarJ2, RobarJ3 })
@@ -274,10 +274,10 @@ namespace WindowsFormsApp1
                 btn.Enabled = (indiceJugador == juego.jugadorActual);
                 btn.BackgroundImageLayout = ImageLayout.Stretch;
 
-                Image imagen = CargarImagen(ObtenerRutaImagen(carta));
+                Image imagen = cargarImagen(ObtenerRutaImagen(carta));
 
                 if (imagen != null)
-                    {
+                {
                     btn.BackgroundImage = imagen;
                 }
                 else
@@ -327,12 +327,12 @@ namespace WindowsFormsApp1
                 return;
 
             Carta carta = juego.cartaActual;
-            Image imagen = CargarImagen(ObtenerRutaImagen(carta));
+            Image imagen = cargarImagen(ObtenerRutaImagen(carta));
 
             cartaCentro.BackgroundImageLayout = ImageLayout.Stretch;
 
             if (imagen != null)
-                {
+            {
                 cartaCentro.Text = "";
                 cartaCentro.BackgroundImage = imagen;
             }
