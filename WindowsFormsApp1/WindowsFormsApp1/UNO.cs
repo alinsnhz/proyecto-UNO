@@ -25,6 +25,8 @@ namespace WindowsFormsApp1
 
         private int idPartidaActual = 0;
         private bool partidaFinalizada = false;
+        private bool yaRobo = false;
+        private Carta cartaRobadaEnTurno = null;
 
         private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int[] idsJugadores = new int[3];
@@ -86,9 +88,7 @@ namespace WindowsFormsApp1
             this.WindowState = FormWindowState.Maximized;
         }
 
-        // =====================================================================
         // INICIO DEL JUEGO
-        // =====================================================================
         private async void UNO_Load(object sender, EventArgs e)
         {
             AcomodarControles();
@@ -115,9 +115,7 @@ namespace WindowsFormsApp1
             ActualizarInterfaz();
         }
 
-        // =====================================================================
         // CONFIGURACIÓN, ESTILO Y DISTRIBUCIÓN DE LA INTERFAZ
-        // =====================================================================
         private void ConfigurarInterfaz()
         {
             this.DoubleBuffered = true;
@@ -186,6 +184,7 @@ namespace WindowsFormsApp1
                 b.Visible = false;
         }
 
+          //Aquí se agrega el cambio de carta de reversa 
         private void EstilizarRobar(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
@@ -213,6 +212,7 @@ namespace WindowsFormsApp1
             b.Cursor = Cursors.Hand;
         }
 
+          //aquí también (imagen de reverso de carta)
         private void AplicarReversoMazo()
         {
             Image reverso = ImagenesUNO.Reverso();
@@ -225,7 +225,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Iconos aleatorios (de Imagenes\Iconos) y nombres de cada jugador
+        // falta implementar iconos aleatorios 
         private void AsignarIconos()
         {
             if (iconosJugadores == null)
@@ -338,9 +338,7 @@ namespace WindowsFormsApp1
             lblAvisoUno.SetBounds(cx - 260, cartaCentro.Top - 56, 520, 46);
         }
 
-        // =====================================================================
         // ACTUALIZAR LA INTERFAZ
-        // =====================================================================
         private void ActualizarInterfaz()
         {
             if (juego.jugadores.Count < 3)
@@ -467,9 +465,7 @@ namespace WindowsFormsApp1
             cartaCentro.Visible = true;
         }
 
-        // =====================================================================
         // ANIMACIONES
-        // =====================================================================
         private Point Centro(Control c)
         {
             return new Point(c.Left + c.Width / 2, c.Top + c.Height / 2);
@@ -492,7 +488,7 @@ namespace WindowsFormsApp1
             return p;
         }
 
-        // Una carta que "viaja" de un punto a otro (con desaceleración al llegar)
+        // Una carta que "viaja" de un punto a otro
         private async Task VolarCarta(Image img, Point desde, Size tamDesde, Point hasta, Size tamHasta, int ms)
         {
             Panel vuelo = NuevaCartaVuelo(img, tamDesde);
@@ -654,9 +650,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // =====================================================================
         // JUGAR CARTA
-        // =====================================================================
         private async Task JugarCarta(Carta cartaJugada, int indiceJugador)
         {
             if (animando || juego.partidaTerminada || indiceJugador != juego.jugadorActual)
@@ -771,6 +765,89 @@ namespace WindowsFormsApp1
             }
 
             AgregarHistorial(mensaje);
+            jugador.quitarCarta(cartaJugada);
+            juego.agregarCartaDescarte(cartaJugada);
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
+
+            string mensaje = jugador.Nombre + " jugó: " + cartaJugada.Valor;
+            string colorCarta = cartaJugada.Color ?? "SinColor";
+            string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
+            string tipoCarta = cartaJugada.Tipo;
+
+            // Texto descriptivo de la carta para el cuarto argumento de la BD
+            string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
+
+            // Registrar carta jugada en BD (4 argumentos)
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], descripcionCartaBD);
+
+            // Registrar carta jugada en la API
+            _ = APICliente.RegistrarJugadaAsync(
+                idPartidaActual,
+                idsJugadores[indiceJugador],
+                nombresJugadores[indiceJugador],
+                colorCarta,
+                valorCarta,
+                tipoCarta
+            );
+
+            // Penalización por no decir UNO
+            if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
+            {
+                juego.agregaCartaRobada(jugador);
+                juego.agregaCartaRobada(jugador);
+                logJuegoDAO.registrarMensaje(idPartidaActual, idJugador,
+                    jugador.Nombre + " no declaró UNO y robó 2 cartas de penalización");
+                mensaje += ". No dijo UNO y roba 2 cartas";
+            }
+
+            Jugador afectado;
+
+            switch (cartaJugada.Tipo)
+            {
+                case "Comodin":
+                    juego.aplicarComodin(colorElegido);
+                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
+                    mensaje += " (color: " + colorElegido + ")";
+                    juego.cambiarTurno();
+                    break;
+
+                case "+4":
+                    afectado = juego.aplicarMasCuatro(colorElegido);
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+4");
+                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
+                    mensaje += " (color: " + colorElegido + "). " + afectado.Nombre + " roba 4 y pierde su turno";
+                    break;
+
+                case "Reversa":
+                    if (juego.jugadores.Count == 2)
+                    {
+                        juego.aplicarSalta();   // con 2 jugadores la reversa funciona como salto
+                    }
+                    else
+                    {
+                        juego.aplicarReversa();
+                        juego.cambiarTurno();
+                    }
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
+                    break;
+
+                case "Salta":
+                    juego.aplicarSalta();
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Salto");
+                    break;
+
+                case "+2":
+                    afectado = juego.aplicarMasDos();
+                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+2");
+                    mensaje += ". " + afectado.Nombre + " roba 2 y pierde su turno";
+                    break;
+
+                default:
+                    juego.cambiarTurno();
+                    break;
+            }
+
+            lblMensaje.Text = mensaje;
 
             // COMPROBAR GANADOR
             if (juego.esGanador(jugador))
@@ -784,9 +861,7 @@ namespace WindowsFormsApp1
             FinalizarTurno();
         }
 
-        // =====================================================================
         // ROBAR Y PASAR TURNO
-        // =====================================================================
         private async void BtnRobar_Click(object sender, EventArgs e)
         {
             if (animando || juego.partidaTerminada)
@@ -805,6 +880,11 @@ namespace WindowsFormsApp1
             try
             {
                 Carta cartaNueva = juego.robarDuranteTurno(jugador);
+            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
+                nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
+            string colorCarta = cartaNueva.Color ?? "SinColor";
+            string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
+            string tipoCarta = cartaNueva.Tipo;
 
                 if (cartaNueva == null)
                 {
@@ -822,6 +902,9 @@ namespace WindowsFormsApp1
 
                 // La carta viaja del mazo a la mano
                 await VolarReversos(1, juego.jugadorActual);
+
+            yaRobo = true;
+            cartaRobadaEnTurno = cartaNueva;
 
                 if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
                 {
@@ -861,9 +944,7 @@ namespace WindowsFormsApp1
             ActualizarInterfaz();
         }
 
-        // =====================================================================
         // SELECCIONAR COLOR
-        // =====================================================================
         private string SeleccionarColor()
         {
             Form ventanaColor = new Form();
@@ -922,9 +1003,7 @@ namespace WindowsFormsApp1
             return boton;
         }
 
-        // =====================================================================
         // BOTONES UNO
-        // =====================================================================
         private void MostrarAvisoUno(int indiceJugador)
         {
             if (lblAvisoUno == null)

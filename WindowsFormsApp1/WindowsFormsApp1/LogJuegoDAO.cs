@@ -48,6 +48,11 @@ namespace WindowsFormsApp1
             InsertarEvento(idPartida, idJugador, $"Comienza el turno de {nombreJugador}");
         }
 
+        public void registrarMensaje(int idPartida, int idJugador, string mensaje)
+        {
+            InsertarEvento(idPartida, idJugador, mensaje);
+        }
+
         public void RegistrarAccionEspecial(int idPartida, int idJugador, string nombreJugador, string tipoAccion)
         {
             string mensaje;

@@ -19,8 +19,9 @@ namespace proyecto_UNO
         public bool partidaTerminada { get; set; }
         public Jugador Ganador { get; set; }
 
-    public JuegoUNO()
-    {
+
+        public JuegoUNO()
+        {
             jugadores = new List<Jugador>();
             jugadorActual = 0;
             cartaActual = null;
@@ -33,15 +34,15 @@ namespace proyecto_UNO
             oportunidadUNO = false;
             partidaTerminada = false;
             Ganador = null;
-    }
+        }
 
         public void iniciarPartida()
         {
             Mazo.crearMazo();
             Mazo.barajar();
-            
+
             pilaDescarte.Clear();
-            cartaActual= null;
+            cartaActual = null;
 
             jugadorActual = 0;
             direccion = 1;
@@ -358,7 +359,7 @@ namespace proyecto_UNO
             if(!noDeclaroUNO(jugador))
                 return;
 
-            for(int i = 0; i<2; i++)
+            for (int i = 0; i < 2; i++)
             {
                 agregaCartaRobada(jugador);
             }
@@ -380,7 +381,7 @@ namespace proyecto_UNO
 
         public void comprobarGanador(Jugador jugador)
         {
-            if(esGanador(jugador))
+            if (esGanador(jugador))
             {
                 Ganador = jugador;
                 partidaTerminada = true;
@@ -390,9 +391,9 @@ namespace proyecto_UNO
         public List<Jugador> obtenerPerdedores()
         {
             List<Jugador> perdedores = new List<Jugador>();
-            foreach(Jugador jugador in jugadores)
+            foreach (Jugador jugador in jugadores)
             {
-                if(jugador != Ganador)
+                if (jugador != Ganador)
                 {
                     perdedores.Add(jugador);
                 }
@@ -402,13 +403,13 @@ namespace proyecto_UNO
 
         public String obtenerResultado()
         {
-            if(Ganador == null)
+            if (Ganador == null)
             {
                 return "La partida no ha terminado";
             }
             string resultado = "Ganador: " + Ganador.Nombre + "\n";
             resultado += "Perdedores: \n";
-            foreach(Jugador jugador in obtenerPerdedores())
+            foreach (Jugador jugador in obtenerPerdedores())
             {
                 resultado += jugador.Nombre + "\n";
             }
