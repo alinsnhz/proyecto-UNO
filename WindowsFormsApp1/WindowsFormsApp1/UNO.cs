@@ -13,6 +13,33 @@ namespace WindowsFormsApp1
     {
         private JuegoUNO juego;
         private Timer timerMensaje;
+        private Timer timerBarajar;
+        private Timer timerAnimacionCarta;
+        private Random random = new Random();
+        private bool partidaIniciada = false;
+        private bool animacionEnCurso = false;
+        private TabControl pestañas;
+        private TabPage pestañaInicio;
+        private TabPage pestañaPartida;
+        private Button btnIniciarPartida;
+        private Button cartaAnimacionInicio;
+        private Label lblEstadoInicio;
+        private Label lblTurnoActual;
+        private Label lblTituloHistorial;
+        private Label lblContadorMazo;
+
+        private List<string> historialVisual = new List<string>();
+        private int pasoBarajado = 0;
+
+        // Datos de la animación de una carta
+        private Button cartaAnimada;
+        private Point destinoAnimacion;
+
+        private int pasoAnimacionCarta;
+        private int totalPasosAnimacionCarta;
+
+        private Action finalizarAnimacionCarta;
+
         private string carpetaImagenes = null;
         private bool avisoImagenesMostrado = false;
         private Dictionary<string, Image> cacheImagenes = new Dictionary<string, Image>();
@@ -25,6 +52,9 @@ namespace WindowsFormsApp1
         private int idPartidaActual = 0;
         private bool partidaFinalizada = false;
 
+        private bool yaRobo = false;
+        private Carta cartaRobadaEnTurno = null;
+
         private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int[] idsJugadores = new int[3];
 
@@ -32,13 +62,21 @@ namespace WindowsFormsApp1
         {
             InitializeComponent();
 
+            this.MinimumSize = new Size(900, 600);
+
+            cartaCentro.Size = new Size(96, 135);
+
+            CrearPestanas();
+            CrearElementosVisuales();
+            AplicarEstiloInterfaz();
+
+            this.Resize += UNO_Resize;
+
             juego = new JuegoUNO();
 
             juego.jugadores.Add(new Jugador(1, nombresJugadores[0]));
             juego.jugadores.Add(new Jugador(2, nombresJugadores[1]));
             juego.jugadores.Add(new Jugador(3, nombresJugadores[2]));
-
-            this.Resize += UNO_Resize;
 
             lblAvisoUno.Visible = false;
 
@@ -60,33 +98,14 @@ namespace WindowsFormsApp1
             juego.cartaActual = juego.Mazo.robarCarta();
 
             CentrarCarta();
-
-            // 1. Obtener o crear los IDs de los jugadores en la BD
-            for (int i = 0; i < nombresJugadores.Length; i++)
-            {
-                idsJugadores[i] = jugadorDAO.ObtenerOCrear(nombresJugadores[i]);
-            }
-
-            // 2. Crear registro de la partida en la BD
-            idPartidaActual = historialDAO.GuardarPartida();
-            historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
-            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
-
-<<<<<<< HEAD
             AplicarReversoMazo();
-=======
-            aplicarReversoMazo();
-            // --- API ---
-            _ = APICliente.IniciarPartidaAsync(nombresJugadores.ToList());
-
->>>>>>> da1edc0be732475117ab144004ffe3bfad868869
             ActualizarInterfaz();
-        }
+            }
 
         // AJUSTAR CARTA CENTRAL
         private void UNO_Resize(object sender, EventArgs e)
         {
-            CentrarCarta();
+            AjustarInterfazResponsive();
         }
 
         // Busca la carpeta "Imagenes" junto al .exe y, si no está, sube por las carpetas padre
@@ -183,7 +202,17 @@ namespace WindowsFormsApp1
             lblNombreJ1.Font = new Font("Segoe UI", 11, juego.jugadorActual == 0 ? FontStyle.Bold : FontStyle.Regular);
             lblNombreJ2.Font = new Font("Segoe UI", 11, juego.jugadorActual == 1 ? FontStyle.Bold : FontStyle.Regular);
             lblNombreJ3.Font = new Font("Segoe UI", 11, juego.jugadorActual == 2 ? FontStyle.Bold : FontStyle.Regular);
+
+            if (juego.jugadores.Count > 0)
+            {
+                Jugador jugadorActual = juego.jugadores[juego.jugadorActual];
+
+                lblTurnoActual.Text = "TURNO: " + jugadorActual.Nombre;
+                lblTurnoActual.BackColor = Color.FromArgb(255, 245, 245);
+                lblTurnoActual.ForeColor = Color.FromArgb(220, 35, 50);
         }
+
+            lblContadorMazo.Text = "Mazo: " + juego.Mazo.cartasRestantes();}
 
         // OBTENER IMAGEN DE UNA CARTA
         private string ObtenerRutaImagen(Carta carta)
@@ -245,74 +274,347 @@ namespace WindowsFormsApp1
         // MOSTRAR CARTAS DE UN JUGADOR
         private void MostrarCartas(FlowLayoutPanel panel, List<Carta> cartas, int indiceJugador)
         {
-            while (panel.Controls.Count > 0)
-                panel.Controls[0].Dispose();
+            if (panel == null)
+                return;
 
-            if (cartas == null) return;
+            panel.SuspendLayout();
+            panel.Controls.Clear();
 
             int cantidad = cartas.Count;
 
-            if (cantidad == 0 && !partidaFinalizada)
+            if (cantidad == 0)
             {
-                partidaFinalizada = true;
-                FinalizarPartidaBD(indiceJugador);
-                MessageBox.Show($"{nombresJugadores[indiceJugador]} se quedó sin cartas. ¡Ganó y sus datos fueron guardados!");
+                panel.ResumeLayout();
                 return;
             }
 
-            int margen = 4;
-            float angulo = 0;
+            int anchoPanel = panel.ClientSize.Width;
+            int altoPanel = panel.ClientSize.Height;
 
-            if (indiceJugador == 1)
-                angulo = 90;
-            else if (indiceJugador == 2)
-                angulo = 270;
+            int anchoCarta;
+            int altoCarta;
+            // JUGADOR 1
+            if (indiceJugador == 0)
+            {
+                altoCarta = Math.Max(75, Math.Min(125, altoPanel - 10));
+
+                // Mientras más cartas haya, menor separación
+                int separacion;
+
+                if (cantidad <= 7)
+                    separacion = 70;
+                else if (cantidad <= 10)
+                    separacion = 48;
+                else if (cantidad <= 15)
+                    separacion = 35;
+                else
+                    separacion = 25;
+
+                anchoCarta =
+                    Math.Max(
+                        45,
+                        Math.Min(
+                            80,
+                            separacion + 15
+                        )
+                    );
+
+                for (int i = 0;
+                     i < cartas.Count;
+                     i++)
+                {
+                    Button boton =
+                        CrearBotonCarta(
+                            cartas[i],
+                            i,
+                            indiceJugador
+                        );
+
+                    boton.Width = anchoCarta;
+                    boton.Height = altoCarta;
+
+                    boton.Margin =
+                        new Padding(
+                            0,
+                            0,
+                            -(
+                                boton.Width -
+                                separacion
+                            ),
+                            0
+                        );
+
+                    panel.Controls.Add(boton);
+                }
+            }
+            else
+            {
+                // ========================================================
+                // JUGADORES 2 Y 3
+                // ========================================================
+
+                anchoCarta =
+                    Math.Max(
+                        45,
+                        Math.Min(
+                            75,
+                            anchoPanel - 10
+                        )
+                    );
+
+                altoCarta =
+                    Math.Max(
+                        75,
+                        Math.Min(
+                            115,
+                            altoPanel / 2
+                        )
+                    );
 
             foreach (Carta carta in cartas)
             {
-                BotonRotado btn = new BotonRotado();
-                btn.Text = "";
-                btn.Margin = new Padding(margen / 2);
-                btn.FlatStyle = FlatStyle.Flat;
-                btn.FlatAppearance.BorderSize = 0;
+                    Button boton =
+                        CrearBotonCarta(
+                            carta,
+                            -1,
+                            indiceJugador
+                        );
 
-                btn.Tag = new object[] { carta, indiceJugador };
-                btn.Angulo = angulo;
-                btn.Enabled = (indiceJugador == juego.jugadorActual);
-                btn.BackgroundImageLayout = ImageLayout.Stretch;
+                    boton.Width =
+                        anchoCarta;
 
-                Image imagen = cargarImagen(ObtenerRutaImagen(carta));
+                    boton.Height =
+                        altoCarta;
 
-                if (imagen != null)
+                    boton.Margin =
+                        new Padding(
+                            0,
+                            0,
+                            0,
+                            -20
+                        );
+
+                    panel.Controls.Add(
+                        boton
+                    );
+                }
+            }
+
+            panel.ResumeLayout();
+        }
+
+        private void AnimarCartasDesdeMazo(
+    List<Carta> cartas,
+    int indiceJugador,
+    Action alFinalizar)
+        {
+            if (cartas == null ||
+                cartas.Count == 0)
+            {
+                alFinalizar();
+                return;
+            }
+
+            animacionEnCurso = true;
+
+            AnimarUnaCarta(
+                cartas,
+                0,
+                indiceJugador,
+                alFinalizar
+            );
+        }
+
+        private void AnimarUnaCarta(
+    List<Carta> cartas,
+    int indiceCarta,
+    int indiceJugador,
+    Action alFinalizar)
+        {
+            if (indiceCarta >= cartas.Count)
+            {
+                animacionEnCurso = false;
+
+                alFinalizar();
+
+                return;
+            }
+
+            cartaAnimada = new Button();
+
+            cartaAnimada.Width = 70;
+            cartaAnimada.Height = 100;
+
+            cartaAnimada.FlatStyle =
+                FlatStyle.Flat;
+
+            cartaAnimada.FlatAppearance.BorderSize =
+                0;
+
+            cartaAnimada.BackgroundImage =
+                cargarImagen(
+                    ObtenerRutaReverso()
+                );
+
+            cartaAnimada.BackgroundImageLayout =
+                ImageLayout.Stretch;
+
+            cartaAnimada.BringToFront();
+
+            pestañaPartida.Controls.Add(
+                cartaAnimada
+            );
+
+            Point inicio =
+                new Point(
+                    (pestañaPartida.ClientSize.Width -
+                    cartaAnimada.Width) / 2,
+
+                    (pestañaPartida.ClientSize.Height -
+                    cartaAnimada.Height) / 2
+                );
+
+            FlowLayoutPanel panelDestino;
+
+            if (indiceJugador == 0)
                 {
-                    btn.BackgroundImage = imagen;
+                panelDestino = panelMano;
+                }
+            else if (indiceJugador == 1)
+            {
+                panelDestino = panelManoJugador2;
+            }
+                else
+                {
+                panelDestino = panelManoJugador3;
+            }
+
+            Point destinoPantalla =
+                panelDestino.PointToScreen(
+                    new Point(
+                        Math.Max(
+                            0,
+                            panelDestino.ClientSize.Width /
+                            2 -
+                            cartaAnimada.Width /
+                            2
+                        ),
+
+                        Math.Max(
+                            0,
+                            panelDestino.ClientSize.Height /
+                            2 -
+                            cartaAnimada.Height /
+                            2
+                        )
+                    )
+                );
+
+            destinoAnimacion =
+                pestañaPartida.PointToClient(
+                    destinoPantalla
+                );
+
+            cartaAnimada.Location =
+                inicio;
+
+            pasoAnimacionCarta = 0;
+
+            totalPasosAnimacionCarta = 12;
+
+            finalizarAnimacionCarta = delegate
+            {
+                if (cartaAnimada != null)
+                {
+                    cartaAnimada.Dispose();
+                    cartaAnimada = null;
+                }
+
+                if (indiceCarta + 1 <
+                    cartas.Count)
+                {
+                    AnimarUnaCarta(
+                        cartas,
+                        indiceCarta + 1,
+                        indiceJugador,
+                        alFinalizar
+                    );
                 }
                 else
                 {
-                    btn.Text = carta.Color + "\n" + carta.Valor;
-                    btn.BackColor = ColorSegunCarta(carta);
+                    animacionEnCurso = false;
+
+                    alFinalizar();
+                }
+            };
+
+            if (timerAnimacionCarta != null)
+            {
+                timerAnimacionCarta.Stop();
+                timerAnimacionCarta.Dispose();
+            }
+
+            timerAnimacionCarta =
+                new Timer();
+
+            timerAnimacionCarta.Interval =
+                25;
+
+            timerAnimacionCarta.Tick +=
+                timerAnimacionCarta_Tick;
+
+            timerAnimacionCarta.Start();
+        }
+
+        private void timerAnimacionCarta_Tick(
+    object sender,
+    EventArgs e)
+        {
+            pasoAnimacionCarta++;
+
+            if (cartaAnimada == null)
+            {
+                timerAnimacionCarta.Stop();
+                return;
                 }
 
-                // JUGADORES LATERALES
-                if (indiceJugador == 1 || indiceJugador == 2)
-                {
-                    int altoFijo = 60;
-                    btn.Width = panel.ClientSize.Width - 10;
-                    int altoDisponible = (panel.ClientSize.Height / Math.Max(1, cantidad)) - margen;
-                    btn.Height = Math.Max(30, Math.Min(altoFijo, altoDisponible));
-                }
-                // JUGADOR PRINCIPAL
-                else
-                {
-                    int anchoDisponible = panel.ClientSize.Width - (margen * (cantidad + 1));
-                    btn.Width = Math.Max(55, Math.Min(anchoDisponible / Math.Max(1, cantidad), 110));
-                    btn.Height = panel.ClientSize.Height - 10;
-                }
+            float progreso =
+                (float)pasoAnimacionCarta /
+                totalPasosAnimacionCarta;
 
-                btn.Click += BtnCarta_Click;
-                panel.Controls.Add(btn);
+            int x =
+                (int)(
+                    cartaAnimada.Left +
+                    (
+                        destinoAnimacion.X -
+                        cartaAnimada.Left
+                    ) *
+                    progreso
+                );
+
+            int y =
+                (int)(
+                    cartaAnimada.Top +
+                    (
+                        destinoAnimacion.Y -
+                        cartaAnimada.Top
+                    ) *
+                    progreso
+                );
+
+            cartaAnimada.Location =
+                new Point(x, y);
+
+            if (pasoAnimacionCarta >=
+                totalPasosAnimacionCarta)
+            {
+                timerAnimacionCarta.Stop();
+
+                finalizarAnimacionCarta();
             }
         }
+
+
 
         private void FinalizarPartidaBD(int indiceGanador)
         {
@@ -354,6 +656,7 @@ namespace WindowsFormsApp1
         }
 
         // JUGAR CARTA
+        // JUGAR CARTA
         private void BtnCarta_Click(object sender, EventArgs e)
         {
             Button btn = (Button)sender;
@@ -376,16 +679,12 @@ namespace WindowsFormsApp1
             // Quitar carta de la mano
             jugador.quitarCarta(cartaJugada);
 
-            // Registrar carta jugada en la BD
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
             string colorCarta = cartaJugada.Color ?? "SinColor";
             string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
             string tipoCarta = cartaJugada.Tipo;
-
-            // Texto descriptivo de la carta para el cuarto argumento de la BD
             string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
 
-            // Registrar carta jugada en BD (4 argumentos)
+            // Registrar carta jugada en la BD (una sola vez)
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], descripcionCartaBD);
 
             // Registrar carta jugada en la API
@@ -454,6 +753,13 @@ namespace WindowsFormsApp1
             if (juego.esGanador(jugador))
             {
                 juego.comprobarGanador(jugador);
+
+                if (!partidaFinalizada)
+                {
+                    partidaFinalizada = true;
+                    FinalizarPartidaBD(indiceJugador);
+                }
+
                 ActualizarInterfaz();
                 MessageBox.Show(jugador.Nombre + " ganó la partida. 🎉", "¡Tenemos ganador!", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -474,16 +780,12 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            // Registrar carta robada en la BD
-            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
             string colorCarta = cartaNueva.Color ?? "SinColor";
             string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
             string tipoCarta = cartaNueva.Tipo;
-
-            // Texto descriptivo de la carta para el cuarto argumento de la BD
             string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
 
-            // Registrar carta robada en BD (4 argumentos)
+            // Registrar carta robada en la BD (una sola vez)
             logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], descripcionCartaBD);
 
             // Registrar carta robada en la API
@@ -632,7 +934,6 @@ namespace WindowsFormsApp1
 
             return Color.LightGray;
         }
-    }
 
     // BOTÓN QUE PERMITE ROTAR LAS CARTAS DE LOS JUGADORES LATERALES
     public class BotonRotado : Button
@@ -682,5 +983,827 @@ namespace WindowsFormsApp1
             }
             g.ResetTransform();
         }
+        }
+
+        private void CrearPestanas()
+        {
+            pestañas = new TabControl();
+
+            pestañas.Dock = DockStyle.Fill;
+
+            pestañaInicio = new TabPage("Inicio");
+            pestañaPartida = new TabPage("Partida");
+
+            pestañaInicio.BackColor = Color.White;
+            pestañaPartida.BackColor = Color.White;
+
+            pestañas.TabPages.Add(pestañaInicio);
+            pestañas.TabPages.Add(pestañaPartida);
+
+            this.Controls.Add(pestañas);
+
+            pestañas.SelectedIndexChanged += pestañas_SelectedIndexChanged;
+
+            pestañas.BringToFront();
+        }
+
+        private void CrearElementosVisuales()
+        {
+            // ============================================================
+            // INICIO
+            // ============================================================
+
+            Label titulo = new Label();
+
+            titulo.Text = "UNO";
+            titulo.Font = new Font(
+                "Segoe UI",
+                32,
+                FontStyle.Bold
+            );
+
+            titulo.AutoSize = true;
+
+            titulo.Location = new Point(20, 30);
+
+            titulo.ForeColor = Color.FromArgb(
+                220,
+                35,
+                50
+            );
+
+            pestañaInicio.Controls.Add(titulo);
+
+
+            lblEstadoInicio = new Label();
+
+            lblEstadoInicio.Text =
+                "¡Prepárate para jugar!";
+
+            lblEstadoInicio.Font = new Font(
+                "Segoe UI",
+                14,
+                FontStyle.Bold
+            );
+
+            lblEstadoInicio.AutoSize = true;
+
+            pestañaInicio.Controls.Add(
+                lblEstadoInicio
+            );
+
+
+            cartaAnimacionInicio = new Button();
+
+            cartaAnimacionInicio.Width = 110;
+            cartaAnimacionInicio.Height = 155;
+
+            cartaAnimacionInicio.FlatStyle =
+                FlatStyle.Flat;
+
+            cartaAnimacionInicio.FlatAppearance.BorderSize = 0;
+
+            cartaAnimacionInicio.BackgroundImageLayout =
+                ImageLayout.Stretch;
+
+            pestañaInicio.Controls.Add(
+                cartaAnimacionInicio
+            );
+
+
+            btnIniciarPartida = new Button();
+
+            btnIniciarPartida.Text =
+                "▶  INICIAR PARTIDA";
+
+            btnIniciarPartida.Width = 230;
+            btnIniciarPartida.Height = 55;
+
+            btnIniciarPartida.Font = new Font(
+                "Segoe UI",
+                12,
+                FontStyle.Bold
+            );
+
+            btnIniciarPartida.BackColor =
+                Color.FromArgb(
+                    220,
+                    35,
+                    50
+                );
+
+            btnIniciarPartida.ForeColor =
+                Color.White;
+
+            btnIniciarPartida.FlatStyle =
+                FlatStyle.Flat;
+
+            btnIniciarPartida.FlatAppearance.BorderSize =
+                0;
+
+            btnIniciarPartida.Cursor =
+                Cursors.Hand;
+
+            btnIniciarPartida.Click +=
+                btnIniciarPartida_Click;
+
+            pestañaInicio.Controls.Add(
+                btnIniciarPartida
+            );
+
+            PosicionarElementosInicio();
+
+
+            // ============================================================
+            // ELEMENTOS EXTRA DE PARTIDA
+            // ============================================================
+
+            lblTurnoActual = new Label();
+
+            lblTurnoActual.Text =
+                "TURNO: Jugador 1";
+
+            lblTurnoActual.Font =
+                new Font(
+                    "Segoe UI",
+                    12,
+                    FontStyle.Bold
+                );
+
+            lblTurnoActual.ForeColor =
+                Color.FromArgb(
+                    220,
+                    35,
+                    50
+                );
+
+            lblTurnoActual.TextAlign =
+                ContentAlignment.MiddleCenter;
+
+            lblTurnoActual.AutoSize = false;
+
+            lblTurnoActual.Size =
+                new Size(220, 35);
+
+
+            lblTituloHistorial = new Label();
+
+            lblTituloHistorial.Text =
+                "HISTORIAL";
+
+            lblTituloHistorial.Font =
+                new Font(
+                    "Segoe UI",
+                    10,
+                    FontStyle.Bold
+                );
+
+            lblTituloHistorial.ForeColor =
+                Color.DimGray;
+
+            lblTituloHistorial.AutoSize = true;
+
+
+            lblContadorMazo = new Label();
+
+            lblContadorMazo.Text =
+                "Mazo: 0";
+
+            lblContadorMazo.Font =
+                new Font(
+                    "Segoe UI",
+                    9,
+                    FontStyle.Bold
+                );
+
+            lblContadorMazo.ForeColor =
+                Color.DimGray;
+
+            lblContadorMazo.TextAlign =
+                ContentAlignment.MiddleCenter;
+
+            lblContadorMazo.AutoSize = false;
+
+            lblContadorMazo.Size =
+                new Size(100, 24);
+
+
+            pestañaPartida.Controls.Add(
+                lblTurnoActual
+            );
+
+            pestañaPartida.Controls.Add(
+                lblTituloHistorial
+            );
+
+            pestañaPartida.Controls.Add(
+                lblContadorMazo
+            );
+
+            lblTurnoActual.BringToFront();
+            lblTituloHistorial.BringToFront();
+            lblContadorMazo.BringToFront();
+        }
+
+        private void PosicionarElementosInicio()
+        {
+            if (pestañaInicio == null ||
+                cartaAnimacionInicio == null ||
+                btnIniciarPartida == null)
+                return;
+
+            int centroX =
+                (pestañaInicio.ClientSize.Width -
+                cartaAnimacionInicio.Width) / 2;
+
+            cartaAnimacionInicio.Location =
+                new Point(
+                    centroX,
+                    175
+                );
+
+            if (lblEstadoInicio != null)
+            {
+                lblEstadoInicio.Location =
+                    new Point(
+                        (pestañaInicio.ClientSize.Width -
+                        lblEstadoInicio.Width) / 2,
+                        115
+                    );
+            }
+
+            int botonX =
+                (pestañaInicio.ClientSize.Width -
+                btnIniciarPartida.Width) / 2;
+
+            btnIniciarPartida.Location =
+                new Point(
+                    botonX,
+                    360
+                );
+        }
+
+        private void btnIniciarPartida_Click(
+    object sender,
+    EventArgs e)
+        {
+            if (partidaIniciada ||
+                (timerBarajar != null &&
+                 timerBarajar.Enabled))
+                return;
+
+            btnIniciarPartida.Enabled = false;
+
+            btnIniciarPartida.Text =
+                "♠  BARAJANDO...";
+
+            lblEstadoInicio.Text =
+                "Preparando las cartas...";
+
+            pasoBarajado = 0;
+
+            if (timerBarajar == null)
+            {
+                timerBarajar = new Timer();
+
+                timerBarajar.Interval = 120;
+
+                timerBarajar.Tick +=
+                    timerBarajar_Tick;
+            }
+
+            string reverso =
+                ObtenerRutaReverso();
+
+            cartaAnimacionInicio.BackgroundImage =
+                cargarImagen(reverso);
+
+            timerBarajar.Start();
+        }
+
+        private void timerBarajar_Tick(
+            object sender,
+            EventArgs e)
+        {
+            pasoBarajado++;
+
+            string carpeta =
+                buscarCarpetaImagenes();
+
+            if (carpeta == null)
+                return;
+
+            string[] cartasAnimacion =
+            {
+        ObtenerRutaReverso(),
+
+        Path.Combine(
+            carpeta,
+            "Rojo",
+            "rojo_5.png"
+        ),
+
+        Path.Combine(
+            carpeta,
+            "Azul",
+            "azul_+2.png"
+        ),
+
+        Path.Combine(
+            carpeta,
+            "Verde",
+            "verde_9.png"
+        ),
+
+        Path.Combine(
+            carpeta,
+            "Amarillo",
+            "amarillo_reversa.png"
+        )
+    };
+
+            string ruta =
+                cartasAnimacion[
+                    pasoBarajado %
+                    cartasAnimacion.Length
+                ];
+
+            cartaAnimacionInicio.BackgroundImage =
+                cargarImagen(ruta);
+
+            int centroX =
+                (pestañaInicio.ClientSize.Width -
+                cartaAnimacionInicio.Width) / 2;
+
+            int desplazamiento =
+                (pasoBarajado % 2 == 0)
+                ? -12
+                : 12;
+
+            cartaAnimacionInicio.Location =
+                new Point(
+                    centroX + desplazamiento,
+                    175
+                );
+
+            if (pasoBarajado >= 14)
+            {
+                timerBarajar.Stop();
+
+                IniciarPartidaReal();
+            }
+        }
+
+        private void IniciarPartidaReal()
+        {
+            partidaIniciada = true;
+
+            partidaFinalizada = false;
+            yaRobo = false;
+
+            cartaRobadaEnTurno = null;
+
+            historialVisual.Clear();
+
+            juego.iniciarPartida();
+
+            juego.colocarCartaInicial();
+
+            // ============================================================
+            // BASE DE DATOS
+            // ============================================================
+
+            for (int i = 0;
+                 i < nombresJugadores.Length;
+                 i++)
+            {
+                idsJugadores[i] =
+                    jugadorDAO.ObtenerOCrear(
+                        nombresJugadores[i]
+                    );
+            }
+
+            idPartidaActual =
+                historialDAO.GuardarPartida();
+
+            historialDAO.GuardarParticipantes(
+                idPartidaActual,
+                nombresJugadores.ToList()
+            );
+
+            logJuegoDAO.RegistrarTurno(
+                idPartidaActual,
+                idsJugadores[juego.jugadorActual],
+                nombresJugadores[juego.jugadorActual]
+            );
+
+            _ = APICliente.IniciarPartidaAsync(
+                nombresJugadores.ToList()
+            );
+
+            pestañas.SelectedIndex = 1;
+
+            AplicarReversoMazo();
+
+            AgregarHistorial(
+                "La partida comenzó. " +
+                nombresJugadores[
+                    juego.jugadorActual
+                ] +
+                " inicia."
+            );
+
+            ActualizarInterfaz();
+
+            AjustarInterfazResponsive();
+        }
+
+        private void pestañas_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (!partidaIniciada &&
+                pestañas.SelectedIndex == 1)
+            {
+                pestañas.SelectedIndex = 0;
+            }
+        }
+
+        private void AjustarInterfazResponsive()
+        {
+            if (pestañaPartida == null)
+                return;
+
+            int ancho =
+                pestañaPartida.ClientSize.Width;
+
+            int alto =
+                pestañaPartida.ClientSize.Height;
+
+            int lado =
+                Math.Max(
+                    105,
+                    Math.Min(
+                        145,
+                        ancho / 8
+                    )
+                );
+
+            int margen = 12;
+
+            int altoMano =
+                Math.Max(
+                    90,
+                    Math.Min(
+                        145,
+                        alto / 4
+                    )
+                );
+
+            int topLateral = 55;
+
+            int altoLateral =
+                Math.Max(
+                    120,
+                    alto - 220
+                );
+
+            // ============================================================
+            // JUGADOR 1
+            // ============================================================
+
+            panelMano.Location =
+                new Point(
+                    lado + 30,
+                    alto - altoMano - 12
+                );
+
+            panelMano.Size =
+                new Size(
+                    Math.Max(
+                        250,
+                        ancho -
+                        (lado * 2) -
+                        60
+                    ),
+                    altoMano
+                );
+
+            panelMano.WrapContents = false;
+
+            panelMano.AutoScroll = false;
+
+
+            // ============================================================
+            // JUGADOR 2
+            // ============================================================
+
+            panelManoJugador2.Location =
+                new Point(
+                    margen,
+                    topLateral
+                );
+
+            panelManoJugador2.Size =
+                new Size(
+                    lado,
+                    altoLateral
+                );
+
+
+            // ============================================================
+            // JUGADOR 3
+            // ============================================================
+
+            panelManoJugador3.Location =
+                new Point(
+                    ancho -
+                    lado -
+                    margen,
+                    topLateral
+                );
+
+            panelManoJugador3.Size =
+                new Size(
+                    lado,
+                    altoLateral
+                );
+
+
+            // ============================================================
+            // NOMBRES
+            // ============================================================
+
+            lblNombreJ1.Location =
+                new Point(
+                    margen,
+                    alto -
+                    altoMano -
+                    38
+                );
+
+            lblNombreJ1.Size =
+                new Size(
+                    lado,
+                    26
+                );
+
+
+            lblNombreJ2.Location =
+                new Point(
+                    margen,
+                    28
+                );
+
+            lblNombreJ2.Size =
+                new Size(
+                    lado,
+                    26
+                );
+
+
+            lblNombreJ3.Location =
+                new Point(
+                    ancho -
+                    lado -
+                    margen,
+                    28
+                );
+
+            lblNombreJ3.Size =
+                new Size(
+                    lado,
+                    26
+                );
+
+
+            // ============================================================
+            // CARTA CENTRAL
+            // ============================================================
+
+            cartaCentro.Location =
+                new Point(
+                    (ancho -
+                    cartaCentro.Width) / 2,
+
+                    Math.Max(
+                        115,
+                        (alto -
+                        cartaCentro.Height) / 2
+                    )
+                );
+
+
+            // ============================================================
+            // TURNO
+            // ============================================================
+
+            int centroX =
+                (ancho -
+                lblTurnoActual.Width) / 2;
+
+            lblTurnoActual.Location =
+                new Point(
+                    centroX,
+                    8
+                );
+
+
+            // ============================================================
+            // HISTORIAL
+            // ============================================================
+
+            lblTituloHistorial.Location =
+                new Point(
+                    centroX - 10,
+                    52
+                );
+
+
+            lblMensaje.Location =
+                new Point(
+                    centroX - 10,
+                    80
+                );
+
+            lblMensaje.Size =
+                new Size(
+                    245,
+                    70
+                );
+
+
+            // ============================================================
+            // MAZO
+            // ============================================================
+
+            lblContadorMazo.Location =
+                new Point(
+                    (ancho -
+                    lblContadorMazo.Width) / 2,
+
+                    cartaCentro.Bottom + 8
+                );
+
+
+            // ============================================================
+            // BOTONES
+            // ============================================================
+
+            RobarJ1.Location =
+                new Point(
+                    ancho - 90,
+                    alto - altoMano - 42
+                );
+
+            UnoJ1.Location =
+                new Point(
+                    ancho - 90,
+                    alto - altoMano - 12
+                );
+
+
+            RobarJ2.Location =
+                new Point(
+                    20,
+                    altoLateral +
+                    topLateral +
+                    4
+                );
+
+            UnoJ2.Location =
+                new Point(
+                    20,
+                    altoLateral +
+                    topLateral +
+                    34
+                );
+
+
+            RobarJ3.Location =
+                new Point(
+                    ancho - lado - 5,
+                    altoLateral +
+                    topLateral +
+                    4
+                );
+
+            UnoJ3.Location =
+                new Point(
+                    ancho - lado - 5,
+                    altoLateral +
+                    topLateral +
+                    34
+                );
+
+
+            // VOLVER A DIBUJAR CARTAS
+            if (juego != null &&
+                juego.jugadores.Count >= 3)
+            {
+                MostrarCartas(panelMano, juego.jugadores[0].Cartas, 0);
+
+                MostrarCartas(panelManoJugador2, juego.jugadores[1].Cartas, 1);
+                MostrarCartas(panelManoJugador3, juego.jugadores[2].Cartas, 2);
+            }
+
+            PosicionarElementosInicio();
+        }
+
+        private void AgregarHistorial(string mensaje)
+        {
+            if (string.IsNullOrWhiteSpace(mensaje))
+                return;
+
+            historialVisual.Insert(0, "• " + mensaje);
+
+            while (historialVisual.Count > 4)
+            {
+                historialVisual.RemoveAt(historialVisual.Count - 1);
+            }
+
+            lblMensaje.Text = string.Join(Environment.NewLine, historialVisual.ToArray());
+            lblMensaje.BackColor = Color.FromArgb(248, 248, 248);
+            lblMensaje.ForeColor = Color.FromArgb(70, 70, 70);
+            lblMensaje.Font = new Font("Segoe UI", 8, FontStyle.Regular);
+            lblMensaje.BorderStyle = BorderStyle.FixedSingle;
+        }
+
+        // Ruta de la imagen del reverso
+        private string ObtenerRutaReverso()
+        {
+            string carpetaBase = buscarCarpetaImagenes();
+            if (carpetaBase == null) return "";
+            return Path.Combine(carpetaBase, "reverso.png");
+        }
+
+        // Crea el botón de una carta
+        private Button CrearBotonCarta(Carta carta, int indiceCarta, int indiceJugador)
+        {
+            BotonRotado boton = new BotonRotado();
+
+            boton.FlatStyle = FlatStyle.Flat;
+            boton.FlatAppearance.BorderSize = 0;
+            boton.BackgroundImageLayout = ImageLayout.Stretch;
+            boton.Cursor = Cursors.Hand;
+            boton.Tag = new object[] { carta, indiceJugador };
+
+            // Jugadores laterales: carta rotada
+            if (indiceJugador == 1) boton.Angulo = 90;
+            else if (indiceJugador == 2) boton.Angulo = -90;
+
+            Image imagen = cargarImagen(ObtenerRutaImagen(carta));
+            if (imagen != null)
+            {
+                boton.BackgroundImage = imagen;
+            }
+            else
+            {
+                // Respaldo si no hay imagen
+                boton.Text = carta.Color + "\n" + carta.Valor;
+                boton.BackColor = ColorSegunCarta(carta);
+                boton.ForeColor = Color.Black;
+                boton.Font = new Font("Segoe UI", 8, FontStyle.Bold);
+            }
+
+            boton.Click += BtnCarta_Click;
+            return boton;
+        }
+
+        // Estilo general de la interfaz
+        private void AplicarEstiloInterfaz()
+        {
+            this.BackColor = Color.White;
+            this.Font = new Font("Segoe UI", 9, FontStyle.Regular);
+
+            if (panelMano != null) panelMano.BackColor = Color.Transparent;
+            if (panelManoJugador2 != null) panelManoJugador2.BackColor = Color.Transparent;
+            if (panelManoJugador3 != null) panelManoJugador3.BackColor = Color.Transparent;
+
+            if (cartaCentro != null)
+            {
+                cartaCentro.FlatStyle = FlatStyle.Flat;
+                cartaCentro.FlatAppearance.BorderSize = 0;
+                cartaCentro.BackgroundImageLayout = ImageLayout.Stretch;
+            }
+
+            foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3 })
+            {
+                if (b == null) continue;
+                b.FlatStyle = FlatStyle.Flat;
+                b.FlatAppearance.BorderSize = 0;
+                b.Cursor = Cursors.Hand;
+            }
+
+            foreach (Button b in new Button[] { UnoJ1, UnoJ2, UnoJ3 })
+            {
+                if (b == null) continue;
+                b.FlatStyle = FlatStyle.Flat;
+                b.BackColor = Color.FromArgb(220, 35, 50);
+                b.ForeColor = Color.White;
+                b.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                b.Cursor = Cursors.Hand;
+            }
+        }
+
+        //AQUI AGREGA
     }
 }
