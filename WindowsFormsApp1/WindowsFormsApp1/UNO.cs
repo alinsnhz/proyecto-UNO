@@ -25,8 +25,6 @@ namespace WindowsFormsApp1
 
         private int idPartidaActual = 0;
         private bool partidaFinalizada = false;
-        private bool yaRobo = false;
-        private Carta cartaRobadaEnTurno = null;
 
         private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int[] idsJugadores = new int[3];
@@ -799,8 +797,6 @@ namespace WindowsFormsApp1
                     jugador.Nombre + " no declaró UNO y robó 2 cartas de penalización");
                 mensaje += ". No dijo UNO y roba 2 cartas";
             }
-
-            Jugador afectado;
 
             switch (cartaJugada.Tipo)
             {
