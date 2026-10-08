@@ -182,7 +182,7 @@ namespace WindowsFormsApp1
                 b.Visible = false;
         }
 
-          //Aquí se agrega el cambio de carta de reversa 
+        //Aquí se agrega el cambio de carta de reversa 
         private void EstilizarRobar(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
@@ -210,7 +210,7 @@ namespace WindowsFormsApp1
             b.Cursor = Cursors.Hand;
         }
 
-          //aquí también (imagen de reverso de carta)
+        //aquí también (imagen de reverso de carta)
         private void AplicarReversoMazo()
         {
             Image reverso = ImagenesUNO.Reverso();
@@ -696,13 +696,30 @@ namespace WindowsFormsApp1
             // La carta viaja de la mano al centro
             await AnimarJugada(cartaJugada, indiceJugador);
 
+            // 1) Sacar la carta de la mano y ponerla en el centro (UNA sola vez)
             jugador.quitarCarta(cartaJugada);
             juego.agregarCartaDescarte(cartaJugada);
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
 
-            string mensaje = jugador.Nombre + " jugó: " + cartaJugada.Valor;
+            string colorCarta = cartaJugada.Color ?? "SinColor";
+            string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
+            string tipoCarta = cartaJugada.Tipo;
+            string descripcionCartaBD = (colorCarta + " " + valorCarta).Trim();
 
-            // Penalización por no decir UNO
+            // 2) Registrar la jugada en la BD y en la API
+            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, descripcionCartaBD);
+
+            _ = APICliente.RegistrarJugadaAsync(
+                idPartidaActual,
+                idJugador,
+                jugador.Nombre,
+                colorCarta,
+                valorCarta,
+                tipoCarta
+            );
+
+            string mensaje = jugador.Nombre + " jugó: " + valorCarta;
+
+            // 3) Penalización por no decir UNO
             if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
             {
                 juego.agregaCartaRobada(jugador);
@@ -713,6 +730,7 @@ namespace WindowsFormsApp1
                 await VolarReversos(2, indiceJugador);
             }
 
+            // 4) Efecto de la carta (aquí se cambia el turno UNA sola vez)
             Jugador afectado;
 
             switch (cartaJugada.Tipo)
@@ -739,8 +757,8 @@ namespace WindowsFormsApp1
                     }
                     else
                     {
-                        juego.aplicarReversa();
-                        juego.cambiarTurno();
+                        juego.aplicarReversa();   // invierte el sentido
+                        juego.cambiarTurno();     // y pasa al siguiente en el nuevo sentido
                     }
                     logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
                     break;
@@ -763,89 +781,8 @@ namespace WindowsFormsApp1
             }
 
             AgregarHistorial(mensaje);
-            jugador.quitarCarta(cartaJugada);
-            juego.agregarCartaDescarte(cartaJugada);
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
 
-            string mensaje1 = jugador.Nombre + " jugó: " + cartaJugada.Valor;
-            string colorCarta = cartaJugada.Color ?? "SinColor";
-            string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
-            string tipoCarta = cartaJugada.Tipo;
-
-            // Texto descriptivo de la carta para el cuarto argumento de la BD
-            string descripcionCartaBD = $"{colorCarta} {valorCarta}".Trim();
-
-            // Registrar carta jugada en BD (4 argumentos)
-            logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], descripcionCartaBD);
-
-            // Registrar carta jugada en la API
-            _ = APICliente.RegistrarJugadaAsync(
-                idPartidaActual,
-                idsJugadores[indiceJugador],
-                nombresJugadores[indiceJugador],
-                colorCarta,
-                valorCarta,
-                tipoCarta
-            );
-
-            // Penalización por no decir UNO
-            if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
-            {
-                juego.agregaCartaRobada(jugador);
-                juego.agregaCartaRobada(jugador);
-                logJuegoDAO.registrarMensaje(idPartidaActual, idJugador,
-                    jugador.Nombre + " no declaró UNO y robó 2 cartas de penalización");
-                mensaje += ". No dijo UNO y roba 2 cartas";
-            }
-
-            switch (cartaJugada.Tipo)
-            {
-                case "Comodin":
-                    juego.aplicarComodin(colorElegido);
-                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
-                    mensaje += " (color: " + colorElegido + ")";
-                    juego.cambiarTurno();
-                    break;
-
-                case "+4":
-                    afectado = juego.aplicarMasCuatro(colorElegido);
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+4");
-                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
-                    mensaje += " (color: " + colorElegido + "). " + afectado.Nombre + " roba 4 y pierde su turno";
-                    break;
-
-                case "Reversa":
-                    if (juego.jugadores.Count == 2)
-                    {
-                        juego.aplicarSalta();   // con 2 jugadores la reversa funciona como salto
-                    }
-                    else
-                    {
-                        juego.aplicarReversa();
-                        juego.cambiarTurno();
-                    }
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
-                    break;
-
-                case "Salta":
-                    juego.aplicarSalta();
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Salto");
-                    break;
-
-                case "+2":
-                    afectado = juego.aplicarMasDos();
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+2");
-                    mensaje += ". " + afectado.Nombre + " roba 2 y pierde su turno";
-                    break;
-
-                default:
-                    juego.cambiarTurno();
-                    break;
-            }
-
-            lblMensaje.Text = mensaje;
-
-            // COMPROBAR GANADOR
+            // 5) Comprobar ganador
             if (juego.esGanador(jugador))
             {
                 juego.comprobarGanador(jugador);
@@ -876,11 +813,6 @@ namespace WindowsFormsApp1
             try
             {
                 Carta cartaNueva = juego.robarDuranteTurno(jugador);
-            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
-                nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
-            string colorCarta = cartaNueva.Color ?? "SinColor";
-            string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
-            string tipoCarta = cartaNueva.Tipo;
 
                 if (cartaNueva == null)
                 {
@@ -890,17 +822,30 @@ namespace WindowsFormsApp1
                     return;
                 }
 
-                logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
-                    nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
+                string colorCarta = cartaNueva.Color ?? "SinColor";
+                string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
+                string tipoCarta = cartaNueva.Tipo;
+                int idJugadorActual = idsJugadores[juego.jugadorActual];
+                string nombreActual = nombresJugadores[juego.jugadorActual];
+
+                // Registrar la carta robada en la BD y en la API (una sola vez)
+                logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idJugadorActual, nombreActual,
+                    (colorCarta + " " + valorCarta).Trim());
+
+                _ = APICliente.RegistrarCartaRobadaAsync(
+                    idPartidaActual,
+                    idJugadorActual,
+                    nombreActual,
+                    colorCarta,
+                    valorCarta,
+                    tipoCarta
+                );
 
                 yaRobo = true;
                 cartaRobadaEnTurno = cartaNueva;
 
                 // La carta viaja del mazo a la mano
                 await VolarReversos(1, juego.jugadorActual);
-
-            yaRobo = true;
-            cartaRobadaEnTurno = cartaNueva;
 
                 if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
                 {
@@ -910,7 +855,7 @@ namespace WindowsFormsApp1
                 else
                 {
                     AgregarHistorial(jugador.Nombre + " robó una carta y no puede jugarla. Pasa el turno.");
-                    PasarTurno(jugador);
+                    PasarTurno(jugador);   // solo cambia el turno, NO el sentido
                 }
             }
             finally
