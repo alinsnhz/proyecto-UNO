@@ -95,6 +95,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AbanicoCartas.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Carta.cs" />
     <Compile Include="APICliente.cs" />
     <Compile Include="conexionBD.cs" />
