@@ -191,7 +191,7 @@ namespace WindowsFormsApp1
             if (!File.Exists(ruta)) return;
 
             Image reverso;
-            using Image tmp = Image.FromFile(ruta)
+            Image tmp = Image.FromFile(ruta);
             {
                 reverso = new Bitmap(tmp);
             }
@@ -354,18 +354,13 @@ namespace WindowsFormsApp1
                     return;
             }
 
-<<<<<<< HEAD
             jugador.quitarCarta(cartaJugada);
             juego.agregarCartaDescarte(cartaJugada);
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, cartaJugada.Color + " " + cartaJugada.Valor);
 
-<<<<<<< HEAD
             string mensaje = jugador.Nombre + " jugó: " + cartaJugada.Valor;
-=======
-=======
             // Registrar carta jugada en la BD
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idsJugadores[indiceJugador], nombresJugadores[indiceJugador], cartaJugada.Color + " " + cartaJugada.Valor);
->>>>>>> c77e6d4b03b61a3715e0a12478ad1cc7db797d25
             string colorCarta = cartaJugada.Color ?? "SinColor";
             string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
             string tipoCarta = cartaJugada.Tipo;
@@ -385,7 +380,6 @@ namespace WindowsFormsApp1
                 valorCarta,
                 tipoCarta
             );
->>>>>>> 8a199ee1524f602e87b55d7c4ff29631403192d0
 
             // Penalización por no decir UNO
             if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
@@ -397,7 +391,6 @@ namespace WindowsFormsApp1
                 mensaje += ". No dijo UNO y roba 2 cartas";
             }
 
-<<<<<<< HEAD
             Jugador afectado;
 
             switch (cartaJugada.Tipo)
@@ -446,11 +439,9 @@ namespace WindowsFormsApp1
             }
 
             lblMensaje.Text = mensaje;
-=======
             // Registrar cambio de turno en BD y API
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
             _ = APICliente.RegistrarTurnoAsync(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
->>>>>>> 8a199ee1524f602e87b55d7c4ff29631403192d0
 
             // COMPROBAR GANADOR
             if (juego.esGanador(jugador))
@@ -489,15 +480,11 @@ namespace WindowsFormsApp1
                 return;
             }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-            logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
+             logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual],
                 nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
-=======
-=======
+
             // Registrar carta robada en la BD
             logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual], cartaNueva.Color + " " + cartaNueva.Valor);
->>>>>>> c77e6d4b03b61a3715e0a12478ad1cc7db797d25
             string colorCarta = cartaNueva.Color ?? "SinColor";
             string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
             string tipoCarta = cartaNueva.Tipo;
@@ -517,7 +504,6 @@ namespace WindowsFormsApp1
                 valorCarta,
                 tipoCarta
             );
->>>>>>> 8a199ee1524f602e87b55d7c4ff29631403192d0
 
             yaRobo = true;
             cartaRobadaEnTurno = cartaNueva;
