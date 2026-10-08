@@ -144,7 +144,7 @@ namespace proyecto_UNO
                     carta.Color = "Negro";
             }
             Mazo.Cartas.AddRange(pilaDescarte);
-            
+
             pilaDescarte.Clear();
             pilaDescarte.Add(superior);
 
@@ -187,7 +187,7 @@ namespace proyecto_UNO
             for(int i = 0; i < cantidad; i++)
             {
                 agregaCartaRobada(afectado);
-        }
+            }
             cambiarTurno();
             return afectado;
         }
@@ -200,13 +200,13 @@ namespace proyecto_UNO
         public void aplicarComodin(string color)
         {
             if(cartaActual != null)
-            cartaActual.Color = color;
+                cartaActual.Color = color;
         }
 
         public Jugador aplicarMasCuatro(string color)
         {
             if (cartaActual != null)
-            cartaActual.Color = color;
+                cartaActual.Color = color;
 
             return aplicaPenalizacionRobo(4);
         }
@@ -299,7 +299,7 @@ namespace proyecto_UNO
         {
             if (!esTurnoDe(jugador))
                 return null;
-
+           
             Carta carta = agregaCartaRobada(jugador);
 
             if (carta != null)
