@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Windows.Forms;
 using proyectoUNO;
+using System.Drawing.Imaging;
 
 namespace WindowsFormsApp1
 {
@@ -62,10 +63,12 @@ namespace WindowsFormsApp1
 
         public static string RutaCarta(Carta carta)
         {
-            if (carta == null) return "";
+            if (carta == null) 
+                return "";
 
             string baseDir = CarpetaImagenes();
-            if (baseDir == null) return "";
+            if (baseDir == null) 
+                return "";
 
             string nombreColor = carta.Color != null ? carta.Color.ToLower() : "";
             string subcarpeta;
@@ -84,11 +87,16 @@ namespace WindowsFormsApp1
             else
             {
                 subcarpeta = carta.Color;
-                if (carta.Tipo == "Número") archivo = nombreColor + "_" + carta.Valor + ".png";
-                else if (carta.Tipo == "+2") archivo = nombreColor + "_+2.png";
-                else if (carta.Tipo == "Reversa") archivo = nombreColor + "_reversa.png";
-                else if (carta.Tipo == "Salta") archivo = nombreColor + "_cancelar.png";
-                else return "";
+                if (carta.Tipo == "Número") 
+                    archivo = nombreColor + "_" + carta.Valor + ".png";
+                else if (carta.Tipo == "+2") 
+                    archivo = nombreColor + "_+2.png";
+                else if (carta.Tipo == "Reversa") 
+                    archivo = nombreColor + "_reversa.png";
+                else if (carta.Tipo == "Salta") 
+                    archivo = nombreColor + "_cancelar.png";
+                else 
+                    return "";
             }
 
             return Path.Combine(baseDir, subcarpeta, archivo);
@@ -99,26 +107,74 @@ namespace WindowsFormsApp1
             return Cargar(RutaCarta(carta));
         }
 
+        private static Image reversoRecortado = null;
+
         public static Image Reverso()
         {
+            if (reversoRecortado != null) 
+                return reversoRecortado;
+
             string baseDir = CarpetaImagenes();
-            return baseDir == null ? null : Cargar(Path.Combine(baseDir, "reverso.png"));
+            if (baseDir == null) 
+                return null;
+
+            Image original = Cargar(Path.Combine(baseDir, "card_reverse.png"));
+            if (original == null) 
+                original = Cargar(Path.Combine(baseDir, "reverso.png"));
+            if (original == null) 
+                return null;
+
+            // La imagen trae un margen blanco: se recorta y se redondean las esquinas
+            int margenX = (int)(original.Width * 0.04);
+            int margenY = (int)(original.Height * 0.021);
+            int w = original.Width - margenX * 2;
+            int h = original.Height - margenY * 2;
+
+            Bitmap resultado = new Bitmap(w, h, PixelFormat.Format32bppArgb);
+            using (Graphics g = Graphics.FromImage(resultado))
+            using (GraphicsPath clip = EstiloUI.RectRedondeado(new RectangleF(0, 0, w, h), w * 0.05f))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SetClip(clip);
+                g.DrawImage(original, new Rectangle(0, 0, w, h),
+                    new Rectangle(margenX, margenY, w, h), GraphicsUnit.Pixel);
+            }
+
+            reversoRecortado = resultado;
+            return reversoRecortado;
+        }
+
+        // Busca Imagenes\Iconos junto al .exe y, si no está, sube por las carpetas padre
+        private static string BuscarCarpetaIconos()
+        {
+            string[] bases = { Application.StartupPath, AppDomain.CurrentDomain.BaseDirectory };
+            foreach (string inicio in bases)
+            {
+                DirectoryInfo dir = new DirectoryInfo(inicio);
+                for (int i = 0; i < 6 && dir != null; i++)
+                {
+                    string candidata = Path.Combine(dir.FullName, "Imagenes", "Iconos");
+                    if (Directory.Exists(candidata)) return candidata;
+                    dir = dir.Parent;
+                }
+            }
+            return null;
         }
 
         public static List<string> RutasIconos()
         {
             List<string> lista = new List<string>();
-            string baseDir = CarpetaImagenes();
-            if (baseDir == null) return lista;
 
-            string dirIconos = Path.Combine(baseDir, "Iconos");
-            if (!Directory.Exists(dirIconos)) return lista;
+            string dirIconos = BuscarCarpetaIconos();
+            if (dirIconos == null) return lista;
 
             foreach (string patron in new string[] { "*.png", "*.jpg", "*.jpeg", "*.bmp" })
             {
                 foreach (string f in Directory.GetFiles(dirIconos, patron))
                 {
-                    if (!lista.Contains(f)) lista.Add(f);
+                    if (!lista.Contains(f)) 
+                        lista.Add(f);
                 }
             }
             return lista;
