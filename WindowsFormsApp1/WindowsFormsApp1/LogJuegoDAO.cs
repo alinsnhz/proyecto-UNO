@@ -28,6 +28,11 @@ namespace WindowsFormsApp1
             InsertarEvento(idPartida, idJugador, $"{nombreJugador} jugó: {carta}");
         }
 
+        public void RegistrarMensaje(int idPartida, int idJugador, string mensaje)
+        {
+            InsertarEvento(idPartida, idJugador, mensaje);
+        }
+
         public void RegistrarCartaRobada(int idPartida, int idJugador, string nombreJugador, string carta)
         {
             InsertarEvento(idPartida, idJugador, $"{nombreJugador} robó una carta: {carta}");

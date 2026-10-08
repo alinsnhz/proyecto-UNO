@@ -29,8 +29,9 @@ namespace WindowsFormsApp1
 
         public AbanicoCartas()
         {
-            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingFlags |
-                     ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
+            SetStyle(ControlStyles.UserPaint |
+         ControlStyles.ResizeRedraw |
+         ControlStyles.SupportsTransparentBackColor, true);
             SetStyle(ControlStyles.Selectable, false);
             BackColor = Color.Transparent;
             TabStop = false;
