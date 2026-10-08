@@ -9,7 +9,7 @@ using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
 {
-    public class InicioForm : Form
+    public partial class InicioForm : Form
     {
         private readonly TextBox[] txtNombres = new TextBox[3];
         private readonly PictureBox[] picIconos = new PictureBox[3];
