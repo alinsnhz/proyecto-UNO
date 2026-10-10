@@ -9,15 +9,30 @@ using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
 {
+    // Formulario de inicio del juego UNO, encargado de recopilar los nombres de los 3 jugadores,
+    // asignarles iconos aleatorios, validar los datos y dar inicio a la partida principal.
     public partial class InicioForm : Form
     {
+        // Arreglo para almacenar los controles de texto donde cada jugador ingresará su nombre.
         private readonly TextBox[] txtNombres = new TextBox[3];
+
+        // Arreglo para almacenar los contenedores visuales de los iconos asignados a cada jugador.
         private readonly PictureBox[] picIconos = new PictureBox[3];
+
+        // Botón principal para iniciar el juego.
         private readonly Button btnJugar = new Button();
+
+        // Control decorativo que muestra un abanico de cartas en la interfaz de bienvenida.
         private readonly AbanicoCartas decoracion = new AbanicoCartas();
+
+        // Arreglo para almacenar los identificadores de los iconos seleccionados.
         private string[] iconos;
+
+        // Rectángulo que delimita la zona donde se ubica el panel de jugadores.
         private Rectangle panelJugadores = Rectangle.Empty;
 
+        // Constructor de la clase InicioForm. Inicializa las propiedades de la ventana,
+        // crea y configura dinámicamente los campos de texto, iconos, botón de juego y elementos decorativos.
         public InicioForm()
         {
             this.Text = "UNO";
@@ -28,6 +43,7 @@ namespace WindowsFormsApp1
             this.DoubleBuffered = true;
             this.ResizeRedraw = true;
 
+            // Bucle para instanciar, configurar y agregar los PictureBox (iconos) y TextBox (nombres) de los 3 jugadores.
             for (int i = 0; i < 3; i++)
             {
                 PictureBox pic = new PictureBox();
@@ -45,9 +61,10 @@ namespace WindowsFormsApp1
                 this.Controls.Add(txt);
             }
 
-            // Cada jugador recibe un icono aleatorio
+            // Cada jugador recibe un icono aleatorio para su identificación visual.
             RepartirIconos();
 
+            // Configuración visual y de eventos del botón para comenzar la partida.
             btnJugar.Text = "¡JUGAR!";
             btnJugar.FlatStyle = FlatStyle.Flat;
             btnJugar.FlatAppearance.BorderSize = 0;
@@ -62,15 +79,19 @@ namespace WindowsFormsApp1
             this.Controls.Add(btnJugar);
             this.AcceptButton = btnJugar;
 
+            // Configuración del componente visual decorativo del abanico de cartas.
             decoracion.Orientacion = 0f;
             decoracion.Atenuar = false;
             decoracion.PonerCartas(MuestraDecorativa(), false);
             this.Controls.Add(decoracion);
 
+            // Suscripción al evento de cambio de tamaño para reorganizar los elementos de la interfaz.
             this.Resize += (s, e) => Acomodar();
             Acomodar();
         }
 
+        // Crea y retorna una lista predefinida de cartas utilizadas exclusivamente
+        // para adornar estéticamente la pantalla de inicio mediante el componente de abanico.
         private List<Carta> MuestraDecorativa()
         {
             return new List<Carta>
@@ -85,6 +106,7 @@ namespace WindowsFormsApp1
             };
         }
 
+        // Obtiene un conjunto de iconos aleatorios y los asigna visualmente a los PictureBox de cada jugador.
         private void RepartirIconos()
         {
             iconos = ImagenesUNO.IconosAleatorios(3);
@@ -92,6 +114,8 @@ namespace WindowsFormsApp1
                 picIconos[i].Image = ImagenesUNO.Cargar(iconos[i]);
         }
 
+        // Valida que los nombres ingresados no estén vacíos ni repetidos, comprueba la conexión a la base de datos
+        // y procede a inicializar y abrir el formulario principal de la partida de UNO.
         private void Jugar()
         {
             string[] nombres = new string[3];
@@ -99,6 +123,7 @@ namespace WindowsFormsApp1
             {
                 nombres[i] = txtNombres[i].Text.Trim();
 
+                // Validación de campos vacíos.
                 if (nombres[i].Length == 0)
                 {
                     MessageBox.Show("Escribe el nombre de los 3 jugadores.", "Faltan nombres",
@@ -107,6 +132,7 @@ namespace WindowsFormsApp1
                     return;
                 }
 
+                // Validación de nombres duplicados entre los jugadores.
                 for (int j = 0; j < i; j++)
                 {
                     if (string.Equals(nombres[i], nombres[j], StringComparison.OrdinalIgnoreCase))
@@ -119,6 +145,7 @@ namespace WindowsFormsApp1
                 }
             }
 
+            // Verificación del estado de la conexión a la base de datos antes de arrancar.
             string error;
             if (!conexionBD.ProbarConexion(out error))
             {
@@ -127,16 +154,19 @@ namespace WindowsFormsApp1
                 return;
             }
 
+            // Instanciación del formulario de juego, pasando los nombres y los iconos elegidos.
             UNO partida = new UNO(nombres, (string[])iconos.Clone());
             partida.FormClosed += (s, e) =>
             {
-                RepartirIconos();     // iconos nuevos para la siguiente partida
-                this.Show();
+                RepartirIconos();     // Genera nuevos iconos para una futura partida.
+                this.Show();          // Vuelve a mostrar la pantalla de inicio al cerrar el juego.
             };
             this.Hide();
             partida.Show();
         }
 
+        // Calcula y reubica dinámicamente las posiciones y tamaños de todos los controles visuales 
+        // (cajas de texto, iconos, botón de jugar y abanico) en función de las dimensiones actuales de la ventana.
         private void Acomodar()
         {
             int W = ClientSize.Width, H = ClientSize.Height;
@@ -172,6 +202,8 @@ namespace WindowsFormsApp1
             Invalidate();
         }
 
+        // Sobrescribe el evento de renderizado (OnPaint) para dibujar manualmente el fondo con degradado,
+        // círculos estéticos decorativos, el logotipo inclinado del juego "UNO", el subtítulo y el contenedor semitransparente de los jugadores.
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -183,19 +215,20 @@ namespace WindowsFormsApp1
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAlias;
 
+            // Dibujo del fondo con degradado lineal.
             using (LinearGradientBrush fondo = new LinearGradientBrush(
                 new Rectangle(0, 0, W, H), Color.FromArgb(170, 15, 15), Color.FromArgb(30, 0, 5), 65f))
             {
                 g.FillRectangle(fondo, 0, 0, W, H);
             }
 
-            // círculos decorativos
+            // Dibujo de círculos decorativos de fondo.
             using (SolidBrush b1 = new SolidBrush(Color.FromArgb(28, 255, 200, 0)))
                 g.FillEllipse(b1, -W * 0.15f, -H * 0.25f, W * 0.55f, W * 0.55f);
             using (SolidBrush b2 = new SolidBrush(Color.FromArgb(24, 30, 120, 255)))
                 g.FillEllipse(b2, W * 0.65f, H * 0.35f, W * 0.6f, W * 0.6f);
 
-            // logo UNO (óvalo rojo inclinado)
+            // Dibujo del logotipo principal "UNO" (óvalo rojo inclinado con borde blanco y texto).
             float lw = Math.Min(W * 0.46f, H * 0.46f);
             float lh = lw * 0.5f;
             GraphicsState st = g.Save();
@@ -223,7 +256,7 @@ namespace WindowsFormsApp1
             }
             g.Restore(st);
 
-            // subtítulo
+            // Dibujo del subtítulo informativo en la interfaz.
             using (Font f = new Font("Segoe UI", 12f))
             using (StringFormat sf = new StringFormat())
             {
@@ -232,7 +265,7 @@ namespace WindowsFormsApp1
                     f, Brushes.WhiteSmoke, new RectangleF(0, H * 0.265f, W, 26), sf);
             }
 
-            // panel de jugadores
+            // Dibujo del panel semitransparente que contiene los campos de los jugadores.
             if (panelJugadores.Width > 0)
             {
                 using (GraphicsPath p = RectRedondeado(panelJugadores, 22))
@@ -243,6 +276,20 @@ namespace WindowsFormsApp1
                     g.DrawPath(borde, p);
                 }
             }
+        }
+
+        // Método requerido por Windows Forms para inicializar los componentes visuales
+        private void InitializeComponent()
+        {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(InicioForm));
+            this.SuspendLayout();
+      
+            // InicioForm
+            this.ClientSize = new System.Drawing.Size(284, 261);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Name = "InicioForm";
+            this.ResumeLayout(false);
+
         }
     }
 }
