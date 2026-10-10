@@ -53,6 +53,8 @@ namespace WindowsFormsApp1
         {
             InitializeComponent();
 
+            
+
             juego = new JuegoUNO();
 
             juego.jugadores.Add(new Jugador(1, nombresJugadores[0]));
@@ -432,6 +434,12 @@ namespace WindowsFormsApp1
             {
                 historialDAO.GuardarResultado(idPartidaActual, nombresJugadores[i], juego.jugadores[i].Cartas.Count);
             }
+            /*if (juego.partidaTerminada)
+            {
+                MessageBox.Show($"{juego.Ganador.Nombre} ha ganado la partida!", "Fin del Juego",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.Close();
+            }*/
         }
 
         // MOSTRAR CARTA CENTRAL
@@ -788,6 +796,7 @@ namespace WindowsFormsApp1
                 juego.comprobarGanador(jugador);
                 logJuegoDAO.RegistrarMensaje(idPartidaActual, idJugador, jugador.Nombre + " ganó la partida");
                 ActualizarInterfaz();   // aquí MostrarCartas guarda el resultado y muestra el aviso
+                this.Close();//cierra la ventana del juego
                 return;
             }
 
