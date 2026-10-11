@@ -13,6 +13,10 @@ using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Es la ventana principal de la partida. 
+     * Coordina la interfaz, la lógica del juego, las animaciones, los botones y el registro de eventos
+    */
     public partial class UNO : Form
     {
         private JuegoUNO juego;
@@ -88,7 +92,7 @@ namespace WindowsFormsApp1
             this.WindowState = FormWindowState.Maximized;
         }
 
-        // INICIO DEL JUEGO
+        //inicializa la ventana cuando se carga, configura controles y prepara la partida/interfaz
         private async void UNO_Load(object sender, EventArgs e)
         {
             AcomodarControles();
@@ -116,6 +120,7 @@ namespace WindowsFormsApp1
         }
 
         // CONFIGURACIÓN, ESTILO Y DISTRIBUCIÓN DE LA INTERFAZ
+        //aplica la configuración visual inicial a los controles
         private void ConfigurarInterfaz()
         {
             this.DoubleBuffered = true;
@@ -185,6 +190,7 @@ namespace WindowsFormsApp1
         }
 
         //Aquí se agrega el cambio de carta de reversa 
+        // da estilo visual al botón de robar
         private void EstilizarRobar(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
@@ -198,6 +204,7 @@ namespace WindowsFormsApp1
             b.Cursor = Cursors.Hand;
         }
 
+        //da estilo visual al botón de declarar UNO
         private void EstilizarUno(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
@@ -212,7 +219,7 @@ namespace WindowsFormsApp1
             b.Cursor = Cursors.Hand;
         }
 
-        //aquí también (imagen de reverso de carta)
+        //coloca o actualiza la imagen del reverso del mazo
         private void AplicarReversoMazo()
         {
             Image reverso = ImagenesUNO.Reverso();
@@ -225,7 +232,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // falta implementar iconos aleatorios 
+        // asigna iconos visuales a los jugadores
         private void AsignarIconos()
         {
             if (iconosJugadores == null)
@@ -244,17 +251,20 @@ namespace WindowsFormsApp1
         }
 
         // AJUSTAR TODO AL TAMAÑO DE LA VENTANA
+        //responde al cambio de tamaño de la ventana reorganizando elementos
         private void UNO_Resize(object sender, EventArgs e)
         {
             CentrarCarta();
         }
 
+        //centra la carta que se muestra en el área central
         private void CentrarCarta()
         {
             AcomodarControles();
         }
 
         // Coloca todo en proporción al tamaño de la ventana
+        //calcula y actualiza la posición/tamaño de los controles de la ventana
         private void AcomodarControles()
         {
             if (abanicos[0] == null || lblTurno == null) return;
@@ -339,6 +349,7 @@ namespace WindowsFormsApp1
         }
 
         // ACTUALIZAR LA INTERFAZ
+        //refresca manos, cartas, botones y demás elementos visibles tras una acción
         private void ActualizarInterfaz()
         {
             if (juego.jugadores.Count < 3)
@@ -370,6 +381,7 @@ namespace WindowsFormsApp1
             ActualizarTurno();
         }
 
+        //actualiza la indicación visual del jugador que tiene el turno
         private void ActualizarTurno()
         {
             if (lblTurno == null) return;
@@ -395,6 +407,7 @@ namespace WindowsFormsApp1
         }
 
         // Muestra los últimos 3 movimientos en el historial
+        //añade un mensaje al historial visual de la partida
         private void AgregarHistorial(string texto)
         {
             historial.Insert(0, texto);
@@ -405,6 +418,7 @@ namespace WindowsFormsApp1
         }
 
         // MOSTRAR CARTAS DE UN JUGADOR (en abanico)
+        //entrega las cartas de un jugador al control gráfico que las dibuja
         private void MostrarCartas(AbanicoCartas abanico, List<Carta> cartas, int indiceJugador)
         {
             if (cartas == null)
@@ -423,6 +437,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //registra en la base de datos el resultado final usando el índice del ganador
         private void FinalizarPartidaBD(int indiceGanador)
         {
             string nombreGanador = nombresJugadores[indiceGanador];
@@ -443,6 +458,7 @@ namespace WindowsFormsApp1
         }
 
         // MOSTRAR CARTA CENTRAL
+        //actualiza la carta que aparece en el centro de la mesa
         private void MostrarCartaCentro()
         {
             if (cartaCentro == null || juego.cartaActual == null)
@@ -472,16 +488,19 @@ namespace WindowsFormsApp1
         }
 
         // ANIMACIONES
+        //calcula el punto central de un control
         private Point Centro(Control c)
         {
             return new Point(c.Left + c.Width / 2, c.Top + c.Height / 2);
         }
 
+        //convierte un punto relativo a un control a coordenadas del formulario
         private Point EnFormulario(Control c, Point p)
         {
             return new Point(c.Left + p.X, c.Top + p.Y);
         }
 
+        //crea el panel temporal usado para animar una carta en movimiento
         private Panel NuevaCartaVuelo(Image imagen, Size tam)
         {
             Panel p = new Panel();
@@ -494,7 +513,8 @@ namespace WindowsFormsApp1
             return p;
         }
 
-        // Una carta que "viaja" de un punto a otro
+        // anima el desplazamiento y cambio de tamaño de una imagen de carta
+        // entre dos posiciones durante el tiempo indicado
         private async Task VolarCarta(Image img, Point desde, Size tamDesde, Point hasta, Size tamHasta, int ms)
         {
             Panel vuelo = NuevaCartaVuelo(img, tamDesde);
@@ -521,6 +541,7 @@ namespace WindowsFormsApp1
             vuelo.Dispose();
         }
 
+        //espera el tiempo especificado y después ejecuta la animación de vuelo
         private async Task VolarConEspera(Image img, Point desde, Size tamDesde, Point hasta, Size tamHasta, int ms, int espera)
         {
             if (espera > 0) await Task.Delay(espera);
@@ -528,6 +549,7 @@ namespace WindowsFormsApp1
         }
 
         // Cartas boca abajo que salen del mazo hacia la mano de un jugador (robar / penalizaciones)
+        //anima el movimiento de cierta cantidad de reversos hacia el jugador destino
         private async Task VolarReversos(int cantidad, int indiceDestino)
         {
             Image reverso = ImagenesUNO.Reverso();
@@ -544,6 +566,7 @@ namespace WindowsFormsApp1
         }
 
         // La carta jugada viaja de la mano al centro
+        //anima visualmente una carta que se juega desde la mano de un jugador hacia el centro
         private async Task AnimarJugada(Carta carta, int indiceJugador)
         {
             AbanicoCartas mano = abanicos[indiceJugador];
@@ -556,6 +579,7 @@ namespace WindowsFormsApp1
             await VolarCarta(ImagenesUNO.ImagenCarta(carta), origen, tamOrigen, Centro(cartaCentro), cartaCentro.Size, 320);
         }
 
+        //anima el reparto de una carta hacia el jugador indicado y controla la espera/contador de cartas recibidas
         private async Task RepartirCarta(Image img, Point desde, Size tam, Point hasta, int espera, int jugador, int[] recibidas)
         {
             await Task.Delay(espera);
@@ -567,6 +591,7 @@ namespace WindowsFormsApp1
         }
 
         // Barajeo + reparto al iniciar la partida
+        //ejecuta la animación de inicio o reparto inicial de cartas
         private async Task AnimacionInicio()
         {
             animando = true;
@@ -657,6 +682,7 @@ namespace WindowsFormsApp1
         }
 
         // JUGAR CARTA
+        //coordina la jugada seleccionada, su animación y el procesamiento interno
         private async Task JugarCarta(Carta cartaJugada, int indiceJugador)
         {
             if (animando || juego.partidaTerminada || indiceJugador != juego.jugadorActual)
@@ -673,6 +699,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //aplica la jugada a la lógica, actualiza la mano/carta central y procesa efectos de la carta
         private async Task JugarCartaInterno(Carta cartaJugada, int indiceJugador)
         {
             Jugador jugador = juego.jugadores[indiceJugador];
@@ -804,6 +831,7 @@ namespace WindowsFormsApp1
         }
 
         // ROBAR Y PASAR TURNO
+        //procesa el clic en robar, añade la carta a la mano y actualiza la interfaz/turno según la lógica
         private async void BtnRobar_Click(object sender, EventArgs e)
         {
             if (animando || juego.partidaTerminada)
@@ -873,10 +901,12 @@ namespace WindowsFormsApp1
             }
         }
 
+        //manejadores de botones que delegan la acción al método común de robar
         private void BtnRobar_Click_1(object sender, EventArgs e) => BtnRobar_Click(sender, e);
         private void RobarJ2_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
         private void RobarJ3_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
 
+        //avanza el turno a partir del jugador indicado según la lógica de la partida
         private void PasarTurno(Jugador jugador)
         {
             logJuegoDAO.RegistrarMensaje(idPartidaActual, idsJugadores[juego.jugadorActual], jugador.Nombre + " pasó su turno");
@@ -884,6 +914,7 @@ namespace WindowsFormsApp1
             FinalizarTurno();
         }
 
+        //realiza las acciones necesarias para cerrar el turno y actualizar quién juega después
         private void FinalizarTurno()
         {
             yaRobo = false;
@@ -895,6 +926,7 @@ namespace WindowsFormsApp1
         }
 
         // SELECCIONAR COLOR
+        //muestra la selección de color y devuelve el color elegido para un comodín
         private string SeleccionarColor()
         {
             Form ventanaColor = new Form();
@@ -940,6 +972,7 @@ namespace WindowsFormsApp1
             return colorSeleccionado;
         }
 
+        //crea un botón con el texto y color indicados para la selección de color
         private Button CrearBotonColor(string texto, Color color)
         {
             Button boton = new Button();
@@ -954,6 +987,7 @@ namespace WindowsFormsApp1
         }
 
         // BOTONES UNO
+        //muestra un aviso al jugador indicado relacionado con declarar UNO
         private void MostrarAvisoUno(int indiceJugador)
         {
             if (lblAvisoUno == null)
@@ -976,6 +1010,8 @@ namespace WindowsFormsApp1
             timerMensaje.Start();
         }
 
+        //manejadores de los botones UNO de cada jugador;
+        //llaman a la lógica de declaración correspondiente
         private void UnoJ1_Click(object sender, EventArgs e)
         {
             if (juego.jugadorActual == 0)
@@ -994,6 +1030,7 @@ namespace WindowsFormsApp1
                 MostrarAvisoUno(2);
         }
 
+        //atiende el evento del temporizador usado para ocultar/actualizar mensajes temporales
         private void timerMensaje_Tick(object sender, EventArgs e)
         {
             timerMensaje.Stop();
@@ -1005,7 +1042,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // COLOR DE RESPALDO (si falta una imagen)
+        // convierte el color de la carta en un color visual para la interfaz
         private Color ColorSegunCarta(Carta carta)
         {
             if (carta == null || carta.Color == null)

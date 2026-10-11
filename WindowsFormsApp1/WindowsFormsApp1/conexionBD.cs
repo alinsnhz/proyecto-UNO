@@ -4,16 +4,22 @@ using MySql.Data.MySqlClient;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Centraliza la conexión y las operaciones comunes con MySQL. Hay una copia en el proyecto de interfaz 
+     * y otra en el proyecto API; documenta cada una según su ubicación
+    */
     public static class conexionBD
     {
         // cambiar contraseña de sql
         private const string cadenaConexion = "Server=127.0.0.1;Port=3306;Database=uno;Uid=root;Pwd=alin;";
 
+        //crea y devuelve un objeto de conexión a MySQL; el llamador es responsable de abrirlo/cerrarlo según el uso
         public static MySqlConnection NuevaConexion()
         {
             return new MySqlConnection(cadenaConexion);
         }
 
+        //intenta comprobar la conexión y devuelve el resultado junto con un mensaje de error si falla
         public static bool ProbarConexion(out string mensajeError)
         {
             mensajeError = "";
@@ -37,6 +43,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //convierte una excepción de MySQL en un mensaje entendible para mostrar o registrar
         private static string ObtenerMensajeError(MySqlException ex)
         {
             switch (ex.Number)
@@ -54,6 +61,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //ejecuta una instrucción que no devuelve filas, como INSERT, UPDATE o DELETE, y devuelve el número de filas afectadas
         public static int EjecutarNonQuery(string sql, params MySqlParameter[] parametros)
         {
             try
@@ -78,6 +86,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //ejecuta una consulta y devuelve un único valor, como COUNT o un identificador generado
         public static object EjecutarEscalar(string sql, params MySqlParameter[] parametros)
         {
             try
@@ -102,6 +111,8 @@ namespace WindowsFormsApp1
             }
         }
 
+        //ejecuta una consulta de lectura y devuelve los resultados en un DataTable
+        //Nota: los parámetros SQL ayudan a evitar concatenar directamente valores del usuario dentro de la consulta
         public static DataTable EjecutarConsulta(string sql, params MySqlParameter[] parametros)
         {
             var tabla = new DataTable();

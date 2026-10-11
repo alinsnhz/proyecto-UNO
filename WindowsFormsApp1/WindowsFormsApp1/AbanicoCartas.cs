@@ -7,6 +7,10 @@ using proyectoUNO;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Control gráfico personalizado que acomoda y dibuja las cartas 
+     * de un jugador y detecta cuál se selecciona
+    */
     public class AbanicoCartas : Control
     {
         private const float Proporcion = 0.68f;   // ancho / alto de una carta
@@ -38,6 +42,7 @@ namespace WindowsFormsApp1
             TabStop = false;
         }
 
+        //actualiza la lista de cartas mostradas y si la mano está activa para interacción; después solicita redibujado
         public void PonerCartas(List<Carta> lista, bool activa)
         {
             cartas = lista == null ? new List<Carta>() : new List<Carta>(lista);
@@ -48,15 +53,17 @@ namespace WindowsFormsApp1
             Invalidate();
         }
 
-        // ---------- geometría ----------
+        // geometría
         private float VW { get { return (Orientacion == 90f || Orientacion == 270f) ? Height : Width; } }
         private float VH { get { return (Orientacion == 90f || Orientacion == 270f) ? Width : Height; } }
 
+        //calcula cuántas cartas caben en el espacio disponible
         private int CantidadVisible()
         {
             return maxVisibles < 0 ? cartas.Count : Math.Min(maxVisibles, cartas.Count);
         }
 
+        //calcula el ancho y alto de carta según el tamaño del control
         private void Medidas(out float cw, out float ch)
         {
             float vw = VW, vh = VH;
@@ -69,7 +76,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Centro y ángulo de la carta i (de n) en el espacio "virtual" (mano abajo)
+        //calcula la posición y rotación de una carta dentro del abanico
         private void Calcular(int n, int i, out float cx, out float cy, out float grados)
         {
             float cw, ch;
@@ -93,6 +100,7 @@ namespace WindowsFormsApp1
             grados = ang * 180f / (float)Math.PI;
         }
 
+        //devuelve el tamaño aproximado de una carta
         public Size TamanoCarta()
         {
             float cw, ch;
@@ -100,7 +108,7 @@ namespace WindowsFormsApp1
             return new Size((int)cw, (int)ch);
         }
 
-        // Centro de una carta (o de la mano si no está) en coordenadas del control
+        //calcula el punto central donde se representa una carta específica
         public Point CentroCarta(Carta carta)
         {
             int n = CantidadVisible();
@@ -118,7 +126,7 @@ namespace WindowsFormsApp1
             return new Point((int)x, (int)y);
         }
 
-        // ---------- dibujo ----------
+        //dibujo
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -159,6 +167,7 @@ namespace WindowsFormsApp1
             g.Restore(estado);
         }
 
+        //dibuja la imagen o representación de la carta dentro del rectángulo indicado
         private void DibujarCarta(Graphics g, Carta carta, RectangleF r)
         {
             float radio = r.Width * 0.08f;
@@ -203,6 +212,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //convierte el color de una carta a un color de dibujo
         private static Color ColorCarta(Carta c)
         {
             switch (c.Color)
@@ -215,7 +225,8 @@ namespace WindowsFormsApp1
             }
         }
 
-        // ---------- mouse ----------
+        //determina qué carta está bajo la posición del mouse y devuelve su
+        //índice o un valor que indica que no encontró carta
         private int CartaEn(Point p)
         {
             int n = CantidadVisible();

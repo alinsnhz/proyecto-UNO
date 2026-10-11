@@ -8,10 +8,15 @@ using MySql.Data.MySqlClient;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Guarda y consulta partidas, participantes, resultados y estadísticas. 
+     * Existe en la solución de interfaz y en la API; revisa cuál versión se usa en cada proyecto
+    */
     internal class HistorialDAO
     {
         private readonly JugadorDAO jugadorDAO = new JugadorDAO();
 
+        //crea un registro de nueva partida y devuelve su identificador
         public int GuardarPartida()
         {
             using (var con = conexionBD.NuevaConexion())
@@ -26,6 +31,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //registra el ganador de una partida
         public void GuardarGanador(int idPartida, string nombreGanador)
         {
             int idGanador = jugadorDAO.ObtenerOCrear(nombreGanador);
@@ -43,6 +49,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //relaciona los nombres de los jugadores con la partida
         public void GuardarParticipantes(int idPartida, List<string> nombresJugadores)
         {
             using (var con = conexionBD.NuevaConexion())
@@ -62,6 +69,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //guarda el resultado del jugador y cuántas cartas le quedaron
         public void GuardarResultado(int idPartida, string nombreJugador, int cartasRestantes)
         {
             int idJugador = jugadorDAO.ObtenerOCrear(nombreJugador);
@@ -80,6 +88,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //actualiza el conteo de partidas ganadas y perdidas a partir del ganador
         public void RegistrarGanadasPerdidas(int idPartida, string nombreGanador)
         {
             int idGanador = jugadorDAO.ObtenerOCrear(nombreGanador);
@@ -98,6 +107,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //consulta y devuelve los registros del historial en un DataTable
         public DataTable ConsultarHistorial()
         {
             using (var con = conexionBD.NuevaConexion())

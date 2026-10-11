@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace proyectoUNO
 {
+    /*
+     * Permite que la aplicación Windows Forms se comunique con la API por HTTP
+    */
     public class APICliente
     {
         private static readonly HttpClient client = new HttpClient
@@ -15,6 +18,8 @@ namespace proyectoUNO
             BaseAddress = new Uri("https://localhost:7198/")
         };
 
+        //envía los nombres de los jugadores a la API para crear la partida y devuelve la respuesta
+        //con los identificadores; si hay error, muestra un mensaje y devuelve null
         public static async Task<RespuestaInicioDto> IniciarPartidaAsync(List<string> nombres)
         {
             try
@@ -33,6 +38,7 @@ namespace proyectoUNO
             return null;
         }
 
+        //envía a la API los datos de la partida, jugador y carta jugada
         public static async Task RegistrarJugadaAsync(int idPartida, int idJugador, string nombreJugador, string color, string valor, string tipo)
         {
             try
@@ -49,6 +55,7 @@ namespace proyectoUNO
             catch { }
         }
 
+        //envía a la API el identificador y nombre del jugador cuyo turno se registra
         public static async Task RegistrarTurnoAsync(int idPartida, int idJugador, string nombreJugador)
         {
             try
@@ -64,6 +71,8 @@ namespace proyectoUNO
             catch { }
         }
 
+        //intenta enviar los datos de una carta robada; comprueba que exista la ruta
+        //correspondiente en el controlador porque el cliente llama a api/Partida/log-robar
         public static async Task RegistrarCartaRobadaAsync(int idPartida, int idJugador, string nombreJugador, string color, string valor, string tipo)
         {
             try
@@ -84,6 +93,7 @@ namespace proyectoUNO
         }
     }
 
+    //clase de respuesta que guarda el ID de la partida y la lista de IDs de jugadores
     public class RespuestaInicioDto
     {
         public int IdPartida { get; set; }

@@ -4,6 +4,9 @@ using MySql.Data.MySqlClient;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Contiene operaciones de persistencia para los jugadores registrados en la base de datos
+    */
     public class JugadorRegistro
     {
         public int IdJugador { get; set; }
@@ -21,6 +24,7 @@ namespace WindowsFormsApp1
 
     public class JugadorDAO
     {
+        //inserta un jugador y devuelve su identificador según la implementación
         public int Crear(string nombre)
         {
             using (var con = conexionBD.NuevaConexion())
@@ -35,6 +39,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //cambia el nombre del jugador indicado y devuelve si la operación tuvo éxito
         public bool Actualizar(int id, string nuevoNombre)
         {
             using (var con = conexionBD.NuevaConexion())
@@ -49,6 +54,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //elimina el registro del jugador indicado y devuelve el resultado
         public bool Eliminar(int id)
         {
             using (var con = conexionBD.NuevaConexion())
@@ -62,6 +68,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //busca un jugador por su nombre y devuelve su registro si existe
         public JugadorRegistro ObtenerPorNombre(string nombre)
         {
             using (var con = conexionBD.NuevaConexion())
@@ -80,12 +87,14 @@ namespace WindowsFormsApp1
             }
         }
 
+        //busca el jugador por nombre; si no existe, lo crea y devuelve su identificador
         public int ObtenerOCrear(string nombre)
         {
             var existente = ObtenerPorNombre(nombre);
             return existente != null ? existente.IdJugador : Crear(nombre);
         }
 
+        //consulta y devuelve la lista de jugadores registrados
         public List<JugadorRegistro> ObtenerTodos()
         {
             var lista = new List<JugadorRegistro>();
@@ -102,6 +111,7 @@ namespace WindowsFormsApp1
             return lista;
         }
 
+        //busca un jugador por su identificador
         public JugadorRegistro ObtenerPorId(int id)
         {
             using (var con = conexionBD.NuevaConexion())
@@ -120,6 +130,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //consulta las estadísticas asociadas al jugador indicado
         public EstadisticasJugador ObtenerEstadisticas(int idJugador)
         {
             var stats = new EstadisticasJugador();

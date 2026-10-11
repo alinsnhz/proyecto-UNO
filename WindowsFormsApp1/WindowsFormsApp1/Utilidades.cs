@@ -9,6 +9,9 @@ using System.Drawing.Imaging;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Reúne funciones auxiliares reutilizables para localizar imágenes, cargarlas y preparar elementos visuales
+    */
     public static class ImagenesUNO
     {
         private static string carpeta = null;
@@ -16,6 +19,7 @@ namespace WindowsFormsApp1
         private static readonly Dictionary<string, Image> cache = new Dictionary<string, Image>();
         public static readonly Random Azar = new Random();
 
+        //localiza o devuelve la carpeta donde se guardan las imágenes del juego
         public static string CarpetaImagenes()
         {
             if (carpeta != null) return carpeta;
@@ -45,6 +49,7 @@ namespace WindowsFormsApp1
             return null;
         }
 
+        //intenta cargar una imagen desde una ruta y maneja la ausencia de archivos según la implementación
         public static Image Cargar(string ruta)
         {
             if (string.IsNullOrEmpty(ruta) || !File.Exists(ruta)) return null;
@@ -61,6 +66,7 @@ namespace WindowsFormsApp1
             return img;
         }
 
+        //construye o localiza la ruta de imagen que corresponde a una carta
         public static string RutaCarta(Carta carta)
         {
             if (carta == null) 
@@ -102,6 +108,7 @@ namespace WindowsFormsApp1
             return Path.Combine(baseDir, subcarpeta, archivo);
         }
 
+        // devuelve la imagen que representa la carta
         public static Image ImagenCarta(Carta carta)
         {
             return Cargar(RutaCarta(carta));
@@ -109,6 +116,7 @@ namespace WindowsFormsApp1
 
         private static Image reversoRecortado = null;
 
+        //devuelve la imagen del reverso de una carta
         public static Image Reverso()
         {
             if (reversoRecortado != null) 
@@ -145,7 +153,7 @@ namespace WindowsFormsApp1
             return reversoRecortado;
         }
 
-        // Busca Imagenes\Iconos junto al .exe y, si no está, sube por las carpetas padre
+        //busca la carpeta donde están los iconos de jugadores
         private static string BuscarCarpetaIconos()
         {
             string[] bases = { Application.StartupPath, AppDomain.CurrentDomain.BaseDirectory };
@@ -162,6 +170,7 @@ namespace WindowsFormsApp1
             return null;
         }
 
+        //devuelve las rutas de los iconos encontrados
         public static List<string> RutasIconos()
         {
             List<string> lista = new List<string>();
@@ -180,7 +189,7 @@ namespace WindowsFormsApp1
             return lista;
         }
 
-        // Devuelve 'cantidad' iconos al azar, sin repetir mientras alcancen
+        //selecciona rutas de iconos para la cantidad solicitada
         public static string[] IconosAleatorios(int cantidad)
         {
             List<string> todas = RutasIconos();
@@ -204,11 +213,13 @@ namespace WindowsFormsApp1
 
     public static class EstiloUI
     {
+        //limita un número para que quede dentro de un mínimo y un máximo
         public static int Limitar(int valor, int min, int max)
         {
             return Math.Max(min, Math.Min(max, valor));
         }
 
+        //construye una figura rectangular con esquinas redondeadas
         public static GraphicsPath RectRedondeado(RectangleF r, float radio)
         {
             GraphicsPath path = new GraphicsPath();
@@ -221,6 +232,7 @@ namespace WindowsFormsApp1
             return path;
         }
 
+        //aplica una región con esquinas redondeadas a un control
         public static void Redondear(Control c, int radio)
         {
             if (c.Width < 4 || c.Height < 4) return;
@@ -230,6 +242,7 @@ namespace WindowsFormsApp1
             }
         }
 
+        //ajusta la región de un control para que tenga forma circular
         public static void Circular(Control c)
         {
             if (c.Width < 4 || c.Height < 4) return;

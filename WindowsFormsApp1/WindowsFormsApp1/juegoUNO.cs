@@ -4,22 +4,37 @@ using System.Collections.Generic;
 
 namespace proyecto_UNO
 {
+    /*
+     * Es el motor de las reglas: conserva jugadores, turnos, carta superior, 
+     * dirección, robos pendientes, declaración de UNO y ganador 
+    */
     public class JuegoUNO
     {
+        //guarda participantes de la partida
         public List<Jugador> jugadores { get; set; }
+        //inidca el índice del turno
         public int jugadorActual { get; set; }
+        //guarda la carta superior
         public Carta cartaActual { get; set; }
+        //inidca el sentido de la partida
         public int direccion { get; set; }
+        //guarda el contador de penalización
         public int cartasARobar { get; set; }
+        //administra las cartas
         public Mazo Mazo { get; set; }
+        // guarda descartes
         public List<Carta> pilaDescarte { get; set; }
+        //conserva mensajes para log
         public List<string> registroAcciones { get; set; }
+        // controlan UNO
         public bool declaroUNO { get; set; }
         public bool oportunidadUNO { get; set; }
+        //inidca si finalizó la partida
         public bool partidaTerminada { get; set; }
+        // guarda al ganador de la partida
         public Jugador Ganador { get; set; }
 
-
+        //inicializa listas, mazo, turno inicial, dirección y estados de partida
         public JuegoUNO()
         {
             jugadores = new List<Jugador>();
@@ -36,6 +51,7 @@ namespace proyecto_UNO
             Ganador = null;
         }
 
+        //crea y mezcla el mazo, reinicia estados y manos, y reparte las cartas iniciales
         public void iniciarPartida()
         {
             Mazo.crearMazo();
@@ -66,11 +82,13 @@ namespace proyecto_UNO
 
         }
 
+        //comprueba que haya tres jugadores y al menos 21 cartas
         public bool puedeRepartirCartasIniciales()
         {
             return jugadores.Count == 3 && Mazo.cartasRestantes() >= 21;
         }
 
+        // entrega 7 cartas a cada jugador
         public void repartirCartasIniciales()
         {
             foreach (Jugador jugador in jugadores)
@@ -89,6 +107,7 @@ namespace proyecto_UNO
             }
         }
 
+        //avanza o retrocede según la dirección y vuelve al principio/final cuando hace falta
         public void cambiarTurno()
         {
             if (jugadores.Count == 0)
@@ -109,6 +128,7 @@ namespace proyecto_UNO
             }
         }
 
+        //coloca una carta en la pila de descarte y la establece como carta actual; ignora null 
         public void agregarCartaDescarte(Carta carta)
         {
             if(carta == null)
@@ -119,6 +139,7 @@ namespace proyecto_UNO
             cartaActual = carta;
         }
 
+        //devuelve la última carta de la pila de descarte o null si está vacía
         public Carta obtenerCartaSuperior()
         {
             if (pilaDescarte.Count == 0)
@@ -129,6 +150,7 @@ namespace proyecto_UNO
             return pilaDescarte[pilaDescarte.Count - 1];
         }
 
+        //cuando el mazo se agota, conserva la carta superior, devuelve las demás cartas de descarte al mazo y lo mezcla
         public void reciclarMazo()
         {
             if (Mazo.cartasRestantes() > 0 || pilaDescarte.Count <= 1)
@@ -152,6 +174,7 @@ namespace proyecto_UNO
             Mazo.barajar();
         }
 
+        //roba cartas hasta encontrar una carta numérica para iniciar el descarte
         public void colocarCartaInicial()
         {
             Carta carta = Mazo.robarCarta();
@@ -169,18 +192,22 @@ namespace proyecto_UNO
             }
         }
 
+        //invierte el sentido de los turnos
         public void aplicarReversa()
         {
             cambiarDireccion();
         }
 
+
+        //avanza dos veces para saltar el turno de un jugador
         public void aplicarSalta()
         {
             cambiarTurno();
             cambiarTurno();
         }
 
-        // REGLAS DE +2 Y +4 A JUGADORES
+        // pasa al jugador afectado, le agrega la cantidad indicada de cartas
+        // y avanza el turno después de la penalización
         public Jugador aplicaPenalizacionRobo(int cantidad)
         {
             cambiarTurno();
@@ -193,17 +220,20 @@ namespace proyecto_UNO
             return afectado;
         }
 
+        //aplica una penalización de dos cartas
         public Jugador aplicarMasDos()
         {
             return aplicaPenalizacionRobo(2);
         }
 
+        //cambia el color de la carta actual al color elegido, si existe una carta actual
         public void aplicarComodin(string color)
         {
             if(cartaActual != null)
                 cartaActual.Color = color;
         }
 
+        //cambia el color actual y aplica una penalización de cuatro cartas
         public Jugador aplicarMasCuatro(string color)
         {
             if (cartaActual != null)
@@ -212,23 +242,26 @@ namespace proyecto_UNO
             return aplicaPenalizacionRobo(4);
         }
 
-        // TURNOS 
+        // devuelve el jugador que corresponde el turno al índice actual
         public Jugador obtenerJugadorActual()
         {
             return jugadores[jugadorActual];
         }
 
+        //comprueba si el jugador recibido es el que tiene el turno
         public bool esTurnoDe(Jugador jugador)
         {
             return jugadores[jugadorActual] == jugador;
         }
 
+        //multiplica la dirección por -1 para invertirla
         public void cambiarDireccion()
         {
             direccion = direccion * -1;
         }
 
-        // VALIDAR CARTAS
+        //valida que la carta coincida por color, número, símbolo o valor
+        //con la carta actual; los comodines se aceptan siempre
         public bool esCartaValida(Carta carta)
         {
             if (carta == null || cartaActual == null)
@@ -258,6 +291,8 @@ namespace proyecto_UNO
             return false;
         }
 
+        //comprueba que la partida no haya terminado, que los argumentos existan,
+        //que sea el turno del jugador y que la carta sea válida
         public bool puedeJugar(Jugador jugador, Carta carta)
         {
             if(partidaTerminada || jugador == null || carta == null)
@@ -271,7 +306,8 @@ namespace proyecto_UNO
             return esCartaValida(carta);
         }
 
-        // ROBAR
+        //intenta reciclar el mazo si está vacío, roba una carta, la añade al
+        //jugador y registra la acción
         public Carta agregaCartaRobada(Jugador jugador)
         {
             if (jugador == null)
@@ -291,11 +327,13 @@ namespace proyecto_UNO
             return carta;
         }
 
+        //comprueba si la carta recién robada se puede jugar usando la validación general
         public bool puedeJugarCartaRobada(Jugador jugador, Carta carta)
         {
             return puedeJugar(jugador, carta);
         }
 
+        //permite robar únicamente al jugador que tiene el turno y devuelve la carta robada
         public Carta robarDuranteTurno(Jugador jugador)
         {
             if (!esTurnoDe(jugador))
@@ -311,17 +349,14 @@ namespace proyecto_UNO
             return carta;
         }
 
-        // UNO
+        //devuelve true si el jugador tiene dos cartas, condición usada antes de jugar
+        //una carta para quedarse con una
         public bool debeDeclararUNO(Jugador jugador)
         {
             return jugador != null && jugador.Cartas.Count == 2;
         }
 
-        public bool debeDecirUNO(Jugador jugador)
-        {
-            return jugador != null && jugador.Cartas.Count == 1 && !declaroUNO;
-        }
-
+        //registra la declaración si es el turno del jugador y cumple la condición comprobada por debeDeclararUNO()
         public bool declararUNO(Jugador jugador)
         {
             if (!esTurnoDe(jugador))
@@ -335,50 +370,19 @@ namespace proyecto_UNO
             return true;
         }
 
-        public void activarOportunidadUNO(Jugador jugador)
-        {
-            if (jugador != null && jugador.Cartas.Count == 1)
-            {
-                oportunidadUNO = true;
-                declaroUNO = false;
-            }
-        }
-
-        public void terminarOportunidadUNO()
-        {
-            oportunidadUNO = false;
-        }
-
+        //comprueba si el jugador tiene una carta, existía oportunidad y no declaró UNO
         public bool noDeclaroUNO(Jugador jugador)
         {
             return jugador != null && jugador.Cartas.Count == 1 && oportunidadUNO && !declaroUNO;
         }
 
-        public void penalizarUNO(Jugador jugador)
-        {
-            if(!noDeclaroUNO(jugador))
-                return;
-
-            for (int i = 0; i < 2; i++)
-            {
-                agregaCartaRobada(jugador);
-            }
-
-            registroAcciones.Add(jugador.Nombre + " recibió una penalización de 2 cartas por no declarar UNO");
-        }
-
-        public void reiniciarUNO()
-        {
-            oportunidadUNO = false;
-            declaroUNO = false;
-        }
-
-        //GANADOR 
+        //devuelve true si el jugador no tiene cartas
         public bool esGanador(Jugador jugador)
         {
             return jugador != null && jugador.Cartas.Count == 0;
         }
 
+        //si el jugador ganó, lo guarda como ganador y marca la partida como terminada
         public void comprobarGanador(Jugador jugador)
         {
             if (esGanador(jugador))
@@ -388,6 +392,7 @@ namespace proyecto_UNO
             }
         }
 
+        //devuelve una lista con todos los jugadores excepto el ganador actual
         public List<Jugador> obtenerPerdedores()
         {
             List<Jugador> perdedores = new List<Jugador>();
@@ -401,6 +406,7 @@ namespace proyecto_UNO
             return perdedores;
         }
 
+        //construye un texto con el ganador y los perdedores, o informa que la partida no ha terminado
         public String obtenerResultado()
         {
             if (Ganador == null)

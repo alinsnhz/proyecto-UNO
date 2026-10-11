@@ -4,6 +4,9 @@ using MySql.Data.MySqlClient;
 
 namespace WindowsFormsApp1
 {
+    /*
+     * Guarda eventos o movimientos realizados durante una partida
+    */
     public class LogJuegoDAO
     {
         private void InsertarEvento(int idPartida, int idJugador, string mensaje)
