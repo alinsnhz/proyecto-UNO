@@ -144,6 +144,7 @@
       <DependentUpon>Settings.Designer.cs</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <None Include="Reporte UNO.pdf" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
