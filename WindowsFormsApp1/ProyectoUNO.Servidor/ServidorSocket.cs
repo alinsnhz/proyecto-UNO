@@ -42,7 +42,6 @@ namespace ProyectoUno.Servidor
                     try
                     {
                         byte[] mensaje = Encoding.UTF8.GetBytes("SERVIDOR_LLENO");
-
                         await cliente.SendAsync(new ArraySegment<byte>(mensaje), SocketFlags.None);
                     }
                     catch (SocketException)
@@ -60,10 +59,7 @@ namespace ProyectoUno.Servidor
                 int id = ++siguienteId;
 
                 clientes.TryAdd(id, cliente);
-
-                Console.WriteLine(
-                    $"Jugador {id} conectado. " +
-                    $"Jugadores conectados: {clientes.Count}/{MaxJugadores}");
+                Console.WriteLine($"Jugador {id} conectado. " + $"Jugadores conectados: {clientes.Count}/{MaxJugadores}");
 
                 // Atender a cada cliente sin bloquear las demás conexiones.
                 _ = AtenderClienteAsync(id, cliente);
@@ -78,10 +74,7 @@ namespace ProyectoUno.Servidor
             {
                 while (true)
                 {
-                    int recibidos = await cliente.ReceiveAsync(
-                        new ArraySegment<byte>(buffer),
-                        SocketFlags.None
-                    );
+                    int recibidos = await cliente.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
 
                     // Cero bytes significa que el cliente cerró la conexión.
                     if (recibidos == 0)

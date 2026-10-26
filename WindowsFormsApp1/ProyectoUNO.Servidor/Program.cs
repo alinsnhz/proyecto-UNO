@@ -1,15 +1,24 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
-namespace ProyectoUNO.Servidor
+namespace ProyectoUno.Servidor
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
+            ServidorSocket servidor = new ServidorSocket();
+
+            try
+            {
+                await servidor.IniciarAsync();
+            }
+            catch (Exception ex)
+        {
+                Console.WriteLine(
+                    "Error al iniciar el servidor: " + ex.Message
+                );
+            }
         }
     }
 }
