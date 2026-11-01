@@ -14,10 +14,8 @@ namespace ProyectoUno.Servidor
                 await servidor.IniciarAsync();
             }
             catch (Exception ex)
-        {
-                Console.WriteLine(
-                    "Error al iniciar el servidor: " + ex.Message
-                );
+            {
+                Console.WriteLine("Error al iniciar el servidor: " + ex.Message);
             }
         }
     }

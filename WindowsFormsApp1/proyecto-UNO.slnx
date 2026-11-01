@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="ProyectoUno.API/ProyectoUno.API.csproj" Id="b212b0cf-e74d-44ed-a076-922e113dabf0" />
+  <Project Path="ProyectoUNO.Protocolo/ProyectoUNO.Protocolo.csproj" Id="f07084c0-8ed2-4c3c-b820-84c05dadf7ff" />
   <Project Path="ProyectoUNO.Servidor/ProyectoUNO.Servidor.csproj" Id="39ad293b-67d2-426a-9abd-889fe854591d" />
   <Project Path="WindowsFormsApp1/proyectoUNO.csproj" Id="876c7e3f-f595-4d48-94ef-90c961a860e9" />
 </Solution>

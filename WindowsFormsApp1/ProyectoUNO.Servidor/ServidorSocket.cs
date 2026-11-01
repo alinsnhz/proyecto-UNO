@@ -4,6 +4,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
+using Newtonsoft.Json;
+using ProyectoUno.Protocolo;
 
 namespace ProyectoUno.Servidor
 {
@@ -68,61 +71,125 @@ namespace ProyectoUno.Servidor
 
         private async Task AtenderClienteAsync(int id, Socket cliente)
         {
-            byte[] buffer = new byte[1024];
-
-            try
+            using (NetworkStream flujo = new NetworkStream(cliente, false))
+            using (StreamReader lector = new StreamReader(flujo, Encoding.UTF8, false, 1024, true))
+            using (StreamWriter escritor = new StreamWriter(flujo, new UTF8Encoding(false), 1024, true))
             {
-                while (true)
-                {
-                    int recibidos = await cliente.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
-
-                    // Cero bytes significa que el cliente cerró la conexión.
-                    if (recibidos == 0)
-                    {
-                        break;
-                    }
-
-                    string mensaje = Encoding.UTF8.GetString(buffer, 0, recibidos);
-
-                    Console.WriteLine($"Jugador {id} envió: {mensaje}");
-
-                    // ACK temporal para probar el cliente actual.
-                    byte[] respuesta = Encoding.UTF8.GetBytes("<|ACK|>");
-                    int enviados = 0;
-                    while (enviados < respuesta.Length)
-                    {
-                        int cantidad = await cliente.SendAsync(new ArraySegment<byte>(respuesta, enviados, respuesta.Length - enviados), SocketFlags.None);
-                        if (cantidad == 0)
-                        {
-                            throw new SocketException();
-                        }
-                        enviados += cantidad;
-                    }
-                }
-            }
-            catch (SocketException ex)
-            {
-                Console.WriteLine($"Error de conexión con el jugador {id}: " + ex.Message);
-            }
-            catch (ObjectDisposedException)
-            {
-                // El socket ya estaba cerrado.
-            }
-            finally
-            {
-                clientes.TryRemove(id, out _);
+                escritor.AutoFlush = true;
 
                 try
                 {
-                    cliente.Close();
-                }
-                catch (SocketException)
-                {
-                    // La conexión ya pudo haberse cerrado.
-                }
+                    while (true)
+                    {
+                        // Esperar un mensaje JSON completo.
+                        string linea = await lector.ReadLineAsync();
 
-                Console.WriteLine($"Jugador {id} desconectado. " + $"Jugadores conectados: {clientes.Count}/{MaxJugadores}");
+                        // Si no hay más datos, el cliente se desconectó.
+                        if (linea == null)
+                            break;
+
+                        if (string.IsNullOrWhiteSpace(linea))
+                            continue;
+
+                        Console.WriteLine($"Mensaje recibido del jugador {id}: {linea}");
+
+                        Mensajes solicitud;
+
+                        // Convertir el JSON en un objeto.
+                        try
+                        {
+                            solicitud = JsonConvert.DeserializeObject<Mensajes>(linea);
+                        }
+                        catch (JsonException)
+                        {
+                            await EnviarRespuestaAsync(
+                                escritor, null, false,
+                                "JSON inválido.");
+                            continue;
+                        }
+
+                        // Comprobar que el mensaje tenga un tipo.
+                        if (solicitud == null ||
+                            string.IsNullOrWhiteSpace(solicitud.Tipo))
+                        {
+                            await EnviarRespuestaAsync(
+                                escritor,
+                                solicitud?.IdSolicitud,
+                                false,
+                                "El mensaje no contiene un tipo válido.");
+                            continue;
+                        }
+
+                        Console.WriteLine( $"Tipo de solicitud: {solicitud.Tipo}");
+
+                        switch (solicitud.Tipo)
+                        {
+                            case "Conectar":
+                            case "JugarCarta":
+                            case "Robar":
+                            case "DeclararUNO":
+                                await EnviarRespuestaAsync(
+                                    escritor,
+                                    solicitud.IdSolicitud,
+                                    true,
+                                    "Solicitud recibida.");
+                                break;
+
+                            case "Desconectar":
+                                await EnviarRespuestaAsync(
+                                    escritor,
+                                    solicitud.IdSolicitud,
+                                    true,
+                                    "Desconexión recibida.");
+                                return;
+
+                            default:
+                                await EnviarRespuestaAsync(
+                                    escritor,
+                                    solicitud.IdSolicitud,
+                                    false,
+                                    "Tipo de mensaje desconocido.");
+                                break;
+                        }
+                    }
+                }
+                catch (IOException ex)
+                {
+                    Console.WriteLine($"Error de comunicación con el jugador {id}: " + ex.Message);
+                }
+                catch (SocketException ex)
+                {
+                    Console.WriteLine($"Error de socket con el jugador {id}: " + ex.Message);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // La conexión ya fue cerrada.
+                }
+                finally
+                {
+                    clientes.TryRemove(id, out _);
+                    cliente.Close();
+
+                    Console.WriteLine($"Jugador {id} desconectado. " + $"Jugadores conectados: {clientes.Count}/3");
+                }
             }
         }
+
+        private async Task EnviarRespuestaAsync(StreamWriter escritor, string idSolicitud, bool aceptado, string mensaje)
+        {
+            Mensajes respuesta = new Mensajes
+            {
+                Tipo = "Respuesta",
+                IdSolicitud = idSolicitud,
+                Aceptado = aceptado,
+                Mensaje = mensaje
+            };
+
+            string json = JsonConvert.SerializeObject(respuesta);
+
+            // WriteLineAsync agrega el salto de línea que delimita el mensaje.
+            await escritor.WriteLineAsync(json);
+        }
+
     }
 }
