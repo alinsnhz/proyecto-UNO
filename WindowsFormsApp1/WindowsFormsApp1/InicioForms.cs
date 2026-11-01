@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Windows.Forms;
 using proyectoUNO;
+using System.Threading.Tasks;
 using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
@@ -31,6 +32,10 @@ namespace WindowsFormsApp1
         // Rectángulo que delimita la zona donde se ubica el panel de jugadores.
         private Rectangle panelJugadores = Rectangle.Empty;
 
+        // Instancia del cliente socket y campo de texto para la IP del servidor
+        private ClienteSocket _clienteSocket;
+        private TextBox txtIpServidor;
+
         // Constructor de la clase InicioForm. Inicializa las propiedades de la ventana,
         // crea y configura dinámicamente los campos de texto, iconos, botón de juego y elementos decorativos.
         public InicioForm()
@@ -42,6 +47,18 @@ namespace WindowsFormsApp1
             this.BackColor = Color.FromArgb(120, 0, 0);
             this.DoubleBuffered = true;
             this.ResizeRedraw = true;
+
+            // Inicialización de la lógica de red TCP
+            _clienteSocket = new ClienteSocket();
+            _clienteSocket.OnMessageReceived += ManejarMensajeServidor;
+            _clienteSocket.OnDisconnected += ManejarDesconexionServidor;
+
+            // Configuración del campo para la IP del servidor
+            txtIpServidor = new TextBox();
+            txtIpServidor.Font = new Font("Segoe UI", 14f);
+            txtIpServidor.Text = "127.0.0.1";
+            txtIpServidor.BorderStyle = BorderStyle.FixedSingle;
+            this.Controls.Add(txtIpServidor);
 
             // Bucle para instanciar, configurar y agregar los PictureBox (iconos) y TextBox (nombres) de los 3 jugadores.
             for (int i = 0; i < 3; i++)
@@ -61,10 +78,11 @@ namespace WindowsFormsApp1
                 this.Controls.Add(txt);
             }
 
+            // Cada jugador recibe un icono aleatorio para su identificación visual.
             RepartirIconos();
 
             // Configuración visual y de eventos del botón para comenzar la partida.
-            btnJugar.Text = "¡JUGAR!";
+            btnJugar.Text = "¡CONECTAR!";
             btnJugar.FlatStyle = FlatStyle.Flat;
             btnJugar.FlatAppearance.BorderSize = 0;
             btnJugar.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 235, 90);
@@ -86,6 +104,7 @@ namespace WindowsFormsApp1
 
             // Suscripción al evento de cambio de tamaño para reorganizar los elementos de la interfaz.
             this.Resize += (s, e) => Acomodar();
+            this.FormClosing += (s, e) => _clienteSocket?.Desconectar();
             Acomodar();
         }
 
@@ -113,55 +132,86 @@ namespace WindowsFormsApp1
                 picIconos[i].Image = ImagenesUNO.Cargar(iconos[i]);
         }
 
-        // Valida que los nombres ingresados no estén vacíos ni repetidos, comprueba la conexión a la base de datos
-        // y procede a inicializar y abrir el formulario principal de la partida de UNO.
-        private void Jugar()
+        // Valida que los nombres ingresados no estén vacíos ni repetidos, comprueba la conexión al servidor
+        // y procede a inicializar la comunicación mediante sockets.
+        private async void Jugar()
         {
-            string[] nombres = new string[3];
-            for (int i = 0; i < 3; i++)
+            string ipServidor = txtIpServidor.Text.Trim();
+            string nombreJugador = txtNombres[0].Text.Trim();
+
+            // Validación de campos vacíos.
+            if (string.IsNullOrEmpty(ipServidor))
             {
-                nombres[i] = txtNombres[i].Text.Trim();
-
-                // Validación de campos vacíos.
-                if (nombres[i].Length == 0)
-                {
-                    MessageBox.Show("Escribe el nombre de los 3 jugadores.", "Faltan nombres",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    txtNombres[i].Focus();
-                    return;
-                }
-
-                // Validación de nombres duplicados entre los jugadores.
-                for (int j = 0; j < i; j++)
-                {
-                    if (string.Equals(nombres[i], nombres[j], StringComparison.OrdinalIgnoreCase))
-                    {
-                        MessageBox.Show("Los nombres no se pueden repetir.", "Nombres repetidos",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        txtNombres[i].Focus();
-                        return;
-                    }
-                }
-            }
-
-            // Verificación del estado de la conexión a la base de datos antes de arrancar.
-            string error;
-            if (!conexionBD.ProbarConexion(out error))
-            {
-                MessageBox.Show(error, "No se pudo conectar a la base de datos",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Ingresa la IP del servidor.", "Falta IP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtIpServidor.Focus();
                 return;
             }
 
-            // Instanciación del formulario de juego, pasando los nombres y los iconos elegidos.
-            UNO partida = new UNO(nombres, (string[])iconos.Clone());
-            partida.FormClosed += (s, e) =>
+            if (string.IsNullOrEmpty(nombreJugador))
             {
-                RepartirIconos();     // Genera nuevos iconos para una futura partida.
-                this.Show();          // Vuelve a mostrar la pantalla de inicio al cerrar el juego.
-            };
-            this.Hide();
-            partida.Show();
+                MessageBox.Show("Escribe tu nombre de jugador.", "Falta nombre", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                txtNombres[0].Focus();
+                return;
+            }
+
+            btnJugar.Enabled = false;
+            btnJugar.Text = "CONECTANDO...";
+
+            // Conectar con la IP del servidor y el puerto 11000 con un tiempo límite de espera (timeout) de 3 segundos
+            Task<bool> tareaConexion = _clienteSocket.ConectarAsync(ipServidor, nombreJugador);
+
+            // Esperar máximo 3 segundos para evitar que se quede congelado si el servidor está apagado
+            if (await Task.WhenAny(tareaConexion, Task.Delay(3000)) == tareaConexion)
+            {
+                bool conectado = await tareaConexion;
+
+                if (conectado)
+                {
+                    // Ocultar formulario de inicio y dar paso al juego principal
+                    this.Hide();
+                    UNO partidaForm = new UNO();
+                    partidaForm.FormClosed += (s, args) => this.Close();
+                    partidaForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show("No se pudo establecer conexión con el servidor. Verifica que esté encendido.",
+                        "Servidor no disponible", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    btnJugar.Enabled = true;
+                    btnJugar.Text = "¡CONECTAR!";
+                }
+            }
+            else
+            {
+                // Si pasan más de 3 segundos sin respuesta, cancela el intento para que no se congele
+                _clienteSocket.Desconectar();
+                MessageBox.Show("Tiempo de espera agotado. El servidor no responde en el puerto 11000.",
+                    "Tiempo de espera", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                btnJugar.Enabled = true;
+                btnJugar.Text = "¡CONECTAR!";
+            }
+        }
+
+        private void ManejarMensajeServidor(string mensaje)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action<string>(ManejarMensajeServidor), new object[] { mensaje });
+                return;
+            }
+            // Recepción continua de mensajes desde el servidor
+        }
+
+        private void ManejarDesconexionServidor(string motivo)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action<string>(ManejarDesconexionServidor), new object[] { motivo });
+                return;
+            }
+            MessageBox.Show(motivo, "Desconectado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            btnJugar.Enabled = true;
+            btnJugar.Text = "¡CONECTAR!";
         }
 
         // Calcula y reubica dinámicamente las posiciones y tamaños de todos los controles visuales 
@@ -170,6 +220,12 @@ namespace WindowsFormsApp1
         {
             int W = ClientSize.Width, H = ClientSize.Height;
             if (W < 100 || H < 100) return;
+
+            // Posicionar campo de la IP del servidor
+            int ipAncho = Limitar((int)(W * 0.5), 420, 640);
+            int ipX = (W - ipAncho) / 2;
+            int ipY = (int)(H * 0.23);
+            txtIpServidor.SetBounds(ipX, ipY, ipAncho, 36);
 
             int filaAlto = Limitar((int)(H * 0.095), 56, 78);
             int panelAncho = Limitar((int)(W * 0.5), 420, 640);
@@ -260,7 +316,7 @@ namespace WindowsFormsApp1
             using (StringFormat sf = new StringFormat())
             {
                 sf.Alignment = StringAlignment.Center;
-                g.DrawString("Escribe los nombres de los jugadores y a barajar",
+                g.DrawString("Ingresa la IP del servidor y tu nombre para jugar",
                     f, Brushes.WhiteSmoke, new RectangleF(0, H * 0.265f, W, 26), sf);
             }
 
@@ -282,13 +338,12 @@ namespace WindowsFormsApp1
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(InicioForm));
             this.SuspendLayout();
-      
+
             // InicioForm
             this.ClientSize = new System.Drawing.Size(284, 261);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "InicioForm";
             this.ResumeLayout(false);
-
         }
     }
 }
