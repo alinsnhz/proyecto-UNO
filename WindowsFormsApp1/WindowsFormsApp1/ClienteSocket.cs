@@ -21,8 +21,7 @@ namespace WindowsFormsApp1
         // Propiedad de solo lectura para verificar si el cliente se encuentra conectado activamente
         public bool IsConnected => _isConnected;
 
-        // Conecta con la IP del servidor y el puerto 11000 de forma asíncrona,
-        // envía el nombre del jugador y arranca la escucha continua.
+        // Conecta con la IP del servidor y el puerto 11000 de forma asíncrona, envía el nombre del jugador y arranca la escucha continua.
         public async Task<bool> ConectarAsync(string ipServidor, string nombreJugador)
         {
             try
@@ -51,7 +50,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Envía mensajes o solicitudes al servidor utilizando el protocolo acordado.
+        // Envia mensajes o solicitudes al servidor utilizando el protocolo acordado.
         public async Task EnviarMensajeAsync(string mensaje)
         {
             if (!_isConnected || _stream == null) return;
@@ -68,8 +67,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Bucle continuo que se ejecuta en segundo plano para recibir datos del servidor
-        // de forma asíncrona, evitando congelar el hilo principal de Windows Forms.
+        // Bucle continuo que se ejecuta en segundo plano para recibir datos del servidor de forma asincrona, evitando congelar el hilo principal de Windows Forms.
         private async Task RecibirMensajesLoopAsync(CancellationToken cancellationToken)
         {
             byte[] buffer = new byte[4096];
@@ -79,17 +77,17 @@ namespace WindowsFormsApp1
                 {
                     int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
 
-                    if (bytesRead == 0) break; // El servidor cerró la conexión ordenadamente
+                    if (bytesRead == 0) break; // El servidor cerro la conexión ordenadamente
 
                     string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimEnd('\n', '\r');
 
-                    // Notificar a la interfaz el mensaje recibido (incluye confirmaciones o identificadores)
+                    // Notificar a la interfaz el mensaje recibido
                     OnMessageReceived?.Invoke(mensaje);
                 }
             }
             catch (Exception)
             {
-                // Excepción generada por cancelación de token o interrupción de red
+                // Excepcion generada por cancelación de token o interrupcion de red
             }
             finally
             {
@@ -102,7 +100,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Método para desconectarse correctamente del servidor y liberar los recursos de red.
+        // Metodo para desconectarse correctamente del servidor y liberar los recursos de red.
         public void Desconectar()
         {
             if (!_isConnected) return;
