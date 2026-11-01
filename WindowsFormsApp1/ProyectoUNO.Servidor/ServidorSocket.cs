@@ -77,10 +77,10 @@ namespace ProyectoUno.Servidor
             {
                 escritor.AutoFlush = true;
 
-            try
-            {
-                while (true)
+                try
                 {
+                    while (true)
+                    {
                         // Esperar un mensaje JSON completo.
                         string linea = await lector.ReadLineAsync();
 
@@ -101,12 +101,12 @@ namespace ProyectoUno.Servidor
                             solicitud = JsonConvert.DeserializeObject<Mensajes>(linea);
                         }
                         catch (JsonException)
-                    {
+                        {
                             await EnviarRespuestaAsync(
                                 escritor, null, false,
                                 "JSON inválido.");
                             continue;
-                    }
+                        }
 
                         // Comprobar que el mensaje tenga un tipo.
                         if (solicitud == null ||
@@ -156,18 +156,18 @@ namespace ProyectoUno.Servidor
                 catch (IOException ex)
                 {
                     Console.WriteLine($"Error de comunicación con el jugador {id}: " + ex.Message);
-            }
-            catch (SocketException ex)
-            {
+                }
+                catch (SocketException ex)
+                {
                     Console.WriteLine($"Error de socket con el jugador {id}: " + ex.Message);
-            }
-            catch (ObjectDisposedException)
-            {
+                }
+                catch (ObjectDisposedException)
+                {
                     // La conexión ya fue cerrada.
-            }
-            finally
-            {
-                clientes.TryRemove(id, out _);
+                }
+                finally
+                {
+                    clientes.TryRemove(id, out _);
                     cliente.Close();
 
                     Console.WriteLine($"Jugador {id} desconectado. " + $"Jugadores conectados: {clientes.Count}/3");
@@ -176,9 +176,9 @@ namespace ProyectoUno.Servidor
         }
 
         private async Task EnviarRespuestaAsync(StreamWriter escritor, string idSolicitud, bool aceptado, string mensaje)
-                {
+        {
             Mensajes respuesta = new Mensajes
-                {
+            {
                 Tipo = "Respuesta",
                 IdSolicitud = idSolicitud,
                 Aceptado = aceptado,
@@ -189,7 +189,7 @@ namespace ProyectoUno.Servidor
 
             // WriteLineAsync agrega el salto de línea que delimita el mensaje.
             await escritor.WriteLineAsync(json);
-                }
+        }
 
     }
 }
