@@ -61,7 +61,6 @@ namespace WindowsFormsApp1
                 this.Controls.Add(txt);
             }
 
-            // Cada jugador recibe un icono aleatorio para su identificación visual.
             RepartirIconos();
 
             // Configuración visual y de eventos del botón para comenzar la partida.
