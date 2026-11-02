@@ -122,18 +122,55 @@ namespace ProyectoUno.Servidor
 
                         Console.WriteLine( $"Tipo de solicitud: {solicitud.Tipo}");
 
-                        switch (solicitud.Tipo)
-                        {
-                            case "Conectar":
-                            case "JugarCarta":
-                            case "Robar":
-                            case "DeclararUNO":
-                                await EnviarRespuestaAsync(
-                                    escritor,
-                                    solicitud.IdSolicitud,
-                                    true,
-                                    "Solicitud recibida.");
-                                break;
+                jugador.Desconectar();
+
+                lugares.Release();
+
+                Console.WriteLine(
+                    "Conexiones restantes: " +
+                    clientes.Count + "/" + MaxJugadores
+                );
+
+                // Si la partida se interrumpió, avisar a los demás.
+                if (partida.Interrumpida)
+                {
+                    await NotificarInterrupcionAsync();
+                }
+                else if (partida.CantidadJugadores > 0)
+                {
+                    await NotificarSalaAsync();
+                }
+
+                // Si la sala está vacía, puede comenzar de nuevo.
+                if (partida.CantidadJugadores == 0)
+                {
+                    Console.WriteLine(
+                        "Esperando una nueva partida..."
+                    );
+                }
+            }
+        }
+
+        // Registra el nombre del jugador.
+        private async Task ProcesarRegistroAsync(
+            JugadorServidor jugador,
+            Mensajes mensaje)
+        {
+            if (mensaje.Tipo == null ||
+                !mensaje.Tipo.Equals(
+                    "Conectar",
+                    StringComparison.OrdinalIgnoreCase
+                ))
+            {
+                await EnviarRespuestaAsync(
+                    jugador,
+                    "Error",
+                    false,
+                    "Debes enviar primero un mensaje de conexión."
+                );
+
+                return;
+            }
 
                             case "Desconectar":
                                 await EnviarRespuestaAsync(
