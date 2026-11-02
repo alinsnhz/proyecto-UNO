@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace proyecto_UNO
+namespace proyectoUNO
 {
     /*
      * Es el motor de las reglas: conserva jugadores, turnos, carta superior, 
