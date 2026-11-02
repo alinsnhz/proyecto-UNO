@@ -15,8 +15,17 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("sentido")]
         public int Sentido { get; set; }
 
+        [JsonProperty("partidaIniciada")]
+        public bool PartidaIniciada { get; set; }
+
+        [JsonProperty("jugadoresRegistrados")]
+        public int JugadoresRegistrados { get; set; }
+
         [JsonProperty("partidaTerminada")]
         public bool PartidaTerminada { get; set; }
+
+        [JsonProperty("id")]
+        public int Id { get; set; }
 
         [JsonProperty("ganador")]
         public string Ganador { get; set; }

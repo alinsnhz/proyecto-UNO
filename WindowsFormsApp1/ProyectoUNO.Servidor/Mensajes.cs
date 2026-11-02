@@ -12,6 +12,10 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("idSolicitud")]
         public string IdSolicitud { get; set; }
 
+        //devolver id del jugador
+        [JsonProperty("jugadorId")]
+        public int? JugadorId { get; set; }
+
         //identifica al jugador que solicita la acción
         [JsonProperty("jugadorNombre")]
         public string JugadorNombre { get; set; }
