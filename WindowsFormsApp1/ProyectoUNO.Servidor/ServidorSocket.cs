@@ -404,5 +404,22 @@ namespace ProyectoUno.Servidor
 
             clientes.Clear();
         }
+
+        private async Task EnviarRespuestaAsync(StreamWriter escritor, string idSolicitud, bool aceptado, string mensaje)
+        {
+            Mensajes respuesta = new Mensajes
+            {
+                Tipo = "Respuesta",
+                IdSolicitud = idSolicitud,
+                Aceptado = aceptado,
+                Mensaje = mensaje
+            };
+
+            string json = JsonConvert.SerializeObject(respuesta);
+
+            // WriteLineAsync agrega el salto de línea que delimita el mensaje.
+            await escritor.WriteLineAsync(json);
+        }
+
     }
 }
