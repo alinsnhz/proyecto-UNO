@@ -44,6 +44,12 @@ namespace proyectoUNO
                    CartaRobada != null;
         }
 
+        public void LimpiarCartaRobada()
+        {
+            JugadorQueRobo = null;
+            CartaRobada = null;
+        }
+
         public JuegoUNO()
         {
             jugadores = new List<Jugador>();
