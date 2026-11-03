@@ -114,6 +114,7 @@
     <Compile Include="JugadorDAO.cs" />
     <Compile Include="LogJuegoDAO.cs" />
     <Compile Include="Mazo.cs" />
+    <Compile Include="ReglasUNO.cs" />
     <Compile Include="UNO.cs">
       <SubType>Form</SubType>
     </Compile>
