@@ -1,6 +1,5 @@
 namespace proyectoUNO
 {
-    /*
      * Representa una carta individual del UNO. Sus propiedades guardan
      * el color, valor, número, símbolo y tipo
     */
@@ -17,7 +16,6 @@ namespace proyectoUNO
         public string Tipo { get; set; }
 
         /*
-         * inicializa una carta con los datos recibidos y asigna 
          * el valor también a Número y Símbolo
         */
         public Carta(string color, string valor, string tipo)
