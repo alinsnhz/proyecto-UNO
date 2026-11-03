@@ -168,40 +168,24 @@ namespace ProyectoUno.Servidor
 
                 if (partida.CantidadJugadores == 0)
                 {
-                    Console.WriteLine(
-                        "Esperando una nueva partida..."
-                    );
+                    Console.WriteLine("Esperando una nueva partida...");
                 }
             }
         }
 
-        private async Task ProcesarRegistroAsync(
-            JugadorServidor jugador,
-            Mensajes mensaje)
+        private async Task ProcesarRegistroAsync(JugadorServidor jugador, Mensajes mensaje)
         {
             if (mensaje.Tipo == null ||
-                !mensaje.Tipo.Equals(
-                    "Conectar",
-                    StringComparison.OrdinalIgnoreCase))
+                !mensaje.Tipo.Equals("Conectar", StringComparison.OrdinalIgnoreCase))
             {
-                await EnviarRespuestaAsync(
-                    jugador,
-                    "Error",
-                    false,
-                    "Debes enviar primero un mensaje de conexión."
-                );
+                await EnviarRespuestaAsync(jugador, "Error", false, "Debes enviar primero un mensaje de conexión");
 
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(mensaje.JugadorNombre))
             {
-                await EnviarRespuestaAsync(
-                    jugador,
-                    "Error",
-                    false,
-                    "Debes proporcionar un nombre de jugador."
-                );
+                await EnviarRespuestaAsync(jugador, "Error", false, "Debes proporcionar un nombre de jugador");
 
                 return;
             }
@@ -213,21 +197,13 @@ namespace ProyectoUno.Servidor
 
             if (!registrado)
             {
-                await EnviarRespuestaAsync(
-                    jugador,
-                    "Error",
-                    false,
-                    "No fue posible registrar al jugador. " +
-                    "La sala puede estar llena o la partida interrumpida."
-                );
+                await EnviarRespuestaAsync(jugador, "Error", false, "No fue posible registrar al jugador" 
+                    + "La sala puede estar llena o la partida interrumpida");
 
                 return;
             }
 
-            Console.WriteLine(
-                "Jugador " + jugador.Id +
-                " registrado con nombre: " + jugador.Nombre
-            );
+            Console.WriteLine("Jugador " + jugador.Id + " registrado con nombre: " + jugador.Nombre);
 
             await jugador.EnviarAsync(
                 new Mensajes
@@ -242,11 +218,7 @@ namespace ProyectoUno.Servidor
             await NotificarSalaAsync();
         }
 
-        private async Task EnviarRespuestaAsync(
-            JugadorServidor jugador,
-            string tipo,
-            bool aceptado,
-            string mensaje)
+        private async Task EnviarRespuestaAsync(JugadorServidor jugador, string tipo, bool aceptado, string mensaje)
         {
             await jugador.EnviarAsync(
                 new Mensajes
@@ -338,8 +310,8 @@ namespace ProyectoUno.Servidor
                             Tipo = "PartidaInterrumpida",
                             Aceptado = false,
                             Mensaje =
-                                "Un jugador se desconectó. " +
-                                "La partida ha sido interrumpida."
+                                "Un jugador se desconectó " +
+                                "La partida ha sido interrumpida"
                         }
                     );
                 }
