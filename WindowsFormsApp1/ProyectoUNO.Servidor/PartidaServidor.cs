@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using proyectoUNO;
-using proyecto_UNO;
 
 namespace ProyectoUno.Servidor
 {
@@ -19,8 +18,7 @@ namespace ProyectoUno.Servidor
         public bool Iniciada { get; private set; }
 
         public bool Interrumpida { get; private set; }
-
-        private readonly object candado = new object();
+        public JuegoUNO Juego { get; private set; }
 
         // Registra un jugador en la sala.
         public bool RegistrarJugador(JugadorServidor jugador)
