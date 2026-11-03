@@ -28,6 +28,14 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("aceptado")]
         public bool? Aceptado { get; set; }
 
+        // permite indicar el color al jugar un comodín
+        [JsonProperty("colorElegido")]
+        public string ColorElegido { get; set; }
+
+        // permite identificar al jugador acusado de NO declarar UNO
+        [JsonProperty("jugadorObjetivoId")]
+        public int? JugadorObjetivoId { get; set; }
+
         //contiene una explicación del resultado (o error)
         [JsonProperty("mensaje")]
         public string Mensaje { get; set; }
