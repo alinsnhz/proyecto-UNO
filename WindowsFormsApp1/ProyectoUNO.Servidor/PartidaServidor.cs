@@ -15,7 +15,7 @@ namespace ProyectoUno.Servidor
 
         private readonly object candado = new object();
 
-        public JuegoUNO Juego { get; private set; }
+        public juegoUNO Juego { get; private set; }
 
         public bool Iniciada { get; private set; }
 
@@ -64,7 +64,7 @@ namespace ProyectoUno.Servidor
             {
                 Console.WriteLine("Iniciando partida de UNO...");
 
-                JuegoUNO nuevoJuego = new JuegoUNO();
+                juegoUNO nuevoJuego = new juegoUNO();
 
                 foreach (JugadorServidor participante in jugadores)
                 {

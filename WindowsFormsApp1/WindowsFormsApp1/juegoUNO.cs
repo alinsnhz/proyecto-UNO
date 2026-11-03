@@ -362,7 +362,7 @@ namespace proyectoUNO
             if (Ganador == null)
                 return "La partida no ha terminado";
 
-            string resultado = "Ganador: " + Ganador.Nombre + "\n";
+            string resultado ="Ganador: " + Ganador.Nombre + "\n";
 
             resultado += "Perdedores:\n";
 
