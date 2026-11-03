@@ -21,16 +21,14 @@ namespace ProyectoUno.Servidor
         public string Nombre { get; set; }
         public bool Registrado { get; set; }
 
-        private TcpClient cliente;
-        private StreamReader lector;
-        private StreamWriter escritor;
+        private readonly TcpClient cliente;
+        private readonly StreamReader lector;
+        private readonly StreamWriter escritor;
 
         // SemaphoreSlim evita que dos mensajes intenten escribirse al mismo tiempo
         // en la conexión de un jugador
-        private SemaphoreSlim bloqueo = new SemaphoreSlim(1, 1);
-        private readonly SemaphoreSlim bloqueo =new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim bloqueo = new SemaphoreSlim(1, 1);
 
-        public JugadorServidor(int id, StreamWriter escritor)
         public JugadorServidor(int id, TcpClient cliente)
         {
             Id = id;
@@ -44,7 +42,6 @@ namespace ProyectoUno.Servidor
 
             escritor.AutoFlush = true;
 
-            this.escritor = escritor;
             Registrado = false;
         }
 
@@ -92,7 +89,7 @@ namespace ProyectoUno.Servidor
             }
             catch (Exception)
             {
-                // La conexión pudo haberse cerrado anteriormente.
+                // La conexión pudo haberse cerrado anteriormente
             }
         }
     }
