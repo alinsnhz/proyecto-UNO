@@ -49,7 +49,6 @@ namespace ProyectoUno.Servidor
                     {
                         jugadores.Remove(jugador);
                         jugador.Registrado = false;
-
                         return false;
                     }
                 }
@@ -64,11 +63,12 @@ namespace ProyectoUno.Servidor
             {
                 Console.WriteLine("Iniciando partida de UNO...");
 
-                juegoUNO nuevoJuego = new juegoUNO();
+                JuegoUNO nuevoJuego = new JuegoUNO();
 
                 foreach (JugadorServidor participante in jugadores)
                 {
-                    Jugador nuevoJugador = new Jugador(participante.Id, participante.Nombre);
+                    Jugador nuevoJugador =
+                        new Jugador(participante.Id, participante.Nombre);
 
                     nuevoJuego.jugadores.Add(nuevoJugador);
                 }
@@ -77,7 +77,7 @@ namespace ProyectoUno.Servidor
                 nuevoJuego.colocarCartaInicial();
 
                 if (nuevoJuego.cartaActual == null)
-                    throw new Exception("No fue posible colocar la carta inicial");
+                    throw new Exception("No fue posible colocar la carta inicial.");
 
                 Juego = nuevoJuego;
 
@@ -88,19 +88,20 @@ namespace ProyectoUno.Servidor
 
                 foreach (JugadorServidor participante in jugadores)
                 {
-                    Console.WriteLine("Jugador " + participante.Id + ": " + participante.Nombre);
+                    Console.WriteLine(
+                        "Jugador " + participante.Id + ": " + participante.Nombre);
                 }
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error al iniciar la partida: " + ex.Message);
+                Console.WriteLine(
+                    "Error al iniciar la partida: " + ex.Message);
 
                 Juego = null;
                 Iniciada = false;
 
-                // Si falla la creación, se libera la sala completa.
                 foreach (JugadorServidor participante in jugadores)
                     participante.Registrado = false;
 
@@ -114,16 +115,7 @@ namespace ProyectoUno.Servidor
         {
             lock (candado)
             {
-                if (Juego == null)
-                    return null;
-
-                foreach (Jugador jugador in Juego.jugadores)
-                {
-                    if (jugador.ID == id)
-                        return jugador;
-                }
-
-                return null;
+                return ObtenerJugadorInterno(id);
             }
         }
 
@@ -141,61 +133,75 @@ namespace ProyectoUno.Servidor
             {
                 if (!Iniciada || Interrumpida || Juego == null)
                 {
-                    return CrearRespuesta(solicitud, false, "La partida no está disponible");
+                    return CrearRespuesta(
+                        solicitud, false, "La partida no está disponible.");
+                }
+
+                if (solicitud == null ||
+                    string.IsNullOrWhiteSpace(solicitud.Tipo))
+                {
+                    return CrearRespuesta(
+                        solicitud, false, "La acción no es válida.");
                 }
 
                 Jugador jugador = ObtenerJugadorInterno(id);
 
                 if (jugador == null)
                 {
-                    return CrearRespuesta(solicitud, false, "El jugador no pertenece a esta partida");
+                    return CrearRespuesta(
+                        solicitud, false,
+                        "El jugador no pertenece a esta partida.");
                 }
 
-                if (solicitud == null ||
-                    string.IsNullOrWhiteSpace(solicitud.Tipo))
+                if (Juego.partidaTerminada)
                 {
-                    return CrearRespuesta(solicitud, false, "La acción no es válida");
+                    return CrearRespuesta(
+                        solicitud, false, "La partida ya terminó.");
                 }
 
-                string tipo = solicitud.Tipo.ToLowerInvariant();
+                string tipo = solicitud.Tipo.Trim().ToLowerInvariant();
 
                 switch (tipo)
                 {
                     case "jugarcarta":
                         return ProcesarJugarCarta(jugador, solicitud);
 
-                    case "rob ar":
                     case "robarcarta":
+                    case "robar":
                         return ProcesarRobarCarta(jugador, solicitud);
+
+                    case "pasarturno":
+                    case "pasar":
+                        return ProcesarPasarTurno(jugador, solicitud);
 
                     case "declararuno":
                         return ProcesarDeclararUNO(jugador, solicitud);
 
-                    case "acus aruno":
                     case "acusaruno":
                         return ProcesarAcusarUNO(jugador, solicitud);
 
                     default:
-                        return CrearRespuesta(solicitud, false, "Acción desconocida");
+                        return CrearRespuesta(
+                            solicitud, false, "Acción desconocida.");
                 }
             }
         }
 
-        private Mensajes ProcesarJugarCarta(Jugador jugador, Mensajes solicitud)
+        private Mensajes ProcesarJugarCarta(
+            Jugador jugador,
+            Mensajes solicitud)
         {
-            if (Juego.partidaTerminada)
+            if (string.IsNullOrWhiteSpace(solicitud.CartaId))
             {
-                return CrearRespuesta(solicitud, false, "La partida ya terminó");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "No se indicó la carta que deseas jugar.");
             }
 
             if (!Juego.esTurnoDe(jugador))
             {
-                return CrearRespuesta(solicitud, false, "No es tu turno");
-            }
-
-            if (string.IsNullOrWhiteSpace(solicitud.CartaId))
-            {
-                return CrearRespuesta(solicitud, false, "No se indicó la carta que deseas jugar");
+                return CrearRespuesta(
+                    solicitud, false, "No es tu turno.");
             }
 
             Carta carta = null;
@@ -211,32 +217,59 @@ namespace ProyectoUno.Servidor
 
             if (carta == null)
             {
-                return CrearRespuesta(solicitud, false, "La carta no pertenece a tu mano");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "La carta no pertenece a tu mano.");
             }
 
-            if (!Juego.puedeJugar(jugador, carta))
+            // Se valida todo antes de modificar el estado.
+            if (!ReglasUNO.PuedeJugar(Juego, jugador, carta))
             {
-                return CrearRespuesta(solicitud, false, "No puedes jugar esa carta");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "No puedes jugar esa carta.");
             }
 
-            bool esComodin =
-                carta.Tipo == "Comodin" || carta.Tipo == "+4";
-
-            if (esComodin && !ColorValido(solicitud.ColorElegido))
+            if (!ReglasUNO.PuedeElegirColor(
+                carta, solicitud.ColorElegido))
             {
-                return CrearRespuesta(solicitud, false, "Debes elegir un color válido para el comodín");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "Debes elegir un color válido para el comodín.");
             }
 
-            // La carta se retira de la mano del jugador.
+            // Si había una oportunidad UNO anterior, se cierra
+            // cuando otro jugador comienza una acción válida.
+            CerrarOportunidadUNO(jugador);
+
+            // Se retira la carta únicamente después de validarla.
             jugador.quitarCarta(carta);
 
-            // Se coloca en el centro.
+            // Si era la carta recién robada, se limpia el estado.
+            if (Juego.TieneCartaRobadaPendiente(jugador))
+            {
+                Juego.LimpiarCartaRobada();
+            }
+
             Juego.agregarCartaDescarte(carta);
 
-            // Se registra la acción.
-            Juego.registroAcciones.Add(jugador.Nombre + " jugó " + carta.Valor);
+            Juego.registroAcciones.Add(
+                jugador.Nombre + " jugó " + carta.Valor);
 
-            // Determinar si el jugador se quedó con una carta.
+            // Si se quedó sin cartas, gana inmediatamente.
+            if (Juego.esGanador(jugador))
+            {
+                Juego.comprobarGanador(jugador);
+
+                Juego.jugadorUNO = null;
+                Juego.oportunidadUNO = false;
+                Juego.declaroUNO = false;
+
+                return CrearRespuesta(
+                    solicitud, true, "¡Has ganado la partida!");
+            }
+
+            // Se registra la oportunidad de declarar UNO.
             if (jugador.Cartas.Count == 1)
             {
                 Juego.jugadorUNO = jugador;
@@ -250,15 +283,7 @@ namespace ProyectoUno.Servidor
                 Juego.declaroUNO = false;
             }
 
-            // Si se quedó sin cartas, gana.
-            if (Juego.esGanador(jugador))
-            {
-                Juego.comprobarGanador(jugador);
-
-                return CrearRespuesta(solicitud, true, "¡Has ganado la partida!");
-            }
-
-            // Aplicar el efecto de la carta.
+            // Los efectos de las cartas se aplican una sola vez.
             switch (carta.Tipo)
             {
                 case "Reversa":
@@ -288,42 +313,77 @@ namespace ProyectoUno.Servidor
                     break;
             }
 
-            return CrearRespuesta(solicitud, true, "Carta jugada correctamente");
+            return CrearRespuesta(
+                solicitud, true, "Carta jugada correctamente.");
         }
 
-        private Mensajes ProcesarRobarCarta(Jugador jugador, Mensajes solicitud)
+        private Mensajes ProcesarRobarCarta(
+            Jugador jugador,
+            Mensajes solicitud)
         {
-            if (Juego.partidaTerminada)
+            if (!ReglasUNO.PuedeRobar(Juego, jugador))
             {
-                return CrearRespuesta(solicitud, false, "La partida ya terminó");
-            }
-
-            if (!Juego.esTurnoDe(jugador))
-            {
-                return CrearRespuesta(solicitud, false, "No es tu turno");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "No puedes robar una carta en este momento.");
             }
 
             Carta carta = Juego.robarDuranteTurno(jugador);
 
             if (carta == null)
             {
-                return CrearRespuesta(solicitud, false, "No hay cartas disponibles para robar");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "No hay cartas disponibles para robar.");
             }
 
-            // En esta implementación, robar termina el turno.
-            Juego.cambiarTurno();
+            CerrarOportunidadUNO(jugador);
 
-            return CrearRespuesta(solicitud, true, "Has robado una carta");
+            // El turno NO cambia. El jugador puede jugar
+            // la carta recién robada o pasar.
+            return CrearRespuesta(
+                solicitud, true,
+                "Has robado una carta. Puedes jugarla si es válida o pasar tu turno.");
         }
 
-        private Mensajes ProcesarDeclararUNO(Jugador jugador, Mensajes solicitud)
+        private Mensajes ProcesarPasarTurno(
+            Jugador jugador,
+            Mensajes solicitud)
+        {
+            if (!ReglasUNO.PuedePasarTurno(Juego, jugador))
+            {
+                return CrearRespuesta(
+                    solicitud, false,
+                    "Debes robar una carta antes de pasar el turno.");
+            }
+
+            CerrarOportunidadUNO(jugador);
+
+            if (!Juego.PasarTurno(jugador))
+            {
+                return CrearRespuesta(
+                    solicitud, false,
+                    "No fue posible terminar tu turno.");
+            }
+
+            return CrearRespuesta(
+                solicitud, true, "Tu turno ha terminado.");
+        }
+
+        private Mensajes ProcesarDeclararUNO(
+            Jugador jugador,
+            Mensajes solicitud)
         {
             if (Juego.declararUNO(jugador))
             {
-                return CrearRespuesta(solicitud, true, "¡UNO declarado correctamente!");
+                return CrearRespuesta(
+                    solicitud, true,
+                    "¡UNO declarado correctamente!");
             }
 
-            return CrearRespuesta(solicitud, false, "No puedes declarar UNO en este momento");
+            return CrearRespuesta(
+                solicitud, false,
+                "No puedes declarar UNO en este momento.");
         }
 
         private Mensajes ProcesarAcusarUNO(
@@ -332,38 +392,52 @@ namespace ProyectoUno.Servidor
         {
             if (!solicitud.JugadorObjetivoId.HasValue)
             {
-                return CrearRespuesta(solicitud, false, "Debes indicar al jugador que deseas acusar");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "Debes indicar al jugador que deseas acusar.");
             }
 
-            Jugador objetivo = ObtenerJugadorInterno(solicitud.JugadorObjetivoId.Value);
+            Jugador objetivo =
+                ObtenerJugadorInterno(solicitud.JugadorObjetivoId.Value);
 
-            if (objetivo == null || objetivo == jugador)
+            if (!ReglasUNO.PuedeAcusarUNO(Juego, jugador, objetivo))
             {
-                return CrearRespuesta(solicitud, false, "El jugador indicado no es válido");
+                return CrearRespuesta(
+                    solicitud, false,
+                    "No puedes acusar a ese jugador por UNO.");
             }
 
-            if (!Juego.noDeclaroUNO(objetivo))
-            {
-                return CrearRespuesta(solicitud, false, "El jugador no puede recibir una penalización por UNO");
-            }
-
+            // La acusación fue válida: se aplican dos cartas.
             for (int i = 0; i < 2; i++)
                 Juego.agregaCartaRobada(objetivo);
 
-            Juego.oportunidadUNO = false;
+            Juego.registroAcciones.Add(
+                jugador.Nombre + " acusó a " + objetivo.Nombre +
+                " por no declarar UNO.");
+
             Juego.jugadorUNO = null;
+            Juego.oportunidadUNO = false;
+            Juego.declaroUNO = false;
 
-            Juego.registroAcciones.Add(jugador.Nombre + " acusó a " + objetivo.Nombre + " por no declarar UNO");
-
-            return CrearRespuesta(solicitud, true, "La acusación fue correcta. El jugador recibió dos cartas");
+            return CrearRespuesta(
+                solicitud, true,
+                "La acusación fue correcta. El jugador recibió dos cartas.");
         }
 
-        private bool ColorValido(string color)
+        private void CerrarOportunidadUNO(Jugador jugadorQueActua)
         {
-            return color == "Rojo" ||
-                   color == "Azul" ||
-                   color == "Amarillo" ||
-                   color == "Verde";
+            if (!Juego.oportunidadUNO ||
+                Juego.jugadorUNO == null)
+                return;
+
+            // El jugador que quedó con una carta conserva
+            // la oportunidad hasta que otro jugador actúe.
+            if (Juego.jugadorUNO == jugadorQueActua)
+                return;
+
+            Juego.jugadorUNO = null;
+            Juego.oportunidadUNO = false;
+            Juego.declaroUNO = false;
         }
 
         private Jugador ObtenerJugadorInterno(int id)
@@ -380,7 +454,10 @@ namespace ProyectoUno.Servidor
             return null;
         }
 
-        private Mensajes CrearRespuesta(Mensajes solicitud, bool aceptado, string mensaje)
+        private Mensajes CrearRespuesta(
+            Mensajes solicitud,
+            bool aceptado,
+            string mensaje)
         {
             return new Mensajes
             {
@@ -416,8 +493,7 @@ namespace ProyectoUno.Servidor
                                 Id = participante.Id,
                                 Nombre = participante.Nombre,
                                 CantidadCartas = 0
-                            }
-                        );
+                            });
                     }
 
                     return estado;
@@ -454,15 +530,15 @@ namespace ProyectoUno.Servidor
                             EsTurnoActual = jugador == actual,
                             DebeDeclararUNO =
                                 Juego.noDeclaroUNO(jugador)
-                        }
-                    );
+                        });
 
-                    // Únicamente se incluyen las cartas del destinatario.
+                    // Cada jugador solamente recibe sus propias cartas.
                     if (jugador.ID == id)
                     {
                         foreach (Carta carta in jugador.Cartas)
                         {
-                            estado.MisCartas.Add(ConvertirCarta(carta));
+                            estado.MisCartas.Add(
+                                ConvertirCarta(carta));
                         }
                     }
                 }
@@ -504,7 +580,8 @@ namespace ProyectoUno.Servidor
                     Interrumpida = true;
                     Iniciada = false;
 
-                    Console.WriteLine("La partida fue interrumpida");
+                    Console.WriteLine(
+                        "La partida fue interrumpida.");
                 }
 
                 if (jugadores.Count == 0)
@@ -513,7 +590,8 @@ namespace ProyectoUno.Servidor
                     Iniciada = false;
                     Interrumpida = false;
 
-                    Console.WriteLine("Sala disponible para una nueva partida");
+                    Console.WriteLine(
+                        "Sala disponible para una nueva partida.");
                 }
             }
         }
@@ -535,7 +613,9 @@ namespace ProyectoUno.Servidor
             {
                 lock (candado)
                 {
-                    return jugadores.Count >= MaxJugadores || Interrumpida || Iniciada;
+                    return jugadores.Count >= MaxJugadores ||
+                           Interrumpida ||
+                           Iniciada;
                 }
             }
         }
