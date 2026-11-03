@@ -29,6 +29,11 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("jugadores")]
         public List<JugadorEstadoDto> Jugadores { get; set; }
             = new List<JugadorEstadoDto>();
+
+        // contiene únicamente las cartas del jugador al que se le está enviando el estado
+        [JsonProperty("misCartas")]
+        public List<CartaEstadoDto> MisCartas { get; set; }
+            = new List<CartaEstadoDto>();
     }
 
     public class JugadorEstadoDto
@@ -47,5 +52,20 @@ namespace ProyectoUno.Protocolo
 
         [JsonProperty("debeDeclararUNO")]
         public bool DebeDeclararUNO { get; set; }
+    }
+
+    public class CartaEstadoDto
+    {
+        [JsonProperty("id")]
+        public string Id { get; set; }
+
+        [JsonProperty("color")]
+        public string Color { get; set; }
+
+        [JsonProperty("valor")]
+        public string Valor { get; set; }
+
+        [JsonProperty("tipo")]
+        public string Tipo { get; set; }
     }
 }
