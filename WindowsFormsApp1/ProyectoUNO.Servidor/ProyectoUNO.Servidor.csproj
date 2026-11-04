@@ -4,7 +4,7 @@
 	<PropertyGroup>
 		<Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
 		<Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-		<ProjectGuid>{39AD293B-67D2-426A-9ABD-889FE854591D}</ProjectGuid>
+		<ProjectGuid>{9DEBAC57-864D-41CC-BFBF-ED18761A6ADE}</ProjectGuid>
 		<OutputType>Exe</OutputType>
 		<RootNamespace>ProyectoUNO.Servidor</RootNamespace>
 		<AssemblyName>ProyectoUNO.Servidor</AssemblyName>
@@ -33,6 +33,7 @@
 		<WarningLevel>4</WarningLevel>
 	</PropertyGroup>
 	<ItemGroup>
+		<Reference Include="mscorlib" />
 		<Reference Include="Microsoft.CSharp" />
 		<Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
 			<HintPath>..\packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>

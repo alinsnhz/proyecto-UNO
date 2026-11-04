@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using proyectoUNO;
-using proyecto_UNO;
 using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
