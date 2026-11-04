@@ -7,8 +7,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using proyectoUNO;
 using static WindowsFormsApp1.EstiloUI;
+using proyectoUNO;
 
 namespace WindowsFormsApp1
 {
@@ -752,6 +752,7 @@ namespace WindowsFormsApp1
             );
 
             string mensaje = jugador.Nombre + " jugó: " + valorCarta;
+            Jugador afectado = null;
 
             // 3) Penalización por no decir UNO
             if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
@@ -764,9 +765,6 @@ namespace WindowsFormsApp1
                 await VolarReversos(2, indiceJugador);
             }
 
-            // 4) Efecto de la carta (aquí se cambia el turno UNA sola vez)
-            Jugador afectado;
-
             switch (cartaJugada.Tipo)
             {
                 case "Comodin":
@@ -777,23 +775,29 @@ namespace WindowsFormsApp1
                     break;
 
                 case "+4":
-                    afectado = juego.aplicarMasCuatro(colorElegido);
+                    afectado = ObtenerSiguienteJugador();
+
+                    juego.aplicarMasCuatro(colorElegido);
+
                     logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+4");
                     logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
+
                     mensaje += " (color: " + colorElegido + "). " + afectado.Nombre + " roba 4 y pierde su turno";
+
                     await VolarReversos(4, juego.jugadores.IndexOf(afectado));
                     break;
 
                 case "Reversa":
                     if (juego.jugadores.Count == 2)
                     {
-                        juego.aplicarSalta();   // con 2 jugadores la reversa funciona como salto
+                        juego.aplicarSalta();
                     }
                     else
                     {
-                        juego.aplicarReversa();   // invierte el sentido
-                        juego.cambiarTurno();     // y pasa al siguiente en el nuevo sentido
+                        juego.aplicarReversa();
+                        juego.cambiarTurno();
                     }
+
                     logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
                     break;
 
@@ -803,9 +807,14 @@ namespace WindowsFormsApp1
                     break;
 
                 case "+2":
-                    afectado = juego.aplicarMasDos();
+                    afectado = ObtenerSiguienteJugador();
+
+                    juego.aplicarMasDos();
+
                     logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+2");
+
                     mensaje += ". " + afectado.Nombre + " roba 2 y pierde su turno";
+
                     await VolarReversos(2, juego.jugadores.IndexOf(afectado));
                     break;
 
@@ -827,6 +836,20 @@ namespace WindowsFormsApp1
             }
 
             FinalizarTurno();
+        }
+
+        // Obtiene al siguiente jugador, respetando el sentido del juego.
+        private Jugador ObtenerSiguienteJugador()
+        {
+            int indice = juego.jugadorActual + juego.direccion;
+
+            if (indice >= juego.jugadores.Count)
+                indice = 0;
+
+            if (indice < 0)
+                indice = juego.jugadores.Count - 1;
+
+            return juego.jugadores[indice];
         }
 
         // ROBAR Y PASAR TURNO

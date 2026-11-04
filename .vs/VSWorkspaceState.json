@@ -2,8 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\WindowsFormsApp1",
+    "\\WindowsFormsApp1\\ProyectoUno.API",
+    "\\WindowsFormsApp1\\ProyectoUNO.Servidor\\Properties",
     "\\WindowsFormsApp1\\WindowsFormsApp1"
   ],
-  "SelectedNode": "\\WindowsFormsApp1\\WindowsFormsApp1\\Reporte UNO.pdf",
+  "SelectedNode": "\\WindowsFormsApp1\\WindowsFormsApp1\\proyectoUNO.csproj",
   "PreviewInSolutionExplorer": false
 }
