@@ -1,26 +1,23 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
-using proyectoUNO;
-using proyecto_UNO;
+using proyectoUNO; // Espacio de nombres de tu motor de juego (JuegoUNO, Jugador, etc.)
 
 namespace ProyectoUno.Servidor
 {
-    // clase responsable de administrar la sala y decidir cúando comienza la partida
+    // Clase responsable de administrar la sala y decidir cuándo comienza la partida.
     public class PartidaServidor
     {
         private const int MaxJugadores = 3;
 
-        private List<JugadorServidor> jugadores =
-            new List<JugadorServidor>();
+        private List<JugadorServidor> jugadores = new List<JugadorServidor>();
 
         private readonly object candado = new object();
 
         public bool Iniciada { get; private set; }
-
         public bool Interrumpida { get; private set; }
 
-        private readonly object candado = new object();
+        // Instancia del juego UNO
+        public JuegoUNO Juego { get; private set; }
 
         // Registra un jugador en la sala.
         public bool RegistrarJugador(JugadorServidor jugador)
@@ -34,8 +31,7 @@ namespace ProyectoUno.Servidor
                 if (jugadores.Count >= MaxJugadores)
                     return false;
 
-                // No permitir nuevos jugadores si la partida
-                // ya comenzó o fue interrumpida.
+                // No permitir nuevos jugadores si la partida ya comenzó o fue interrumpida.
                 if (Iniciada || Interrumpida)
                     return false;
 
@@ -47,7 +43,6 @@ namespace ProyectoUno.Servidor
                 }
 
                 jugadores.Add(jugador);
-
                 jugador.Registrado = true;
 
                 // La partida comienza únicamente con tres jugadores.
@@ -57,7 +52,6 @@ namespace ProyectoUno.Servidor
                     {
                         jugadores.Remove(jugador);
                         jugador.Registrado = false;
-
                         return false;
                     }
                 }
@@ -101,8 +95,7 @@ namespace ProyectoUno.Servidor
                 foreach (JugadorServidor participante in jugadores)
                 {
                     Console.WriteLine(
-                        "Jugador " + participante.Id +
-                        ": " + participante.Nombre
+                        "Jugador " + participante.Id + ": " + participante.Nombre
                     );
                 }
 
@@ -110,19 +103,15 @@ namespace ProyectoUno.Servidor
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "Error al iniciar la partida: " + ex.Message
-                );
+                Console.WriteLine("Error al iniciar la partida: " + ex.Message);
 
                 Juego = null;
                 Iniciada = false;
-
                 return false;
             }
         }
 
-        // Busca al jugador correspondiente a un ID asignado
-        // por el servidor.
+        // Busca al jugador correspondiente a un ID asignado por el servidor.
         public Jugador ObtenerJugador(int id)
         {
             lock (candado)
@@ -157,29 +146,23 @@ namespace ProyectoUno.Servidor
                 jugadores.Remove(jugador);
                 jugador.Registrado = false;
 
-                // Si alguien abandona una partida que ya comenzó,
-                // se interrumpe la partida.
+                // Si alguien abandona una partida que ya comenzó, se interrumpe.
                 if (Iniciada && jugadores.Count > 0)
                 {
                     Interrumpida = true;
                     Iniciada = false;
 
-                    Console.WriteLine(
-                        "La partida fue interrumpida."
-                    );
+                    Console.WriteLine("La partida fue interrumpida.");
                 }
 
                 // Cuando todos se desconectan, la sala puede reiniciarse.
                 if (jugadores.Count == 0)
                 {
                     Juego = null;
-
                     Iniciada = false;
                     Interrumpida = false;
 
-                    Console.WriteLine(
-                        "Sala disponible para una nueva partida."
-                    );
+                    Console.WriteLine("Sala disponible para una nueva partida.");
                 }
             }
         }
@@ -203,8 +186,7 @@ namespace ProyectoUno.Servidor
             {
                 lock (candado)
                 {
-                    return jugadores.Count >= MaxJugadores
-                        || Interrumpida;
+                    return jugadores.Count >= MaxJugadores || Interrumpida;
                 }
             }
         }
