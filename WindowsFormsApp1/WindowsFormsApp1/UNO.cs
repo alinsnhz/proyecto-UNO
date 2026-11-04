@@ -22,6 +22,8 @@ namespace WindowsFormsApp1
         private JuegoUNO juego;
         private Timer timerMensaje;
 
+        private string nombreTemporal = "";
+
         // Instancias de BD y control de sesión/partida
         private HistorialDAO historialDAO = new HistorialDAO();
         private LogJuegoDAO logJuegoDAO = new LogJuegoDAO();
@@ -36,6 +38,9 @@ namespace WindowsFormsApp1
         // Control del turno (robar una sola carta por turno)
         private bool yaRobo = false;
         private Carta cartaRobadaEnTurno = null;
+
+        // Instancia del cliente socket para la red TCP
+        private ClienteSocket _clienteSocket;
 
         // Interfaz nueva
         private AbanicoCartas[] abanicos = new AbanicoCartas[3];
@@ -57,7 +62,7 @@ namespace WindowsFormsApp1
         {
             InitializeComponent();
 
-            
+
 
             juego = new JuegoUNO();
 
@@ -80,39 +85,103 @@ namespace WindowsFormsApp1
             ConfigurarInterfaz();
         }
 
-        // Constructor que usa la pantalla de inicio (nombres e iconos de cada jugador)
-        public UNO(string[] nombres, string[] rutasIconos) : this()
+        // Constructor principal que recibe la conexión TCP del cliente y el nombre ingresado
+        // Constructor principal que recibe la conexión TCP del cliente y el nombre ingresado
+        // Constructor principal que recibe la conexión TCP del cliente y el nombre ingresado
+        // Constructor principal que recibe la conexión TCP del cliente y el nombre ingresado
+        public UNO(ClienteSocket clienteSocket, string nombreJugador) : this()
         {
-            for (int i = 0; i < 3 && i < nombres.Length; i++)
+            _clienteSocket = clienteSocket;
+
+            if (!string.IsNullOrEmpty(nombreJugador))
             {
-                nombresJugadores[i] = nombres[i];
-                juego.jugadores[i].Nombre = nombres[i];
+                nombreTemporal = nombreJugador;
+
+                // AQUÍ ESTABA EL TRUCO: Asignarlo directamente al arreglo y al juego al igual que el otro constructor
+                nombresJugadores[0] = nombreJugador;
+                if (juego != null && juego.jugadores.Count > 0)
+                {
+                    juego.jugadores[0].Nombre = nombreJugador;
+                }
             }
-            iconosJugadores = rutasIconos;
+
+            if (_clienteSocket != null)
+            {
+                _clienteSocket.OnMessageReceived += ProcesarMensajeServidor;
+            }
+
             this.WindowState = FormWindowState.Maximized;
         }
 
+
+
+        // Procesa los mensajes recibidos del Servidor a través del hilo secundario de red
+        private void ProcesarMensajeServidor(string mensaje)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action<string>(ProcesarMensajeServidor), new object[] { mensaje });
+                return;
+            }
+
+            string[] partes = mensaje.Split('|');
+            string comando = partes[0];
+
+            switch (comando)
+            {
+                case "JUGADA_INVALIDA":
+                    MessageBox.Show("Movimiento rechazado por el servidor.", "Reglas del Servidor", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    break;
+
+                case "ESTADO_PARTIDA":
+                    if (partes.Length > 1) int.TryParse(partes[1], out juego.jugadorActual);
+                    ActualizarInterfaz();
+                    break;
+
+                case "AVISO":
+                    if (partes.Length > 1) AgregarHistorial(partes[1]);
+                    break;
+            }
+        }
+
         //inicializa la ventana cuando se carga, configura controles y prepara la partida/interfaz
+        // Inicializa la ventana cuando se carga, configura controles y prepara la partida/interfaz
         private async void UNO_Load(object sender, EventArgs e)
         {
+            MessageBox.Show("nombreTemporal = [" + nombreTemporal + "]");
+            // 1. Iniciar el juego (esto crea los jugadores por defecto)
+            juego.iniciarPartida();
+
+            // 2. Aplicar el nombre real DESPUÉS de iniciarPartida
+            if (!string.IsNullOrEmpty(nombreTemporal))
+            {
+                nombresJugadores[0] = nombreTemporal;
+
+                if (juego.jugadores.Count > 0)
+                    juego.jugadores[0].Nombre = nombreTemporal;
+            }
+
+            // Comprobación temporal: debe mostrar el nombre que escribiste
+            Debug.WriteLine("Nombre J1 = " + juego.jugadores[0].Nombre + " | temporal = " + nombreTemporal);
+
+            // 3. Controles e iconos con el nombre ya corregido
             AcomodarControles();
             AsignarIconos();
 
-            juego.iniciarPartida();
             juego.colocarCartaInicial();
 
-            // 1. Obtener o crear los IDs de los jugadores en la BD
+            // 4. IDs de los jugadores en la BD
             for (int i = 0; i < nombresJugadores.Length; i++)
             {
                 idsJugadores[i] = jugadorDAO.ObtenerOCrear(nombresJugadores[i]);
             }
 
-            // 2. Crear registro de la partida en la BD
+            // 5. Registro de la partida en la BD
             idPartidaActual = historialDAO.GuardarPartida();
             historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
             logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
 
-            // 3. Animación: se barajan y reparten las cartas
+            // 6. Animación de reparto
             await AnimacionInicio();
 
             AgregarHistorial("Comienza la partida. Turno de " + nombresJugadores[juego.jugadorActual]);
@@ -179,7 +248,7 @@ namespace WindowsFormsApp1
             lblAvisoUno.BackColor = Color.Transparent;
             lblAvisoUno.Font = new Font("Segoe UI Black", 20f, FontStyle.Bold);
 
-            foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3 }) EstilizarRobar(b);
+            foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3 }) EstilitarRobar(b);
             foreach (Button b in new Button[] { UnoJ1, UnoJ2, UnoJ3 }) EstilizarUno(b);
             AplicarReversoMazo();
 
@@ -191,7 +260,7 @@ namespace WindowsFormsApp1
 
         //Aquí se agrega el cambio de carta de reversa 
         // da estilo visual al botón de robar
-        private void EstilizarRobar(Button b)
+        private void EstilitarRobar(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
             b.FlatAppearance.BorderSize = 0;
@@ -246,7 +315,13 @@ namespace WindowsFormsApp1
                 marcos[i].BackColor = Color.White;
                 marcos[i].BackgroundImage = ImagenesUNO.Cargar(iconosJugadores[i]);
                 marcos[i].BackgroundImageLayout = ImageLayout.Zoom;
-                nombres[i].Text = juego.jugadores[i].Nombre;
+
+                // Aseguramos que el label y el arreglo reflejen el nombre real del jugador
+                if (juego.jugadores.Count > i)
+                {
+                    nombres[i].Text = juego.jugadores[i].Nombre;
+                    nombresJugadores[i] = juego.jugadores[i].Nombre;
+                }
             }
         }
 
@@ -361,6 +436,8 @@ namespace WindowsFormsApp1
 
             for (int i = 0; i < 3; i++)
             {
+                
+
                 Jugador jugador = juego.jugadores[i];
                 bool esActual = juego.jugadorActual == i;
 
@@ -688,6 +765,12 @@ namespace WindowsFormsApp1
             if (animando || juego.partidaTerminada || indiceJugador != juego.jugadorActual)
                 return;
 
+            // Envía la acción por el socket si se está en red
+            if (_clienteSocket != null && indiceJugador == 0)
+            {
+                _clienteSocket.EnviarMensaje($"JUGAR_CARTA|{cartaJugada.Color}|{cartaJugada.Valor}");
+            }
+
             animando = true;
             try
             {
@@ -838,6 +921,11 @@ namespace WindowsFormsApp1
                 return;
 
             Jugador jugador = juego.obtenerJugadorActual();
+
+            if (_clienteSocket != null && juego.jugadorActual == 0)
+            {
+                _clienteSocket.EnviarMensaje("ROBAR_CARTA");
+            }
 
             // Segundo clic en el mazo en el mismo turno = pasar turno
             if (yaRobo)
@@ -998,6 +1086,11 @@ namespace WindowsFormsApp1
             if (!juego.declararUNO(jugador))
             {
                 return;
+            }
+
+            if (_clienteSocket != null && indiceJugador == 0)
+            {
+                _clienteSocket.EnviarMensaje("CANTAR_UNO");
             }
 
             logJuegoDAO.RegistrarMensaje(idPartidaActual, idsJugadores[indiceJugador], jugador.Nombre + " declaró UNO");
