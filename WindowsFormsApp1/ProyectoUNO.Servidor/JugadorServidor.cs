@@ -19,9 +19,9 @@ namespace ProyectoUno.Servidor
         public string Nombre { get; set; }
         public bool Registrado { get; set; }
 
-        private TcpClient cliente;
-        private StreamReader lector;
-        private StreamWriter escritor;
+        private readonly TcpClient cliente;
+        private readonly StreamReader lector;
+        private readonly StreamWriter escritor;
 
         // SemaphoreSlim evita que dos mensajes intenten escribirse al mismo tiempo en la conexión
         private readonly SemaphoreSlim bloqueo = new SemaphoreSlim(1, 1);
@@ -85,7 +85,7 @@ namespace ProyectoUno.Servidor
             }
             catch (Exception)
             {
-                // La conexión pudo haberse cerrado anteriormente.
+                // La conexión pudo haberse cerrado anteriormente
             }
         }
     }
