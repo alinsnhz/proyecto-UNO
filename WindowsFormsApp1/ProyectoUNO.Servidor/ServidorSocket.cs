@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using ProyectoUno.Protocolo;
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using ProyectoUno.Protocolo;
 
 namespace ProyectoUno.Servidor
 {
@@ -13,22 +14,15 @@ namespace ProyectoUno.Servidor
     {
         private const int Puerto = 11000;
         private const int MaxJugadores = 3;
-
         private TcpListener listener;
-
-        private readonly PartidaServidor partida =
-            new PartidaServidor();
-
-        private readonly ConcurrentDictionary<int, JugadorServidor>
-            clientes =
-            new ConcurrentDictionary<int, JugadorServidor>();
-
-        private readonly SemaphoreSlim lugares =
-            new SemaphoreSlim(MaxJugadores, MaxJugadores);
-
+        private readonly PartidaServidor partida = new PartidaServidor();
+        private readonly ConcurrentDictionary<int, JugadorServidor> clientes = new ConcurrentDictionary<int, JugadorServidor>();
+        private readonly SemaphoreSlim lugares =  new SemaphoreSlim(MaxJugadores, MaxJugadores);
         private int siguienteId = 0;
-
         private volatile bool detenido = false;
+        private readonly ServicioAPI servicioAPI = new ServicioAPI();
+        private int idPartidaBD = 0;
+        private readonly ConcurrentDictionary<int, int> idsJugadoresBD = new ConcurrentDictionary<int, int>();
 
         public async Task IniciarAsync()
         {
@@ -204,6 +198,42 @@ namespace ProyectoUno.Servidor
             }
 
             Console.WriteLine("Jugador " + jugador.Id + " registrado con nombre: " + jugador.Nombre);
+            if (partida.Iniciada)
+            {
+                var jugadoresPartida = partida.ObtenerJugadores();
+
+                List<string> nombres = new List<string>();
+
+                foreach (JugadorServidor participante in jugadoresPartida)
+                {
+                    nombres.Add(participante.Nombre);
+                }
+
+                RespuestaInicioAPI resultado =
+                    await servicioAPI.IniciarPartidaAsync(nombres);
+
+                if (resultado != null &&
+                    resultado.IdPartida > 0 &&
+                    resultado.IdsJugadores != null &&
+                    resultado.IdsJugadores.Count == jugadoresPartida.Count)
+                {
+                    idPartidaBD = resultado.IdPartida;
+
+                    for (int i = 0; i < jugadoresPartida.Count; i++)
+                    {
+                        idsJugadoresBD[jugadoresPartida[i].Id] =
+                            resultado.IdsJugadores[i];
+                    }
+
+                    Console.WriteLine(
+                        "Partida registrada en MySQL. ID: " + idPartidaBD);
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "No se pudo registrar la partida en la base de datos.");
+                }
+            }
 
             await jugador.EnviarAsync(
                 new Mensajes
