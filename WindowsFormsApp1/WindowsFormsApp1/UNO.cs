@@ -78,14 +78,13 @@ namespace WindowsFormsApp1
         }
 
         // Constructor que usa la pantalla de inicio (nombres e iconos de cada jugador)
-        public UNO(string[] nombres, string[] rutasIconos) : this()
+        private ClienteSocket clienteSocket;
+        private string nombreJugadorActual;
+
+        public UNO(ClienteSocket clienteSocket, string nombreJugador) : this()
         {
-            for (int i = 0; i < 3 && i < nombres.Length; i++)
-            {
-                nombresJugadores[i] = nombres[i];
-                juego.jugadores[i].Nombre = nombres[i];
-            }
-            iconosJugadores = rutasIconos;
+            this.clienteSocket = clienteSocket;
+            this.nombreJugadorActual = nombreJugador;
             this.WindowState = FormWindowState.Maximized;
         }
 
