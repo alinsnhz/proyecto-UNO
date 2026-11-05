@@ -12,11 +12,13 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    // permite probar los endopints durante el desarrollo
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseAuthorization();
+// publica los endpoints de los controladores
 app.MapControllers();
 
 app.Run();

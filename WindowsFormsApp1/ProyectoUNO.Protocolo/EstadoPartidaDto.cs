@@ -11,6 +11,9 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("cartaActual")]
         public string CartaActual { get; set; }
 
+        [JsonProperty("cartaCentro")]
+        public CartaEstadoDto CartaCentro { get; set; }
+
         [JsonProperty("sentido")]
         public int Sentido { get; set; }
 

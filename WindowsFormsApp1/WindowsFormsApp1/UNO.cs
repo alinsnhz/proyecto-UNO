@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using proyectoUNO;
-using proyecto_UNO;
 using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
@@ -19,7 +18,7 @@ namespace WindowsFormsApp1
     */
     public partial class UNO : Form
     {
-        private JuegoUNO juego;
+        private juegoUNO juego;
         private Timer timerMensaje;
 
         // Instancias de BD y control de sesión/partida
@@ -57,9 +56,7 @@ namespace WindowsFormsApp1
         {
             InitializeComponent();
 
-            
-
-            juego = new JuegoUNO();
+            juego = new juegoUNO();
 
             juego.jugadores.Add(new Jugador(1, nombresJugadores[0]));
             juego.jugadores.Add(new Jugador(2, nombresJugadores[1]));
@@ -772,46 +769,40 @@ namespace WindowsFormsApp1
             {
                 case "Comodin":
                     juego.aplicarComodin(colorElegido);
-                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
-                    mensaje += " (color: " + colorElegido + ")";
+
+                    mensaje += " (color: " + colorElegido + ").";
+
                     juego.cambiarTurno();
                     break;
 
                 case "+4":
-                    afectado = juego.aplicarMasCuatro(colorElegido);
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+4");
-                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
-                    mensaje += " (color: " + colorElegido + "). " + afectado.Nombre + " roba 4 y pierde su turno";
-                    await VolarReversos(4, juego.jugadores.IndexOf(afectado));
+                    juego.aplicarMasCuatro(colorElegido);
+
+                    mensaje += " (color: " + colorElegido + "). El siguiente jugador roba 4 cartas y pierde su turno.";
+
+                    await VolarReversos(4, (indiceJugador + 1) % 3);
                     break;
 
                 case "Reversa":
-                    if (juego.jugadores.Count == 2)
-                    {
-                        juego.aplicarSalta();   // con 2 jugadores la reversa funciona como salto
-                    }
-                    else
-                    {
-                        juego.aplicarReversa();   // invierte el sentido
-                        juego.cambiarTurno();     // y pasa al siguiente en el nuevo sentido
-                    }
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
+                    juego.aplicarReversa();
+
+                    mensaje += ". Se invirtió el sentido del juego.";
+
+                    juego.cambiarTurno();
                     break;
 
                 case "Salta":
                     juego.aplicarSalta();
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Salto");
+
+                    mensaje += ". Se saltó el turno del siguiente jugador.";
                     break;
 
                 case "+2":
-                    afectado = juego.aplicarMasDos();
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+2");
-                    mensaje += ". " + afectado.Nombre + " roba 2 y pierde su turno";
-                    await VolarReversos(2, juego.jugadores.IndexOf(afectado));
-                    break;
+                    juego.aplicarMasDos();
 
-                default:
-                    juego.cambiarTurno();
+                    mensaje += ". El siguiente jugador roba 2 cartas y pierde su turno.";
+
+                    await VolarReversos(2, (indiceJugador + 1) % 3);
                     break;
             }
 
