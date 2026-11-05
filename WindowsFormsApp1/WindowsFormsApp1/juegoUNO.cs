@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace proyectoUNO
 {
-    public class JuegoUNO
+    public class juegoUNO
     {
         public List<Jugador> jugadores { get; set; }
 
@@ -50,7 +50,7 @@ namespace proyectoUNO
             CartaRobada = null;
         }
 
-        public JuegoUNO()
+        public juegoUNO()
         {
             jugadores = new List<Jugador>();
             pilaDescarte = new List<Carta>();

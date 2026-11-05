@@ -11,6 +11,9 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("cartaActual")]
         public string CartaActual { get; set; }
 
+        [JsonProperty("cartaCentro")]
+        public CartaEstadoDto CartaCentro { get; set; }
+
         [JsonProperty("sentido")]
         public int Sentido { get; set; }
 
@@ -26,9 +29,6 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("ganador")]
         public string Ganador { get; set; }
 
-        [JsonProperty("cartaCentro")]
-        public CartaEstadoDto CartaCentro { get; set; }
-
         [JsonProperty("jugadores")]
         public List<JugadorEstadoDto> Jugadores { get; set; }
             = new List<JugadorEstadoDto>();
@@ -37,7 +37,6 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("misCartas")]
         public List<CartaEstadoDto> MisCartas { get; set; }
             = new List<CartaEstadoDto>();
-        public CartaEstadoDto CartaCentro { get; set; }
     }
 
     public class JugadorEstadoDto

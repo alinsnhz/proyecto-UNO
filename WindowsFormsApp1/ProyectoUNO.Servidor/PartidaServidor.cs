@@ -1,11 +1,11 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
-using ProyectoUno.Protocolo; // Mensajes, EstadoPartidaDto, JugadorEstadoDto, CartaEstadoDto
-using proyectoUNO;           // Motor del juego (JuegoUNO, Jugador, Carta, ReglasUNO)
+using proyectoUNO;
+using ProyectoUno.Protocolo;
 
 namespace ProyectoUno.Servidor
 {
-    // Clase responsable de administrar la sala y decidir cuándo comienza la partida.
     public class PartidaServidor
     {
         private const int MaxJugadores = 3;
@@ -14,15 +14,12 @@ namespace ProyectoUno.Servidor
 
         private readonly object candado = new object();
 
-        public JuegoUNO Juego { get; private set; }
+        public juegoUNO? Juego { get; private set; }
 
         public bool Iniciada { get; private set; }
+
         public bool Interrumpida { get; private set; }
 
-        // Instancia del juego UNO
-        public JuegoUNO Juego { get; private set; }
-
-        // Registra un jugador en la sala.
         public bool RegistrarJugador(JugadorServidor jugador)
         {
             lock (candado)
@@ -33,7 +30,6 @@ namespace ProyectoUno.Servidor
                 if (jugadores.Count >= MaxJugadores)
                     return false;
 
-                // No permitir nuevos jugadores si la partida ya comenzó o fue interrumpida.
                 if (Iniciada || Interrumpida)
                     return false;
 
@@ -46,7 +42,6 @@ namespace ProyectoUno.Servidor
                 jugadores.Add(jugador);
                 jugador.Registrado = true;
 
-                // La partida comienza únicamente con tres jugadores.
                 if (jugadores.Count == MaxJugadores)
                 {
                     if (!IniciarPartida())
@@ -61,14 +56,13 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        // Crea e inicia una única partida compartida.
         private bool IniciarPartida()
         {
             try
             {
                 Console.WriteLine("Iniciando partida de UNO...");
 
-                JuegoUNO nuevoJuego = new JuegoUNO();
+                juegoUNO nuevoJuego = new juegoUNO();
 
                 foreach (JugadorServidor participante in jugadores)
                 {
@@ -94,23 +88,28 @@ namespace ProyectoUno.Servidor
                 foreach (JugadorServidor participante in jugadores)
                 {
                     Console.WriteLine(
-                        "Jugador " + participante.Id + ": " + participante.Nombre
-                    );
+                        "Jugador " + participante.Id + ": " + participante.Nombre);
                 }
 
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error al iniciar la partida: " + ex.Message);
+                Console.WriteLine(
+                    "Error al iniciar la partida: " + ex.Message);
 
                 Juego = null;
                 Iniciada = false;
+
+                foreach (JugadorServidor participante in jugadores)
+                    participante.Registrado = false;
+
+                jugadores.Clear();
+
                 return false;
             }
         }
 
-        // Busca al jugador correspondiente a un ID asignado por el servidor.
         public Jugador ObtenerJugador(int id)
         {
             lock (candado)
@@ -119,7 +118,6 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        // Devuelve una copia de los jugadores conectados.
         public List<JugadorServidor> ObtenerJugadores()
         {
             lock (candado)
@@ -128,7 +126,6 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        // Punto de entrada para cualquier acción enviada por un cliente.
         public Mensajes ProcesarAccion(int id, Mensajes solicitud)
         {
             lock (candado)
@@ -232,7 +229,8 @@ namespace ProyectoUno.Servidor
                     "No puedes jugar esa carta.");
             }
 
-            if (!ReglasUNO.PuedeElegirColor(carta, solicitud.ColorElegido))
+            if (!ReglasUNO.PuedeElegirColor(
+                carta, solicitud.ColorElegido))
             {
                 return CrearRespuesta(
                     solicitud, false,
@@ -427,7 +425,8 @@ namespace ProyectoUno.Servidor
 
         private void CerrarOportunidadUNO(Jugador jugadorQueActua)
         {
-            if (!Juego.oportunidadUNO || Juego.jugadorUNO == null)
+            if (!Juego.oportunidadUNO ||
+                Juego.jugadorUNO == null)
                 return;
 
             // El jugador que quedó con una carta conserva
@@ -440,7 +439,6 @@ namespace ProyectoUno.Servidor
             Juego.declaroUNO = false;
         }
 
-        // Versión sin lock: solo debe llamarse desde métodos que ya tengan el candado.
         private Jugador ObtenerJugadorInterno(int id)
         {
             if (Juego == null)
@@ -529,7 +527,8 @@ namespace ProyectoUno.Servidor
                             Nombre = jugador.Nombre,
                             CantidadCartas = jugador.cantidadCartas(),
                             EsTurnoActual = jugador == actual,
-                            DebeDeclararUNO = Juego.noDeclaroUNO(jugador)
+                            DebeDeclararUNO =
+                                Juego.noDeclaroUNO(jugador)
                         });
 
                     // Cada jugador solamente recibe sus propias cartas.
@@ -537,7 +536,8 @@ namespace ProyectoUno.Servidor
                     {
                         foreach (Carta carta in jugador.Cartas)
                         {
-                            estado.MisCartas.Add(ConvertirCarta(carta));
+                            estado.MisCartas.Add(
+                                ConvertirCarta(carta));
                         }
                     }
                 }
@@ -560,7 +560,6 @@ namespace ProyectoUno.Servidor
             };
         }
 
-        // Elimina a un jugador cuando se desconecta.
         public void EliminarJugador(JugadorServidor jugador)
         {
             if (jugador == null)
@@ -568,31 +567,34 @@ namespace ProyectoUno.Servidor
 
             lock (candado)
             {
-                jugadores.Remove(jugador);
+                bool eliminado = jugadores.Remove(jugador);
+
                 jugador.Registrado = false;
 
-                // Si alguien abandona una partida que ya comenzó, se interrumpe.
-                if (Iniciada && jugadores.Count > 0)
+                if (!eliminado)
+                    return;
+
+                if (Iniciada)
                 {
                     Interrumpida = true;
                     Iniciada = false;
 
-                    Console.WriteLine("La partida fue interrumpida.");
+                    Console.WriteLine(
+                        "La partida fue interrumpida.");
                 }
 
-                // Cuando todos se desconectan, la sala puede reiniciarse.
                 if (jugadores.Count == 0)
                 {
                     Juego = null;
                     Iniciada = false;
                     Interrumpida = false;
 
-                    Console.WriteLine("Sala disponible para una nueva partida.");
+                    Console.WriteLine(
+                        "Sala disponible para una nueva partida.");
                 }
             }
         }
 
-        // Cantidad de jugadores registrados.
         public int CantidadJugadores
         {
             get
@@ -604,14 +606,15 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        // Indica si la sala puede recibir jugadores.
         public bool SalaLlena
         {
             get
             {
                 lock (candado)
                 {
-                    return jugadores.Count >= MaxJugadores || Interrumpida;
+                    return jugadores.Count >= MaxJugadores ||
+                           Interrumpida ||
+                           Iniciada;
                 }
             }
         }

@@ -1,41 +1,47 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static WindowsFormsApp1.EstiloUI;
 using proyectoUNO;
+using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
 {
     /*
-     * Ventana principal de la partida del cliente UNO.
-     * Coordina la interfaz gráfica, dibuja las cartas y se comunica con el servidor vía sockets.
+     * Es la ventana principal de la partida. 
+     * Coordina la interfaz, la lógica del juego, las animaciones, los botones y el registro de eventos
     */
     public partial class UNO : Form
     {
-        // Instancia opcional para referencias visuales locales pero sin ejecutar reglas
-        private JuegoUNO juego;
+        private juegoUNO juego;
         private Timer timerMensaje;
 
-        // Instancias de BD y control local (si se mantienen en cliente para estadísticas)
+        // Instancias de BD y control de sesión/partida
         private HistorialDAO historialDAO = new HistorialDAO();
         private LogJuegoDAO logJuegoDAO = new LogJuegoDAO();
         private JugadorDAO jugadorDAO = new JugadorDAO();
 
+        private int idPartidaActual = 0;
+        private bool partidaFinalizada = false;
+
         private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int[] idsJugadores = new int[3];
 
-        // Interfaz visual (Abanicos)
+        // Control del turno (robar una sola carta por turno)
+        private bool yaRobo = false;
+        private Carta cartaRobadaEnTurno = null;
+
+        // Interfaz nueva
         private AbanicoCartas[] abanicos = new AbanicoCartas[3];
         private Label lblTurno;
+        private bool animando = false;
         private string[] iconosJugadores = null;
         private List<string> historial = new List<string>();
-
-        // Conexión por socket con el servidor externo
-        private ClienteSocket clienteSocket;
 
         private readonly Font fuenteNombre = new Font("Segoe UI Semibold", 12f);
         private readonly Font fuenteNombreActivo = new Font("Segoe UI", 12f, FontStyle.Bold);
@@ -50,16 +56,15 @@ namespace WindowsFormsApp1
         {
             InitializeComponent();
 
-            // Se inicializa el objeto base únicamente para mantener estructuras de jugadores visuales
-            juego = new JuegoUNO();
+            juego = new juegoUNO();
+
             juego.jugadores.Add(new Jugador(1, nombresJugadores[0]));
             juego.jugadores.Add(new Jugador(2, nombresJugadores[1]));
             juego.jugadores.Add(new Jugador(3, nombresJugadores[2]));
 
             this.Resize += UNO_Resize;
 
-            if (lblAvisoUno != null)
-                lblAvisoUno.Visible = false;
+            lblAvisoUno.Visible = false;
 
             timerMensaje = new Timer();
             timerMensaje.Interval = 2000;
@@ -72,28 +77,8 @@ namespace WindowsFormsApp1
             ConfigurarInterfaz();
         }
 
-        // Constructor que recibe el socket y el nombre del jugador desde InicioForm
-        public UNO(ClienteSocket socketConectado, string nombreJugador) : this()
-        {
-            clienteSocket = socketConectado;
-
-            if (clienteSocket != null)
-            {
-                clienteSocket.OnMessageReceived += ProcesarMensajeServidor;
-                clienteSocket.OnDisconnected += ManejarDesconexion;
-            }
-
-            if (juego.jugadores.Count > 0)
-            {
-                juego.jugadores[0].Nombre = nombreJugador;
-                nombresJugadores[0] = nombreJugador;
-            }
-
-            this.WindowState = FormWindowState.Maximized;
-        }
-
-        // Constructor alternativo si se requiere pasar nombres e iconos directamente
-        public UNO(string[] nombres, string[] rutasIconos, ClienteSocket socketConectado) : this(socketConectado, nombres.Length > 0 ? nombres[0] : "Jugador 1")
+        // Constructor que usa la pantalla de inicio (nombres e iconos de cada jugador)
+        public UNO(string[] nombres, string[] rutasIconos) : this()
         {
             for (int i = 0; i < 3 && i < nombres.Length; i++)
             {
@@ -101,78 +86,45 @@ namespace WindowsFormsApp1
                 juego.jugadores[i].Nombre = nombres[i];
             }
             iconosJugadores = rutasIconos;
+            this.WindowState = FormWindowState.Maximized;
         }
 
-        // Inicializa la ventana cuando se carga y configura los controles visuales
-        private void UNO_Load(object sender, EventArgs e)
+        //inicializa la ventana cuando se carga, configura controles y prepara la partida/interfaz
+        private async void UNO_Load(object sender, EventArgs e)
         {
             AcomodarControles();
             AsignarIconos();
 
-            AgregarHistorial("Conectado a la partida. Esperando estado del servidor...");
+            juego.iniciarPartida();
+            juego.colocarCartaInicial();
+
+            // 1. Obtener o crear los IDs de los jugadores en la BD
+            for (int i = 0; i < nombresJugadores.Length; i++)
+            {
+                idsJugadores[i] = jugadorDAO.ObtenerOCrear(nombresJugadores[i]);
+            }
+
+            // 2. Crear registro de la partida en la BD
+            idPartidaActual = historialDAO.GuardarPartida();
+            historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+
+            // 3. Animación: se barajan y reparten las cartas
+            await AnimacionInicio();
+
+            AgregarHistorial("Comienza la partida. Turno de " + nombresJugadores[juego.jugadorActual]);
+            ActualizarInterfaz();
         }
 
-        // Procesa los comandos y tramas recibidas desde el servidor de sockets en tiempo real
-        private void ProcesarMensajeServidor(string mensajeServidor)
-        {
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action<string>(ProcesarMensajeServidor), mensajeServidor);
-                return;
-            }
-
-            try
-            {
-                if (mensajeServidor.StartsWith("ESTADO_PARTIDA|"))
-                {
-                    string payload = mensajeServidor.Substring("ESTADO_PARTIDA|".Length);
-
-                    // Nota: Deserializa aquí usando tu DTO recibido del servidor (ej. Newtonsoft.Json)
-                    // var estado = Newtonsoft.Json.JsonConvert.DeserializeObject<EstadoPartidaDto>(payload);
-
-                    // 1. Actualizar cartas propias y habilitar clics solo si es su turno:
-                    // bool esMiTurno = (estado.TurnoActualId == miIdJugador);
-                    // abanicos[0].PonerCartas(estado.ManoJugadorLocal, esMiTurno);
-
-                    // 2. Mostrar únicamente el conteo de cartas de los rivales mediante MaxVisibles (reversos ocultos):
-                    // abanicos[1].MaxVisibles = estado.CantidadCartasJugador2;
-                    // abanicos[2].MaxVisibles = estado.CantidadCartasJugador3;
-
-                    // 3. Actualizar carta del centro y turno en la interfaz:
-                    // ActualizarCartaCentro(estado.CartaActual);
-                    // lblTurno.Text = "Turno de: " + estado.NombreTurnoActual;
-                }
-                else if (mensajeServidor.StartsWith("MENSAJE|"))
-                {
-                    AgregarHistorial(mensajeServidor.Substring("MENSAJE|".Length));
-                }
-            }
-            catch (Exception)
-            {
-                AgregarHistorial("Error al procesar el estado recibido del servidor.");
-            }
-        }
-
-        // Maneja la pérdida de conexión informada por el socket
-        private void ManejarDesconexion(string motivo)
-        {
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action<string>(ManejarDesconexion), motivo);
-                return;
-            }
-
-            MessageBox.Show(motivo, "Desconectado", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            this.Close();
-        }
-
-        // Aplica la configuración visual inicial a los controles de la interfaz
+        // CONFIGURACIÓN, ESTILO Y DISTRIBUCIÓN DE LA INTERFAZ
+        //aplica la configuración visual inicial a los controles
         private void ConfigurarInterfaz()
         {
             this.DoubleBuffered = true;
             this.MinimumSize = new Size(900, 620);
             this.BackgroundImageLayout = ImageLayout.Stretch;
 
+            // Las manos se dibujan en abanico: los paneles originales quedan ocultos
             FlowLayoutPanel[] paneles = { panelMano, panelManoJugador2, panelManoJugador3 };
             float[] orientaciones = { 0f, 90f, 270f };
 
@@ -184,23 +136,12 @@ namespace WindowsFormsApp1
                 AbanicoCartas abanico = new AbanicoCartas();
                 abanico.Orientacion = orientaciones[i];
                 abanico.Atenuar = true;
-
-                if (i == 0)
-                {
-                    // La mano propia permite interacción y envío de jugadas al servidor
-                    abanico.CartaClick += async (carta) => await EnviarJugadaAlServidor(carta, indice);
-                }
-                else
-                {
-                    // Manos ajenas: configuradas inactivas y con relleno de cartas ficticias para mostrar solo el reverso y conteo
-                    abanico.ManoActiva = false;
-                    abanico.PonerCartas(GenerarCartasFicticias(20), false);
-                }
-
+                abanico.CartaClick += async (carta) => await JugarCarta(carta, indice);
                 this.Controls.Add(abanico);
                 abanicos[i] = abanico;
             }
 
+            // Etiqueta de turno
             lblTurno = new Label();
             lblTurno.AutoSize = false;
             lblTurno.AutoEllipsis = true;
@@ -210,6 +151,7 @@ namespace WindowsFormsApp1
             lblTurno.Font = new Font("Segoe UI", 13f, FontStyle.Bold);
             this.Controls.Add(lblTurno);
 
+            // Historial
             lblMensaje.AutoSize = false;
             lblMensaje.AutoEllipsis = true;
             lblMensaje.TextAlign = ContentAlignment.MiddleLeft;
@@ -219,6 +161,7 @@ namespace WindowsFormsApp1
             lblMensaje.Font = new Font("Segoe UI", 10.5f);
             lblMensaje.Text = "";
 
+            // Nombres de jugadores
             foreach (Label l in new Label[] { lblNombreJ1, lblNombreJ2, lblNombreJ3 })
             {
                 l.AutoSize = false;
@@ -227,6 +170,7 @@ namespace WindowsFormsApp1
                 l.Font = fuenteNombre;
             }
 
+            // Aviso "UNO"
             lblAvisoUno.AutoSize = false;
             lblAvisoUno.TextAlign = ContentAlignment.MiddleCenter;
             lblAvisoUno.BackColor = Color.Transparent;
@@ -236,23 +180,14 @@ namespace WindowsFormsApp1
             foreach (Button b in new Button[] { UnoJ1, UnoJ2, UnoJ3 }) EstilizarUno(b);
             AplicarReversoMazo();
 
+            // Se muestran cuando termina la animación de inicio
             cartaCentro.Visible = false;
             foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3, UnoJ1, UnoJ2, UnoJ3 })
                 b.Visible = false;
         }
 
-        // Genera una lista de cartas de relleno para representar visualmente los reversos de los rivales
-        private List<Carta> GenerarCartasFicticias(int cantidad)
-        {
-            List<Carta> lista = new List<Carta>();
-            for (int i = 0; i < cantidad; i++)
-            {
-                lista.Add(new Carta("Negro", "Reverso", "Especial"));
-            }
-            return lista;
-        }
-
-        // Da estilo visual al botón de robar
+        //Aquí se agrega el cambio de carta de reversa 
+        // da estilo visual al botón de robar
         private void EstilizarRobar(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
@@ -266,7 +201,7 @@ namespace WindowsFormsApp1
             b.Cursor = Cursors.Hand;
         }
 
-        // Da estilo visual al botón de declarar UNO
+        //da estilo visual al botón de declarar UNO
         private void EstilizarUno(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
@@ -281,7 +216,7 @@ namespace WindowsFormsApp1
             b.Cursor = Cursors.Hand;
         }
 
-        // Coloca o actualiza la imagen del reverso del mazo
+        //coloca o actualiza la imagen del reverso del mazo
         private void AplicarReversoMazo()
         {
             Image reverso = ImagenesUNO.Reverso();
@@ -294,7 +229,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Asigna iconos visuales a los jugadores en la interfaz
+        // asigna iconos visuales a los jugadores
         private void AsignarIconos()
         {
             if (iconosJugadores == null)
@@ -312,13 +247,21 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Responde al cambio de tamaño de la ventana reorganizando los elementos
+        // AJUSTAR TODO AL TAMAÑO DE LA VENTANA
+        //responde al cambio de tamaño de la ventana reorganizando elementos
         private void UNO_Resize(object sender, EventArgs e)
+        {
+            CentrarCarta();
+        }
+
+        //centra la carta que se muestra en el área central
+        private void CentrarCarta()
         {
             AcomodarControles();
         }
 
-        // Calcula y actualiza la posición y tamaño de los controles de la ventana
+        // Coloca todo en proporción al tamaño de la ventana
+        //calcula y actualiza la posición/tamaño de los controles de la ventana
         private void AcomodarControles()
         {
             if (abanicos[0] == null || lblTurno == null) return;
@@ -332,6 +275,7 @@ namespace WindowsFormsApp1
             int altoNombre = Limitar((int)(H * 0.045), 28, 38);
             int anchoNombre = Limitar((int)(W * 0.12), 150, 210);
 
+            // Barra superior: turno e historial
             int anchoTurno = Limitar((int)(W * 0.42), 360, 600);
             lblTurno.SetBounds((W - anchoTurno) / 2, m, anchoTurno, 44);
             Redondear(lblTurno, 22);
@@ -347,6 +291,7 @@ namespace WindowsFormsApp1
             int yNombreJ1 = H - m - altoNombre;
             int yIconoJ1 = yNombreJ1 - 4 - icono;
 
+            // Jugador 2 (izquierda)
             panelJugador2.SetBounds(m + (anchoNombre - icono) / 2, yTop, icono, icono);
             Circular(panelJugador2);
             lblNombreJ2.SetBounds(m, yTop + icono + 4, anchoNombre, altoNombre);
@@ -356,6 +301,7 @@ namespace WindowsFormsApp1
             int altoLateral = Math.Max(140, yIconoJ1 - 10 - yMano);
             abanicos[1].SetBounds(m, yMano, anchoLateral, altoLateral);
 
+            // Jugador 3 (derecha)
             int xNombre3 = W - m - anchoNombre;
             panelJugador3.SetBounds(xNombre3 + (anchoNombre - icono) / 2, yTop, icono, icono);
             Circular(panelJugador3);
@@ -363,6 +309,7 @@ namespace WindowsFormsApp1
             Redondear(lblNombreJ3, altoNombre / 2);
             abanicos[2].SetBounds(W - m - anchoLateral, yMano, anchoLateral, altoLateral);
 
+            // Jugador 1 (abajo)
             panelJugador.SetBounds(m + (anchoNombre - icono) / 2, yIconoJ1, icono, icono);
             Circular(panelJugador);
             lblNombreJ1.SetBounds(m, yNombreJ1, anchoNombre, altoNombre);
@@ -371,6 +318,7 @@ namespace WindowsFormsApp1
             int anchoBase = Limitar((int)(W * 0.5), 420, 1100);
             abanicos[0].SetBounds((W - anchoBase) / 2, H - m - altoBase, anchoBase, altoBase);
 
+            // Centro: mazo, carta actual y botón UNO
             int topMano1 = H - m - altoBase;
             int cx = W / 2;
             int cy = (yTop + topMano1 - 10) / 2;
@@ -397,17 +345,66 @@ namespace WindowsFormsApp1
             lblAvisoUno.SetBounds(cx - 260, cartaCentro.Top - 56, 520, 46);
         }
 
-        // Envía la acción de jugar una carta al servidor mediante sockets
-        private async Task EnviarJugadaAlServidor(Carta cartaJugada, int indiceJugador)
+        // ACTUALIZAR LA INTERFAZ
+        //refresca manos, cartas, botones y demás elementos visibles tras una acción
+        private void ActualizarInterfaz()
         {
-            if (clienteSocket != null && clienteSocket.IsConnected)
+            if (juego.jugadores.Count < 3)
+                return;
+
+            Label[] nombres = { lblNombreJ1, lblNombreJ2, lblNombreJ3 };
+            Button[] robar = { RobarJ1, RobarJ2, RobarJ3 };
+            Button[] uno = { UnoJ1, UnoJ2, UnoJ3 };
+
+            for (int i = 0; i < 3; i++)
             {
-                string trama = $"JUGAR|{cartaJugada.Id}|{cartaJugada.Color}|{cartaJugada.Tipo}";
-                await clienteSocket.EnviarMensajeAsync(trama);
+                Jugador jugador = juego.jugadores[i];
+                bool esActual = juego.jugadorActual == i;
+
+                MostrarCartas(abanicos[i], jugador.Cartas, i);
+
+                // nombre + cantidad de cartas, resaltado si es su turno
+                nombres[i].Text = jugador.Nombre + "  ·  " + jugador.Cartas.Count;
+                nombres[i].Font = esActual ? fuenteNombreActivo : fuenteNombre;
+                nombres[i].BackColor = esActual ? Color.Gold : Color.FromArgb(200, 35, 10, 10);
+                nombres[i].ForeColor = esActual ? Color.FromArgb(60, 20, 0) : Color.White;
+
+                // botones solo para el jugador con turno
+                robar[i].Visible = esActual && !juego.partidaTerminada;
+                uno[i].Visible = esActual && jugador.Cartas.Count == 2 && !juego.partidaTerminada;
             }
+
+            MostrarCartaCentro();
+            ActualizarTurno();
         }
 
-        // Añade un mensaje al historial visual de la partida
+        //actualiza la indicación visual del jugador que tiene el turno
+        private void ActualizarTurno()
+        {
+            if (lblTurno == null) return;
+
+            if (juego.partidaTerminada && juego.Ganador != null)
+            {
+                lblTurno.Text = "¡Ganó " + juego.Ganador.Nombre + "!";
+                lblTurno.BackColor = Color.Gold;
+                lblTurno.ForeColor = Color.FromArgb(60, 20, 0);
+                return;
+            }
+
+            string texto = "Turno de " + juego.obtenerJugadorActual().Nombre + "  ·  " +
+                           (juego.direccion == 1 ? "sentido horario" : "sentido antihorario");
+
+            Carta superior = juego.cartaActual;
+            if (superior != null && (superior.Tipo == "Comodin" || superior.Tipo == "+4") && superior.Color != "Negro")
+                texto += "  ·  Color: " + superior.Color;
+
+            lblTurno.Text = texto;
+            lblTurno.BackColor = coloresJugador[juego.jugadorActual];
+            lblTurno.ForeColor = Color.White;
+        }
+
+        // Muestra los últimos 3 movimientos en el historial
+        //añade un mensaje al historial visual de la partida
         private void AgregarHistorial(string texto)
         {
             historial.Insert(0, texto);
@@ -753,7 +750,6 @@ namespace WindowsFormsApp1
             );
 
             string mensaje = jugador.Nombre + " jugó: " + valorCarta;
-            Jugador afectado = null;
 
             // 3) Penalización por no decir UNO
             if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
@@ -766,61 +762,47 @@ namespace WindowsFormsApp1
                 await VolarReversos(2, indiceJugador);
             }
 
+            // 4) Efecto de la carta (aquí se cambia el turno UNA sola vez)
+            Jugador afectado;
+
             switch (cartaJugada.Tipo)
             {
                 case "Comodin":
                     juego.aplicarComodin(colorElegido);
-                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
-                    mensaje += " (color: " + colorElegido + ")";
+
+                    mensaje += " (color: " + colorElegido + ").";
+
                     juego.cambiarTurno();
                     break;
 
                 case "+4":
-                    afectado = ObtenerSiguienteJugador();
-
                     juego.aplicarMasCuatro(colorElegido);
 
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+4");
-                    logJuegoDAO.RegistrarCambioColor(idPartidaActual, idJugador, jugador.Nombre, colorElegido);
+                    mensaje += " (color: " + colorElegido + "). El siguiente jugador roba 4 cartas y pierde su turno.";
 
-                    mensaje += " (color: " + colorElegido + "). " + afectado.Nombre + " roba 4 y pierde su turno";
-
-                    await VolarReversos(4, juego.jugadores.IndexOf(afectado));
+                    await VolarReversos(4, (indiceJugador + 1) % 3);
                     break;
 
                 case "Reversa":
-                    if (juego.jugadores.Count == 2)
-                    {
-                        juego.aplicarSalta();
-                    }
-                    else
-                    {
-                        juego.aplicarReversa();
-                        juego.cambiarTurno();
-                    }
+                    juego.aplicarReversa();
 
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Reversa");
+                    mensaje += ". Se invirtió el sentido del juego.";
+
+                    juego.cambiarTurno();
                     break;
 
                 case "Salta":
                     juego.aplicarSalta();
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "Salto");
+
+                    mensaje += ". Se saltó el turno del siguiente jugador.";
                     break;
 
                 case "+2":
-                    afectado = ObtenerSiguienteJugador();
-
                     juego.aplicarMasDos();
 
-                    logJuegoDAO.RegistrarAccionEspecial(idPartidaActual, idJugador, jugador.Nombre, "+2");
+                    mensaje += ". El siguiente jugador roba 2 cartas y pierde su turno.";
 
-                    mensaje += ". " + afectado.Nombre + " roba 2 y pierde su turno";
-
-                    await VolarReversos(2, juego.jugadores.IndexOf(afectado));
-                    break;
-
-                default:
-                    juego.cambiarTurno();
+                    await VolarReversos(2, (indiceJugador + 1) % 3);
                     break;
             }
 
@@ -839,47 +821,207 @@ namespace WindowsFormsApp1
             FinalizarTurno();
         }
 
-        // Obtiene al siguiente jugador, respetando el sentido del juego.
-        private Jugador ObtenerSiguienteJugador()
-        {
-            int indice = juego.jugadorActual + juego.direccion;
-
-            if (indice >= juego.jugadores.Count)
-                indice = 0;
-
-            if (indice < 0)
-                indice = juego.jugadores.Count - 1;
-
-            return juego.jugadores[indice];
-        }
-
         // ROBAR Y PASAR TURNO
         //procesa el clic en robar, añade la carta a la mano y actualiza la interfaz/turno según la lógica
         private async void BtnRobar_Click(object sender, EventArgs e)
         {
-            if (clienteSocket != null && clienteSocket.IsConnected)
+            if (animando || juego.partidaTerminada)
+                return;
+
+            Jugador jugador = juego.obtenerJugadorActual();
+
+            // Segundo clic en el mazo en el mismo turno = pasar turno
+            if (yaRobo)
             {
-                await clienteSocket.EnviarMensajeAsync("ROBAR");
+                PasarTurno(jugador);
+                return;
+            }
+
+            animando = true;
+            try
+            {
+                Carta cartaNueva = juego.robarDuranteTurno(jugador);
+
+                if (cartaNueva == null)
+                {
+                    MessageBox.Show("No quedan cartas en el mazo. Se pasa el turno.", "Mazo vacío",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    PasarTurno(jugador);
+                    return;
+                }
+
+                string colorCarta = cartaNueva.Color ?? "SinColor";
+                string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
+                string tipoCarta = cartaNueva.Tipo;
+                int idJugadorActual = idsJugadores[juego.jugadorActual];
+                string nombreActual = nombresJugadores[juego.jugadorActual];
+
+                // Registrar la carta robada en la BD y en la API (una sola vez)
+                logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idJugadorActual, nombreActual,
+                    (colorCarta + " " + valorCarta).Trim());
+
+                _ = APICliente.RegistrarCartaRobadaAsync(
+                    idPartidaActual,
+                    idJugadorActual,
+                    nombreActual,
+                    colorCarta,
+                    valorCarta,
+                    tipoCarta
+                );
+
+                yaRobo = true;
+                cartaRobadaEnTurno = cartaNueva;
+
+                // La carta viaja del mazo a la mano
+                await VolarReversos(1, juego.jugadorActual);
+
+                if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
+                {
+                    AgregarHistorial(jugador.Nombre + " robó una carta que puede jugar. Juégala o haz clic en el mazo para pasar.");
+                    ActualizarInterfaz();
+                }
+                else
+                {
+                    AgregarHistorial(jugador.Nombre + " robó una carta y no puede jugarla. Pasa el turno.");
+                    PasarTurno(jugador);   // solo cambia el turno, NO el sentido
+                }
+            }
+            finally
+            {
+                animando = false;
             }
         }
 
+        //manejadores de botones que delegan la acción al método común de robar
         private void BtnRobar_Click_1(object sender, EventArgs e) => BtnRobar_Click(sender, e);
         private void RobarJ2_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
         private void RobarJ3_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
 
-        // Envía la declaración de UNO al servidor mediante socket
-        private async void MostrarAvisoUno(int indiceJugador)
+        //avanza el turno a partir del jugador indicado según la lógica de la partida
+        private void PasarTurno(Jugador jugador)
         {
-            if (clienteSocket != null && clienteSocket.IsConnected)
-            {
-                await clienteSocket.EnviarMensajeAsync("UNO");
-            }
+            logJuegoDAO.RegistrarMensaje(idPartidaActual, idsJugadores[juego.jugadorActual], jugador.Nombre + " pasó su turno");
+            juego.cambiarTurno();
+            FinalizarTurno();
         }
 
-        private void UnoJ1_Click(object sender, EventArgs e) => MostrarAvisoUno(0);
-        private void UnoJ2_Click(object sender, EventArgs e) => MostrarAvisoUno(1);
-        private void UnoJ3_Click(object sender, EventArgs e) => MostrarAvisoUno(2);
+        //realiza las acciones necesarias para cerrar el turno y actualizar quién juega después
+        private void FinalizarTurno()
+        {
+            yaRobo = false;
+            cartaRobadaEnTurno = null;
+            juego.declaroUNO = false;
 
+            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
+            ActualizarInterfaz();
+        }
+
+        // SELECCIONAR COLOR
+        //muestra la selección de color y devuelve el color elegido para un comodín
+        private string SeleccionarColor()
+        {
+            Form ventanaColor = new Form();
+            ventanaColor.Text = "Elige un color";
+            ventanaColor.StartPosition = FormStartPosition.CenterParent;
+            ventanaColor.FormBorderStyle = FormBorderStyle.FixedDialog;
+            ventanaColor.MaximizeBox = false;
+            ventanaColor.MinimizeBox = false;
+            ventanaColor.Width = 420;
+            ventanaColor.Height = 160;
+
+            Label mensaje = new Label();
+            mensaje.Text = "¿Qué color quieres elegir?";
+            mensaje.AutoSize = true;
+            mensaje.Location = new Point(20, 15);
+            ventanaColor.Controls.Add(mensaje);
+
+            string colorSeleccionado = "";
+
+            Button rojo = CrearBotonColor("Rojo", Color.Red);
+            rojo.Location = new Point(20, 55);
+            rojo.Click += (s, e) => { colorSeleccionado = "Rojo"; ventanaColor.Close(); };
+
+            Button azul = CrearBotonColor("Azul", Color.Blue);
+            azul.Location = new Point(115, 55);
+            azul.Click += (s, e) => { colorSeleccionado = "Azul"; ventanaColor.Close(); };
+
+            Button verde = CrearBotonColor("Verde", Color.Green);
+            verde.Location = new Point(210, 55);
+            verde.Click += (s, e) => { colorSeleccionado = "Verde"; ventanaColor.Close(); };
+
+            Button amarillo = CrearBotonColor("Amarillo", Color.Gold);
+            amarillo.Location = new Point(305, 55);
+            amarillo.Click += (s, e) => { colorSeleccionado = "Amarillo"; ventanaColor.Close(); };
+
+            ventanaColor.Controls.Add(rojo);
+            ventanaColor.Controls.Add(azul);
+            ventanaColor.Controls.Add(verde);
+            ventanaColor.Controls.Add(amarillo);
+
+            ventanaColor.ShowDialog(this);
+
+            return colorSeleccionado;
+        }
+
+        //crea un botón con el texto y color indicados para la selección de color
+        private Button CrearBotonColor(string texto, Color color)
+        {
+            Button boton = new Button();
+            boton.Text = texto;
+            boton.Width = 85;
+            boton.Height = 40;
+            boton.BackColor = color;
+            boton.ForeColor = texto == "Amarillo" ? Color.Black : Color.White;
+            boton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+
+            return boton;
+        }
+
+        // BOTONES UNO
+        //muestra un aviso al jugador indicado relacionado con declarar UNO
+        private void MostrarAvisoUno(int indiceJugador)
+        {
+            if (lblAvisoUno == null)
+                return;
+
+            Jugador jugador = juego.jugadores[indiceJugador];
+
+            if (!juego.declararUNO(jugador))
+            {
+                return;
+            }
+
+            logJuegoDAO.RegistrarMensaje(idPartidaActual, idsJugadores[indiceJugador], jugador.Nombre + " declaró UNO");
+
+            timerMensaje.Stop();
+            lblAvisoUno.Text = "¡" + jugador.Nombre.ToUpper() + " DIJO UNO!";
+            lblAvisoUno.ForeColor = Color.Gold;
+            lblAvisoUno.BringToFront();
+            lblAvisoUno.Visible = true;
+            timerMensaje.Start();
+        }
+
+        //manejadores de los botones UNO de cada jugador;
+        //llaman a la lógica de declaración correspondiente
+        private void UnoJ1_Click(object sender, EventArgs e)
+        {
+            if (juego.jugadorActual == 0)
+                MostrarAvisoUno(0);
+        }
+
+        private void UnoJ2_Click(object sender, EventArgs e)
+        {
+            if (juego.jugadorActual == 1)
+                MostrarAvisoUno(1);
+        }
+
+        private void UnoJ3_Click(object sender, EventArgs e)
+        {
+            if (juego.jugadorActual == 2)
+                MostrarAvisoUno(2);
+        }
+
+        //atiende el evento del temporizador usado para ocultar/actualizar mensajes temporales
         private void timerMensaje_Tick(object sender, EventArgs e)
         {
             timerMensaje.Stop();
@@ -889,6 +1031,20 @@ namespace WindowsFormsApp1
                 lblAvisoUno.Text = "";
                 lblAvisoUno.Visible = false;
             }
+        }
+
+        // convierte el color de la carta en un color visual para la interfaz
+        private Color ColorSegunCarta(Carta carta)
+        {
+            if (carta == null || carta.Color == null)
+                return Color.LightGray;
+
+            if (carta.Color == "Rojo") return Color.LightCoral;
+            if (carta.Color == "Azul") return Color.LightSkyBlue;
+            if (carta.Color == "Verde") return Color.LightGreen;
+            if (carta.Color == "Amarillo") return Color.LightYellow;
+
+            return Color.LightGray;
         }
     }
 }
