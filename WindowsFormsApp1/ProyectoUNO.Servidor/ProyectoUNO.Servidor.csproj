@@ -50,6 +50,7 @@
     <Compile Include="PartidaServidor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ServicioAPI.cs" />
     <Compile Include="ServidorSocket.cs" />
   </ItemGroup>
   <ItemGroup>
