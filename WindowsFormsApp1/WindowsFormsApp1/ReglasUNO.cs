@@ -54,7 +54,7 @@ namespace proyectoUNO
             return false;
         }
 
-        public static bool PuedeJugar(juegoUNO juego, Jugador jugador, Carta carta)
+        public static bool PuedeJugar(JuegoUNO juego, Jugador jugador, Carta carta)
         {
             if (juego == null ||
                 jugador == null ||
@@ -90,7 +90,7 @@ namespace proyectoUNO
             return EsColorValido(colorElegido);
         }
 
-        public static bool PuedeRobar(juegoUNO juego, Jugador jugador)
+        public static bool PuedeRobar(JuegoUNO juego, Jugador jugador)
         {
             if (juego == null || jugador == null)
                 return false;
@@ -108,7 +108,7 @@ namespace proyectoUNO
             return true;
         }
 
-        public static bool PuedePasarTurno(juegoUNO juego, Jugador jugador)
+        public static bool PuedePasarTurno(JuegoUNO juego, Jugador jugador)
         {
             if (juego == null || jugador == null)
                 return false;
@@ -123,7 +123,7 @@ namespace proyectoUNO
             return juego.TieneCartaRobadaPendiente(jugador);
         }
 
-        public static bool PuedeDeclararUNO(juegoUNO juego, Jugador jugador)
+        public static bool PuedeDeclararUNO(JuegoUNO juego, Jugador jugador)
         {
             if (juego == null || jugador == null)
                 return false;
@@ -134,7 +134,7 @@ namespace proyectoUNO
                    jugador.Cartas.Count == 1;
         }
 
-        public static bool PuedeAcusarUNO(juegoUNO juego, Jugador acusador, Jugador objetivo)
+        public static bool PuedeAcusarUNO(JuegoUNO juego, Jugador acusador, Jugador objetivo)
         {
             if (juego == null ||
                 acusador == null ||
