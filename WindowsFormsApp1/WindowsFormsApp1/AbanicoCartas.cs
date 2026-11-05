@@ -168,18 +168,29 @@ namespace WindowsFormsApp1
         }
 
         //dibuja la imagen o representación de la carta dentro del rectángulo indicado
+        // Dibuja la imagen o representación de la carta dentro del rectángulo indicado
         private void DibujarCarta(Graphics g, Carta carta, RectangleF r)
         {
             float radio = r.Width * 0.08f;
 
-            // sombra suave para separar las cartas que se solapan
+            // Sombra suave para separar las cartas que se solapan
             using (GraphicsPath sombra = EstiloUI.RectRedondeado(new RectangleF(r.X + 2, r.Y + 2, r.Width, r.Height), radio))
             using (SolidBrush brochaSombra = new SolidBrush(Color.FromArgb(70, 0, 0, 0)))
             {
                 g.FillPath(brochaSombra, sombra);
             }
 
-            Image img = ImagenesUNO.ImagenCarta(carta);
+            // AQUÍ ESTABLECEMOS LA IMAGEN CORRECTA (Si es reverso usa la imagen del sistema, si no, busca la carta)
+            Image img = null;
+            if (carta != null && (carta.Valor == "Reverso" || carta.Tipo == "Especial" && carta.Color == "Negro"))
+            {
+                img = ImagenesUNO.Reverso();
+            }
+            else
+            {
+                img = ImagenesUNO.ImagenCarta(carta);
+            }
+
             if (img != null)
             {
                 g.DrawImage(img, r);

@@ -25,16 +25,12 @@ namespace WindowsFormsApp1
         private LogJuegoDAO logJuegoDAO = new LogJuegoDAO();
         private JugadorDAO jugadorDAO = new JugadorDAO();
 
-        private int idPartidaActual = 0;
-        private bool partidaFinalizada = false;
-
         private string[] nombresJugadores = new string[] { "Jugador 1", "Jugador 2", "Jugador 3" };
         private int[] idsJugadores = new int[3];
 
         // Interfaz visual (Abanicos)
         private AbanicoCartas[] abanicos = new AbanicoCartas[3];
         private Label lblTurno;
-        private bool animando = false;
         private string[] iconosJugadores = null;
         private List<string> historial = new List<string>();
 
@@ -76,21 +72,35 @@ namespace WindowsFormsApp1
             ConfigurarInterfaz();
         }
 
-        // Constructor que recibe nombres, iconos y la instancia del socket ya conectada
+        // Constructor que recibe el socket y el nombre del jugador desde InicioForm
         public UNO(ClienteSocket socketConectado, string nombreJugador) : this()
         {
             clienteSocket = socketConectado;
+
             if (clienteSocket != null)
             {
                 clienteSocket.OnMessageReceived += ProcesarMensajeServidor;
                 clienteSocket.OnDisconnected += ManejarDesconexion;
             }
+
             if (juego.jugadores.Count > 0)
             {
                 juego.jugadores[0].Nombre = nombreJugador;
                 nombresJugadores[0] = nombreJugador;
             }
+
             this.WindowState = FormWindowState.Maximized;
+        }
+
+        // Constructor alternativo si se requiere pasar nombres e iconos directamente
+        public UNO(string[] nombres, string[] rutasIconos, ClienteSocket socketConectado) : this(socketConectado, nombres.Length > 0 ? nombres[0] : "Jugador 1")
+        {
+            for (int i = 0; i < 3 && i < nombres.Length; i++)
+            {
+                nombresJugadores[i] = nombres[i];
+                juego.jugadores[i].Nombre = nombres[i];
+            }
+            iconosJugadores = rutasIconos;
         }
 
         // Inicializa la ventana cuando se carga y configura los controles visuales
@@ -98,9 +108,6 @@ namespace WindowsFormsApp1
         {
             AcomodarControles();
             AsignarIconos();
-
-            // NOTA: Ya no se ejecuta juego.iniciarPartida() ni juego.colocarCartaInicial() localmente,
-            // pues el servidor es el que manda el estado inicial por sockets.
 
             AgregarHistorial("Conectado a la partida. Esperando estado del servidor...");
         }
@@ -114,9 +121,36 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            // Aquí deserializarás o interpretarás el mensaje ESTADO_PARTIDA que envía el servidor
-            // Ejemplo básico de lectura de trama:
-            // if (mensajeServidor.StartsWith("ESTADO_PARTIDA|")) { ... ActualizarInterfazDesdeServidor(...); }
+            try
+            {
+                if (mensajeServidor.StartsWith("ESTADO_PARTIDA|"))
+                {
+                    string payload = mensajeServidor.Substring("ESTADO_PARTIDA|".Length);
+
+                    // Nota: Deserializa aquí usando tu DTO recibido del servidor (ej. Newtonsoft.Json)
+                    // var estado = Newtonsoft.Json.JsonConvert.DeserializeObject<EstadoPartidaDto>(payload);
+
+                    // 1. Actualizar cartas propias y habilitar clics solo si es su turno:
+                    // bool esMiTurno = (estado.TurnoActualId == miIdJugador);
+                    // abanicos[0].PonerCartas(estado.ManoJugadorLocal, esMiTurno);
+
+                    // 2. Mostrar únicamente el conteo de cartas de los rivales mediante MaxVisibles (reversos ocultos):
+                    // abanicos[1].MaxVisibles = estado.CantidadCartasJugador2;
+                    // abanicos[2].MaxVisibles = estado.CantidadCartasJugador3;
+
+                    // 3. Actualizar carta del centro y turno en la interfaz:
+                    // ActualizarCartaCentro(estado.CartaActual);
+                    // lblTurno.Text = "Turno de: " + estado.NombreTurnoActual;
+                }
+                else if (mensajeServidor.StartsWith("MENSAJE|"))
+                {
+                    AgregarHistorial(mensajeServidor.Substring("MENSAJE|".Length));
+                }
+            }
+            catch (Exception)
+            {
+                AgregarHistorial("Error al procesar el estado recibido del servidor.");
+            }
         }
 
         // Maneja la pérdida de conexión informada por el socket
@@ -150,8 +184,19 @@ namespace WindowsFormsApp1
                 AbanicoCartas abanico = new AbanicoCartas();
                 abanico.Orientacion = orientaciones[i];
                 abanico.Atenuar = true;
-                // Al hacer clic en una carta, ahora enviamos la orden al servidor por socket en lugar de validar localmente
-                abanico.CartaClick += async (carta) => await EnviarJugadaAlServidor(carta, indice);
+
+                if (i == 0)
+                {
+                    // La mano propia permite interacción y envío de jugadas al servidor
+                    abanico.CartaClick += async (carta) => await EnviarJugadaAlServidor(carta, indice);
+                }
+                else
+                {
+                    // Manos ajenas: configuradas inactivas y con relleno de cartas ficticias para mostrar solo el reverso y conteo
+                    abanico.ManoActiva = false;
+                    abanico.PonerCartas(GenerarCartasFicticias(20), false);
+                }
+
                 this.Controls.Add(abanico);
                 abanicos[i] = abanico;
             }
@@ -194,6 +239,17 @@ namespace WindowsFormsApp1
             cartaCentro.Visible = false;
             foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3, UnoJ1, UnoJ2, UnoJ3 })
                 b.Visible = false;
+        }
+
+        // Genera una lista de cartas de relleno para representar visualmente los reversos de los rivales
+        private List<Carta> GenerarCartasFicticias(int cantidad)
+        {
+            List<Carta> lista = new List<Carta>();
+            for (int i = 0; i < cantidad; i++)
+            {
+                lista.Add(new Carta("Negro", "Reverso", "Especial"));
+            }
+            return lista;
         }
 
         // Da estilo visual al botón de robar
@@ -341,7 +397,7 @@ namespace WindowsFormsApp1
             lblAvisoUno.SetBounds(cx - 260, cartaCentro.Top - 56, 520, 46);
         }
 
-        // Envía la acción de jugar una carta al servidor mediante sockets en lugar de resolverlo localmente
+        // Envía la acción de jugar una carta al servidor mediante sockets
         private async Task EnviarJugadaAlServidor(Carta cartaJugada, int indiceJugador)
         {
             if (clienteSocket != null && clienteSocket.IsConnected)
