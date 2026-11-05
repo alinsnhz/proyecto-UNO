@@ -180,10 +180,11 @@ namespace WindowsFormsApp1
                 g.FillPath(brochaSombra, sombra);
             }
 
-            // AQUÍ ESTABLECEMOS LA IMAGEN CORRECTA (Si es reverso usa la imagen del sistema, si no, busca la carta)
+            // Si es reverso usa la imagen del sistema, si no, busca la carta
             Image img = null;
-            if (carta != null && (carta.Valor == "Reverso" || carta.Tipo == "Especial" && carta.Color == "Negro"))
+            if (carta != null && (!ManoActiva || carta.Valor == "Reverso" || (carta.Tipo == "Especial" && carta.Color == "Negro")))
             {
+                // Si la mano no está activa (es de otro jugador), mostramos siempre el reverso de la carta
                 img = ImagenesUNO.Reverso();
             }
             else

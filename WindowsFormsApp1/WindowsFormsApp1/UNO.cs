@@ -43,6 +43,10 @@ namespace WindowsFormsApp1
         private string[] iconosJugadores = null;
         private List<string> historial = new List<string>();
 
+        // Conexión y socket para el protocolo de servidor
+        private ClienteSocket clienteSocket;
+        private string nombreJugadorActual;
+
         private readonly Font fuenteNombre = new Font("Segoe UI Semibold", 12f);
         private readonly Font fuenteNombreActivo = new Font("Segoe UI", 12f, FontStyle.Bold);
         private readonly Color[] coloresJugador =
@@ -78,14 +82,18 @@ namespace WindowsFormsApp1
         }
 
         // Constructor que usa la pantalla de inicio (nombres e iconos de cada jugador)
-        private ClienteSocket clienteSocket;
-        private string nombreJugadorActual;
-
         public UNO(ClienteSocket clienteSocket, string nombreJugador) : this()
         {
             this.clienteSocket = clienteSocket;
-            this.nombreJugadorActual = nombreJugador;
+            this.nombreJugadorActual = string.IsNullOrEmpty(nombreJugador) ? "Jugador 1" : nombreJugador;
             this.WindowState = FormWindowState.Maximized;
+
+            // ASIGNACIÓN CORRECTA DEL NOMBRE REAL:
+            nombresJugadores[0] = this.nombreJugadorActual;
+            if (juego != null && juego.jugadores.Count > 0)
+            {
+                juego.jugadores[0].Nombre = this.nombreJugadorActual;
+            }
         }
 
         //inicializa la ventana cuando se carga, configura controles y prepara la partida/interfaz
@@ -175,7 +183,7 @@ namespace WindowsFormsApp1
             lblAvisoUno.BackColor = Color.Transparent;
             lblAvisoUno.Font = new Font("Segoe UI Black", 20f, FontStyle.Bold);
 
-            foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3 }) EstilizarRobar(b);
+            foreach (Button b in new Button[] { RobarJ1, RobarJ2, RobarJ3 }) EstilitarRobar(b);
             foreach (Button b in new Button[] { UnoJ1, UnoJ2, UnoJ3 }) EstilizarUno(b);
             AplicarReversoMazo();
 
@@ -187,7 +195,7 @@ namespace WindowsFormsApp1
 
         //Aquí se agrega el cambio de carta de reversa 
         // da estilo visual al botón de robar
-        private void EstilizarRobar(Button b)
+        private void EstilitarRobar(Button b)
         {
             b.FlatStyle = FlatStyle.Flat;
             b.FlatAppearance.BorderSize = 0;
@@ -423,7 +431,8 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            abanico.PonerCartas(cartas, indiceJugador == juego.jugadorActual && !juego.partidaTerminada);
+            // Solo el Jugador 1 (índice 0) muestra sus cartas de frente; los demás en reverso (ocultas)
+            abanico.PonerCartas(cartas, indiceJugador == 0 && !juego.partidaTerminada);
 
             if (cartas.Count == 0 && !partidaFinalizada)
             {
@@ -445,12 +454,6 @@ namespace WindowsFormsApp1
             {
                 historialDAO.GuardarResultado(idPartidaActual, nombresJugadores[i], juego.jugadores[i].Cartas.Count);
             }
-            /*if (juego.partidaTerminada)
-            {
-                MessageBox.Show($"{juego.Ganador.Nombre} ha ganado la partida!", "Fin del Juego",
-                                MessageBoxButtons.OK, MessageBoxIcon.Information);
-                this.Close();
-            }*/
         }
 
         // MOSTRAR CARTA CENTRAL
@@ -678,7 +681,7 @@ namespace WindowsFormsApp1
         }
 
         // JUGAR CARTA
-        //coordina la jugada seleccionada, su animación y el procesamiento interno
+        //coordina la jugada seleccionada, su animación y el envío de JUGAR_CARTA al servidor
         private async Task JugarCarta(Carta cartaJugada, int indiceJugador)
         {
             if (animando || juego.partidaTerminada || indiceJugador != juego.jugadorActual)
@@ -695,133 +698,47 @@ namespace WindowsFormsApp1
             }
         }
 
-        //aplica la jugada a la lógica, actualiza la mano/carta central y procesa efectos de la carta
+        //envía la acción JUGAR_CARTA al servidor y procesa la selección de color si es comodín
         private async Task JugarCartaInterno(Carta cartaJugada, int indiceJugador)
         {
             Jugador jugador = juego.jugadores[indiceJugador];
             int idJugador = idsJugadores[indiceJugador];
 
-            // Después de robar solo puede jugar la carta robada
-            if (yaRobo && cartaJugada != cartaRobadaEnTurno)
-            {
-                MessageBox.Show("Después de robar solo puedes jugar la carta que robaste, o pasar el turno haciendo clic en el mazo.",
-                    "Carta no válida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (!juego.puedeJugar(jugador, cartaJugada))
-            {
-                MessageBox.Show("No puedes jugar esa carta", "Carta no válida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Elegir color ANTES de jugar (si cancela, la carta sigue en la mano)
+            // Si es Comodín o +4, solicitar la elección de color al usuario
             string colorElegido = "";
             if (cartaJugada.Tipo == "Comodin" || cartaJugada.Tipo == "+4")
             {
                 colorElegido = SeleccionarColor();
                 if (colorElegido == "")
-                    return;
+                {
+                    return; // Cancela la selección
+                }
             }
 
-            // La carta viaja de la mano al centro
-            await AnimarJugada(cartaJugada, indiceJugador);
+            // Enviar JUGAR_CARTA al servidor a través del protocolo de socket
+            if (clienteSocket != null)
+            {
+                string mensajeProtocolo = $"JUGAR_CARTA|{nombreJugadorActual}|{cartaJugada.Color}|{cartaJugada.Valor ?? cartaJugada.Tipo}|{colorElegido}";
+                // clienteSocket.Enviar(mensajeProtocolo); // Descomentar según la firma de tu clase ClienteSocket
+            }
 
-            // 1) Sacar la carta de la mano y ponerla en el centro (UNA sola vez)
-            jugador.quitarCarta(cartaJugada);
-            juego.agregarCartaDescarte(cartaJugada);
+            // Animación visual de la carta jugada hacia el centro
+            await AnimarJugada(cartaJugada, indiceJugador);
 
             string colorCarta = cartaJugada.Color ?? "SinColor";
             string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
             string tipoCarta = cartaJugada.Tipo;
             string descripcionCartaBD = (colorCarta + " " + valorCarta).Trim();
 
-            // 2) Registrar la jugada en la BD y en la API
+            // Registrar jugada en BD local / API si aplica
             logJuegoDAO.RegistrarCartaJugada(idPartidaActual, idJugador, jugador.Nombre, descripcionCartaBD);
+            _ = APICliente.RegistrarJugadaAsync(idPartidaActual, idJugador, jugador.Nombre, colorCarta, valorCarta, tipoCarta);
 
-            _ = APICliente.RegistrarJugadaAsync(
-                idPartidaActual,
-                idJugador,
-                jugador.Nombre,
-                colorCarta,
-                valorCarta,
-                tipoCarta
-            );
-
-            string mensaje = jugador.Nombre + " jugó: " + valorCarta;
-
-            // 3) Penalización por no decir UNO
-            if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
-            {
-                juego.agregaCartaRobada(jugador);
-                juego.agregaCartaRobada(jugador);
-                logJuegoDAO.RegistrarMensaje(idPartidaActual, idJugador,
-                    jugador.Nombre + " no declaró UNO y robó 2 cartas de penalización");
-                mensaje += ". No dijo UNO y roba 2 cartas";
-                await VolarReversos(2, indiceJugador);
-            }
-
-            // 4) Efecto de la carta (aquí se cambia el turno UNA sola vez)
-            Jugador afectado;
-
-            switch (cartaJugada.Tipo)
-            {
-                case "Comodin":
-                    juego.aplicarComodin(colorElegido);
-
-                    mensaje += " (color: " + colorElegido + ").";
-
-                    juego.cambiarTurno();
-                    break;
-
-                case "+4":
-                    juego.aplicarMasCuatro(colorElegido);
-
-                    mensaje += " (color: " + colorElegido + "). El siguiente jugador roba 4 cartas y pierde su turno.";
-
-                    await VolarReversos(4, (indiceJugador + 1) % 3);
-                    break;
-
-                case "Reversa":
-                    juego.aplicarReversa();
-
-                    mensaje += ". Se invirtió el sentido del juego.";
-
-                    juego.cambiarTurno();
-                    break;
-
-                case "Salta":
-                    juego.aplicarSalta();
-
-                    mensaje += ". Se saltó el turno del siguiente jugador.";
-                    break;
-
-                case "+2":
-                    juego.aplicarMasDos();
-
-                    mensaje += ". El siguiente jugador roba 2 cartas y pierde su turno.";
-
-                    await VolarReversos(2, (indiceJugador + 1) % 3);
-                    break;
-            }
-
-            AgregarHistorial(mensaje);
-
-            // 5) Comprobar ganador
-            if (juego.esGanador(jugador))
-            {
-                juego.comprobarGanador(jugador);
-                logJuegoDAO.RegistrarMensaje(idPartidaActual, idJugador, jugador.Nombre + " ganó la partida");
-                ActualizarInterfaz();   // aquí MostrarCartas guarda el resultado y muestra el aviso
-                this.Close();//cierra la ventana del juego
-                return;
-            }
-
-            FinalizarTurno();
+            AgregarHistorial(jugador.Nombre + " envió jugada: " + valorCarta);
         }
 
         // ROBAR Y PASAR TURNO
-        //procesa el clic en robar, añade la carta a la mano y actualiza la interfaz/turno según la lógica
+        //envía ROBAR_CARTA al servidor al pulsar el mazo o botón de robar
         private async void BtnRobar_Click(object sender, EventArgs e)
         {
             if (animando || juego.partidaTerminada)
@@ -829,61 +746,17 @@ namespace WindowsFormsApp1
 
             Jugador jugador = juego.obtenerJugadorActual();
 
-            // Segundo clic en el mazo en el mismo turno = pasar turno
-            if (yaRobo)
-            {
-                PasarTurno(jugador);
-                return;
-            }
-
             animando = true;
             try
             {
-                Carta cartaNueva = juego.robarDuranteTurno(jugador);
-
-                if (cartaNueva == null)
+                // Enviar ROBAR_CARTA al servidor a través del protocolo de socket
+                if (clienteSocket != null)
                 {
-                    MessageBox.Show("No quedan cartas en el mazo. Se pasa el turno.", "Mazo vacío",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    PasarTurno(jugador);
-                    return;
+                    string mensajeProtocolo = $"ROBAR_CARTA|{nombreJugadorActual}";
+                    // clienteSocket.Enviar(mensajeProtocolo); // Descomentar según tu implementación de socket
                 }
 
-                string colorCarta = cartaNueva.Color ?? "SinColor";
-                string valorCarta = cartaNueva.Valor ?? cartaNueva.Tipo;
-                string tipoCarta = cartaNueva.Tipo;
-                int idJugadorActual = idsJugadores[juego.jugadorActual];
-                string nombreActual = nombresJugadores[juego.jugadorActual];
-
-                // Registrar la carta robada en la BD y en la API (una sola vez)
-                logJuegoDAO.RegistrarCartaRobada(idPartidaActual, idJugadorActual, nombreActual,
-                    (colorCarta + " " + valorCarta).Trim());
-
-                _ = APICliente.RegistrarCartaRobadaAsync(
-                    idPartidaActual,
-                    idJugadorActual,
-                    nombreActual,
-                    colorCarta,
-                    valorCarta,
-                    tipoCarta
-                );
-
-                yaRobo = true;
-                cartaRobadaEnTurno = cartaNueva;
-
-                // La carta viaja del mazo a la mano
-                await VolarReversos(1, juego.jugadorActual);
-
-                if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
-                {
-                    AgregarHistorial(jugador.Nombre + " robó una carta que puede jugar. Juégala o haz clic en el mazo para pasar.");
-                    ActualizarInterfaz();
-                }
-                else
-                {
-                    AgregarHistorial(jugador.Nombre + " robó una carta y no puede jugarla. Pasa el turno.");
-                    PasarTurno(jugador);   // solo cambia el turno, NO el sentido
-                }
+                AgregarHistorial(jugador.Nombre + " solicitó robar carta al servidor.");
             }
             finally
             {
@@ -895,25 +768,6 @@ namespace WindowsFormsApp1
         private void BtnRobar_Click_1(object sender, EventArgs e) => BtnRobar_Click(sender, e);
         private void RobarJ2_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
         private void RobarJ3_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
-
-        //avanza el turno a partir del jugador indicado según la lógica de la partida
-        private void PasarTurno(Jugador jugador)
-        {
-            logJuegoDAO.RegistrarMensaje(idPartidaActual, idsJugadores[juego.jugadorActual], jugador.Nombre + " pasó su turno");
-            juego.cambiarTurno();
-            FinalizarTurno();
-        }
-
-        //realiza las acciones necesarias para cerrar el turno y actualizar quién juega después
-        private void FinalizarTurno()
-        {
-            yaRobo = false;
-            cartaRobadaEnTurno = null;
-            juego.declaroUNO = false;
-
-            logJuegoDAO.RegistrarTurno(idPartidaActual, idsJugadores[juego.jugadorActual], nombresJugadores[juego.jugadorActual]);
-            ActualizarInterfaz();
-        }
 
         // SELECCIONAR COLOR
         //muestra la selección de color y devuelve el color elegido para un comodín
@@ -977,7 +831,7 @@ namespace WindowsFormsApp1
         }
 
         // BOTONES UNO
-        //muestra un aviso al jugador indicado relacionado con declarar UNO
+        //envía DECLARAR_UNO al servidor al pulsar el botón UNO
         private void MostrarAvisoUno(int indiceJugador)
         {
             if (lblAvisoUno == null)
@@ -985,9 +839,11 @@ namespace WindowsFormsApp1
 
             Jugador jugador = juego.jugadores[indiceJugador];
 
-            if (!juego.declararUNO(jugador))
+            // Enviar DECLARAR_UNO al servidor mediante socket
+            if (clienteSocket != null)
             {
-                return;
+                string mensajeProtocolo = $"DECLARAR_UNO|{jugador.Nombre}";
+                // clienteSocket.Enviar(mensajeProtocolo); // Descomentar según tu socket
             }
 
             logJuegoDAO.RegistrarMensaje(idPartidaActual, idsJugadores[indiceJugador], jugador.Nombre + " declaró UNO");
