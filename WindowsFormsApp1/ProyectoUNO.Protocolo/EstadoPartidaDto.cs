@@ -26,6 +26,9 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("ganador")]
         public string Ganador { get; set; }
 
+        [JsonProperty("cartaCentro")]
+        public CartaEstadoDto CartaCentro { get; set; }
+
         [JsonProperty("jugadores")]
         public List<JugadorEstadoDto> Jugadores { get; set; }
             = new List<JugadorEstadoDto>();
