@@ -51,5 +51,27 @@ namespace ProyectoUno.API.Controllers
             _logJuegoDAO.RegistrarTurno(dto.IdPartida, dto.IdJugador, dto.NombreJugador ?? "");
             return Ok(new { Mensaje = "Turno registrado correctamente" });
         }
+
+        [HttpPost("log-robar")]
+        public IActionResult RegistrarCartaRobada([FromBody] RegistrarJugadaDto dto)
+        {
+            if (dto.Carta != null)
+            {
+                Carta carta = new Carta(
+                    dto.Carta.Color ?? "",
+                    dto.Carta.Valor ?? "",
+                    dto.Carta.Tipo ?? ""
+                );
+
+                _logJuegoDAO.RegistrarCartaRobada(
+                    dto.IdPartida,
+                    dto.IdJugador,
+                    dto.NombreJugador ?? "",
+                    carta.ToString()
+                );
+            }
+
+            return Ok(new { Mensaje = "Carta robada registrada correctamente" });
+        }
     }
 }
