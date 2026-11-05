@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO;
 
 namespace WindowsFormsApp1
 {
@@ -70,31 +71,29 @@ namespace WindowsFormsApp1
         // Bucle continuo que se ejecuta en segundo plano para recibir datos del servidor de forma asincrona, evitando congelar el hilo principal de Windows Forms.
         private async Task RecibirMensajesLoopAsync(CancellationToken cancellationToken)
         {
-            byte[] buffer = new byte[4096];
             try
             {
+                StreamReader lector = new StreamReader(_stream, Encoding.UTF8);
+
                 while (_isConnected && !cancellationToken.IsCancellationRequested)
                 {
-                    int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                    string linea = await lector.ReadLineAsync();
 
-                    if (bytesRead == 0) break; // El servidor cerro la conexión ordenadamente
+                    if (linea == null) break; // El servidor cerró la conexión
 
-                    string mensaje = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimEnd('\n', '\r');
-
-                    // Notificar a la interfaz el mensaje recibido
-                    OnMessageReceived?.Invoke(mensaje);
+                    if (linea.Length > 0)
+                        OnMessageReceived?.Invoke(linea);
                 }
             }
             catch (Exception)
             {
-                // Excepcion generada por cancelación de token o interrupcion de red
+                // Excepción por cancelación o interrupción de red
             }
             finally
             {
                 if (_isConnected)
                 {
                     Desconectar();
-                    // Notificar desconexión imprevista a la interfaz
                     OnDisconnected?.Invoke("Se ha perdido la conexión con el servidor.");
                 }
             }

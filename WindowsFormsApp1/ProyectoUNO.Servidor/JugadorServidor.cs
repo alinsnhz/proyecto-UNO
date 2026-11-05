@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -10,14 +9,13 @@ using ProyectoUno.Protocolo;
 
 namespace ProyectoUno.Servidor
 {
-    // Representa a una computadora conectada al servidor.
-    // esta clase representa a cada computadora conectada
-    // guarda el ID asigando por el servidor, nombre del jugador y medio para enviar mensajes
+    // Representa a cada computadora conectada al servidor.
+    // Guarda el ID asignado por el servidor, nombre del jugador y medio para enviar mensajes.
     public class JugadorServidor
     {
-        // identificador generado por el servidor
+        // Identificador generado por el servidor
         public int Id { get; private set; }
-        // nombre que registra el cliente
+        // Nombre que registra el cliente
         public string Nombre { get; set; }
         public bool Registrado { get; set; }
 
@@ -25,8 +23,7 @@ namespace ProyectoUno.Servidor
         private readonly StreamReader lector;
         private readonly StreamWriter escritor;
 
-        // SemaphoreSlim evita que dos mensajes intenten escribirse al mismo tiempo
-        // en la conexión de un jugador
+        // SemaphoreSlim evita que dos mensajes intenten escribirse al mismo tiempo en la conexión
         private readonly SemaphoreSlim bloqueo = new SemaphoreSlim(1, 1);
 
         public JugadorServidor(int id, TcpClient cliente)
@@ -37,22 +34,21 @@ namespace ProyectoUno.Servidor
             NetworkStream flujo = cliente.GetStream();
 
             lector = new StreamReader(flujo, new UTF8Encoding(false), false, 1024, true);
-
-            escritor = new StreamWriter(flujo, new UTF8Encoding(false), 1024, true);
-
-            escritor.AutoFlush = true;
+            escritor = new StreamWriter(flujo, new UTF8Encoding(false), 1024, true)
+            {
+                AutoFlush = true
+            };
 
             Registrado = false;
         }
 
-        // Recibe un mensaje JSON completo.
-        // Cada mensaje termina con un salto de línea.
+        // Recibe un mensaje JSON completo terminado en salto de línea.
         public async Task<string> RecibirAsync()
         {
             return await lector.ReadLineAsync();
         }
 
-        // Envía un mensaje JSON al cliente.
+        // Envía un mensaje JSON al cliente de forma segura.
         public async Task EnviarAsync(Mensajes mensaje)
         {
             string json = JsonConvert.SerializeObject(mensaje);

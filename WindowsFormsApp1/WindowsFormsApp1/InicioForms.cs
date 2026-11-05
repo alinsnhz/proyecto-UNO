@@ -139,10 +139,11 @@ namespace WindowsFormsApp1
         // y procede a abrir el formulario principal de la partida (`UNO.cs`) en cuanto se conecta con éxito.
         private async void Jugar()
         {
+            // Forzar la actualización del foco para capturar el texto completo si quedó en el portapapeles o buffer
+            txtNombre.Focus();
             string ipServidor = txtIpServidor.Text.Trim();
             string nombreJugador = txtNombre.Text.Trim();
 
-            // Validación del campo de la IP del servidor.
             if (string.IsNullOrEmpty(ipServidor))
             {
                 MessageBox.Show("Ingresa la IP del servidor.", "Falta IP", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -150,50 +151,39 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            // Validación del nombre del jugador.
             if (string.IsNullOrEmpty(nombreJugador))
             {
-                MessageBox.Show("Escribe tu nombre de jugador.", "Falta nombre", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                txtNombre.Focus();
-                return;
+                nombreJugador = "Jugador 1";
             }
 
-            // Bloquea los controles mientras se intenta conectar.
             HabilitarControles(false);
 
-            // Conectar con la IP del servidor y el puerto 11000 de forma asíncrona.
+            // Conectar pasando explícitamente el nombre limpio
             Task<bool> tareaConexion = _clienteSocket.ConectarAsync(ipServidor, nombreJugador);
 
-            // Esperar máximo 3 segundos para evitar que se quede congelado si el servidor está apagado.
             if (await Task.WhenAny(tareaConexion, Task.Delay(3000)) == tareaConexion)
             {
                 bool conectado = await tareaConexion;
 
                 if (conectado)
                 {
-                    // Ya no necesitamos avisar desde este formulario si hay desconexión,
-                    // porque a partir de aquí la partida se encarga.
                     _clienteSocket.OnDisconnected -= ManejarDesconexionServidor;
 
-                    // Ocultar formulario de inicio y dar paso inmediato al juego principal (UNO.cs).
                     this.Hide();
-                    UNO partidaForm = new UNO();
+                    UNO partidaForm = new UNO(_clienteSocket, nombreJugador);
                     partidaForm.FormClosed += (s, args) => this.Close();
                     partidaForm.Show();
                 }
                 else
                 {
-                    MessageBox.Show("No se pudo establecer conexión con el servidor. Verifica que esté encendido.",
-                        "Servidor no disponible", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("No se pudo establecer conexión con el servidor.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     HabilitarControles(true);
                 }
             }
             else
             {
-                // Si pasan más de 3 segundos sin respuesta, cancela el intento de conexión.
                 _clienteSocket.Desconectar();
-                MessageBox.Show("Tiempo de espera agotado. El servidor no responde en el puerto 11000.",
-                    "Tiempo de espera", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Tiempo de espera agotado.", "Tiempo de espera", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 HabilitarControles(true);
             }
         }
