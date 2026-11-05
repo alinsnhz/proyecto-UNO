@@ -6,11 +6,22 @@ namespace ProyectoUno.API
 {
     public static class conexionBD
     {
-        private const string cadenaConexion = "Server=127.0.0.1;Port=3306;Database=uno;Uid=root;Pwd=root;";
+        private static string ObtenerCadenaConexion()
+        {
+            string? cadena = Environment.GetEnvironmentVariable("UNO_DB_CONNECTION");
+
+            if (string.IsNullOrWhiteSpace(cadena))
+            {
+                throw new InvalidOperationException(
+                    "No se configuró la variable de entorno UNO_DB_CONNECTION.");
+            }
+
+            return cadena;
+        }
 
         public static MySqlConnection NuevaConexion()
         {
-            return new MySqlConnection(cadenaConexion);
+            return new MySqlConnection(ObtenerCadenaConexion());
         }
 
         public static bool ProbarConexion(out string mensajeError)
