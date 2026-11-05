@@ -14,6 +14,8 @@ namespace ProyectoUno.Servidor
 
         private readonly object candado = new object();
 
+        public JuegoUNO Juego { get; private set; }
+
         public bool Iniciada { get; private set; }
         public bool Interrumpida { get; private set; }
 

@@ -37,6 +37,7 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("misCartas")]
         public List<CartaEstadoDto> MisCartas { get; set; }
             = new List<CartaEstadoDto>();
+        public CartaEstadoDto CartaCentro { get; set; }
     }
 
     public class JugadorEstadoDto
