@@ -423,7 +423,8 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            abanico.PonerCartas(cartas, indiceJugador == juego.jugadorActual && !juego.partidaTerminada);
+            // Solo el Jugador 1 (índice 0) muestra sus cartas de frente; los demás en reverso (ocultas)
+            abanico.PonerCartas(cartas, indiceJugador == 0 && !juego.partidaTerminada);
 
             if (cartas.Count == 0 && !partidaFinalizada)
             {
@@ -445,12 +446,6 @@ namespace WindowsFormsApp1
             {
                 historialDAO.GuardarResultado(idPartidaActual, nombresJugadores[i], juego.jugadores[i].Cartas.Count);
             }
-            /*if (juego.partidaTerminada)
-            {
-                MessageBox.Show($"{juego.Ganador.Nombre} ha ganado la partida!", "Fin del Juego",
-                                MessageBoxButtons.OK, MessageBoxIcon.Information);
-                this.Close();
-            }*/
         }
 
         // MOSTRAR CARTA CENTRAL
