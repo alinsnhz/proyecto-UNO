@@ -13,8 +13,4 @@
     <PackageReference Include="System.Net.Http.Json" Version="10.0.12" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\ProyectoUNO.Protocolo\ProyectoUNO.Protocolo.csproj" />
-  </ItemGroup>
-
 </Project>
