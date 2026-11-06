@@ -48,6 +48,7 @@ namespace ProyectoUno.API
             string mensaje;
             switch (tipoAccion)
             {
+                case "Salta":
                 case "Salto":
                     mensaje = $"{nombreJugador} jugó Salto: el siguiente jugador pierde su turno";
                     break;

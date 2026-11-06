@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +19,8 @@ namespace ProyectoUno.API.Controllers
         [HttpPost("iniciar")]
         public IActionResult IniciarPartida([FromBody] IniciarPartidaDto dto)
         {
-            if (dto.NombresJugadores == null ||
+            if (dto == null ||
+                dto.NombresJugadores == null ||
                 dto.NombresJugadores.Count != 3)
             {
                 return BadRequest(new
@@ -27,7 +29,9 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            List<string> nombres = dto.NombresJugadores.Select(n => n?.Trim()).ToList();
+            List<string> nombres = dto.NombresJugadores
+                .Select(n => n?.Trim())
+                .ToList();
 
             if (nombres.Any(string.IsNullOrWhiteSpace))
             {
@@ -75,6 +79,14 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
+            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "El jugador no pertenece a esta partida."
+                });
+            }
+
             if (dto.Carta == null ||
                 string.IsNullOrWhiteSpace(dto.Carta.Color) ||
                 string.IsNullOrWhiteSpace(dto.Carta.Valor) ||
@@ -116,6 +128,14 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
+            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "El jugador no pertenece a esta partida."
+                });
+            }
+
             _logJuegoDAO.RegistrarTurno(
                 dto.IdPartida,
                 dto.IdJugador,
@@ -136,6 +156,14 @@ namespace ProyectoUno.API.Controllers
                 return BadRequest(new
                 {
                     Mensaje = "El jugador indicado no existe o sus datos no coinciden."
+                });
+            }
+
+            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "El jugador no pertenece a esta partida."
                 });
             }
 
@@ -181,9 +209,17 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
+            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "El jugador no pertenece a esta partida."
+                });
+            }
+
             string[] accionesPermitidas =
             {
-                "Salto", "Reversa", "+2", "+4"
+                "Salta", "Salto", "Reversa", "+2", "+4"
             };
 
             if (!accionesPermitidas.Contains(dto.TipoAccion))
@@ -219,12 +255,22 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
+            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "El jugador no pertenece a esta partida."
+                });
+            }
+
             string[] coloresPermitidos =
             {
                 "Rojo", "Azul", "Amarillo", "Verde"
             };
 
-            if (!coloresPermitidos.Contains(dto.NuevoColor))
+            if (!coloresPermitidos.Contains(
+                dto.NuevoColor?.Trim(),
+                StringComparer.OrdinalIgnoreCase))
             {
                 return BadRequest(new
                 {
@@ -236,7 +282,7 @@ namespace ProyectoUno.API.Controllers
                 dto.IdPartida,
                 dto.IdJugador,
                 dto.NombreJugador.Trim(),
-                dto.NuevoColor
+                dto.NuevoColor.Trim()
             );
 
             return Ok(new
@@ -249,6 +295,16 @@ namespace ProyectoUno.API.Controllers
         public IActionResult FinalizarPartida(
             [FromBody] FinalizarPartidaDto dto)
         {
+            if (dto == null ||
+                dto.IdPartida <= 0 ||
+                string.IsNullOrWhiteSpace(dto.NombreGanador))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "Los datos de finalización son inválidos."
+                });
+            }
+
             if (dto.Resultados == null || dto.Resultados.Count != 3)
             {
                 return BadRequest(new
@@ -258,11 +314,13 @@ namespace ProyectoUno.API.Controllers
             }
 
             if (dto.Resultados.Any(r =>
-                string.IsNullOrWhiteSpace(r.NombreJugador)))
+                r == null ||
+                string.IsNullOrWhiteSpace(r.NombreJugador) ||
+                r.CartasRestantes < 0))
             {
                 return BadRequest(new
                 {
-                    Mensaje = "Todos los resultados deben tener un nombre de jugador."
+                    Mensaje = "Los resultados de los jugadores son inválidos."
                 });
             }
 
@@ -294,13 +352,26 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
+            if (_historialDAO.PartidaFinalizada(dto.IdPartida))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "Esta partida ya fue finalizada."
+                });
+            }
+
             foreach (var resultado in dto.Resultados)
             {
-                if (_jugadorDAO.ObtenerPorNombre(resultado.NombreJugador.Trim()) == null)
+                var jugador = _jugadorDAO.ObtenerPorNombre(
+                    resultado.NombreJugador.Trim());
+
+                if (jugador == null ||
+                    !_historialDAO.JugadorPertenecePartida(
+                        dto.IdPartida, jugador.IdJugador))
                 {
                     return BadRequest(new
                     {
-                        Mensaje = "Uno de los jugadores indicados no existe."
+                        Mensaje = "Uno de los jugadores no pertenece a esta partida."
                     });
                 }
             }
@@ -329,6 +400,14 @@ namespace ProyectoUno.API.Controllers
                 Mensaje = "Resultado final registrado correctamente."
             });
         }
+
+        private bool JugadorPertenecePartida(int idPartida, int idJugador)
+        {
+            return idPartida > 0 &&
+                   idJugador > 0 &&
+                   _historialDAO.JugadorPertenecePartida(idPartida, idJugador);
+        }
+
         private bool JugadorValido(int idJugador, string nombreJugador)
         {
             if (idJugador <= 0 || string.IsNullOrWhiteSpace(nombreJugador))

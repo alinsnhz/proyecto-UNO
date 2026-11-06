@@ -37,6 +37,9 @@ namespace proyectoUNO
 
         public Carta CartaRobada { get; private set; }
 
+        // Guarda las cartas robadas por penalizaciones.
+        public List<Tuple<Jugador, Carta>> CartasRobadasPorPenalizacion { get; private set; }
+
         public bool TieneCartaRobadaPendiente(Jugador jugador)
         {
             return jugador != null &&
@@ -55,6 +58,9 @@ namespace proyectoUNO
             jugadores = new List<Jugador>();
             pilaDescarte = new List<Carta>();
             registroAcciones = new List<string>();
+
+            CartasRobadasPorPenalizacion =
+                new List<Tuple<Jugador, Carta>>();
 
             direccion = 1;
             jugadorActual = 0;
@@ -84,6 +90,7 @@ namespace proyectoUNO
 
             pilaDescarte.Clear();
             registroAcciones.Clear();
+            CartasRobadasPorPenalizacion.Clear();
 
             jugadorActual = 0;
             direccion = 1;
@@ -237,7 +244,12 @@ namespace proyectoUNO
                 Carta carta = RobarDelMazo();
 
                 if (carta != null)
+                {
                     afectado.agregarCarta(carta);
+
+                    CartasRobadasPorPenalizacion.Add(
+                        Tuple.Create(afectado, carta));
+                }
             }
 
             registroAcciones.Add(
@@ -312,7 +324,12 @@ namespace proyectoUNO
             Carta carta = RobarDelMazo();
 
             if (carta != null)
+            {
                 jugador.agregarCarta(carta);
+
+                CartasRobadasPorPenalizacion.Add(
+                    Tuple.Create(jugador, carta));
+            }
 
             return carta;
         }

@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
@@ -22,18 +21,14 @@ namespace ProyectoUno.Servidor
 
             try
             {
-                using (var contenido = new StringContent(
-                    json, Encoding.UTF8, "application/json"))
+                using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
                 {
-                    HttpResponseMessage respuesta = await cliente.PostAsync(
-                        "api/Partida/iniciar", contenido);
-
+                    HttpResponseMessage respuesta = await cliente.PostAsync("api/Partida/iniciar", contenido);
                     string resultado = await respuesta.Content.ReadAsStringAsync();
 
                     if (!respuesta.IsSuccessStatusCode)
                     {
-                        Console.WriteLine(
-                            "Error al iniciar partida en API: " + resultado);
+                        Console.WriteLine("Error al iniciar partida en API: " + resultado);
                         return null;
                     }
 
@@ -42,13 +37,12 @@ namespace ProyectoUno.Servidor
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "No se pudo conectar con la API: " + ex.Message);
+                Console.WriteLine("No se pudo conectar con la API: " + ex.Message);
                 return null;
             }
         }
 
-        public async Task RegistrarJugadaAsync(
+        public async Task<bool> RegistrarJugadaAsync(
             int idPartida, int idJugador, string nombre,
             string color, string valor, string tipo)
         {
@@ -65,10 +59,10 @@ namespace ProyectoUno.Servidor
                 }
             };
 
-            await EnviarAsync("api/Partida/log-jugada", datos);
+            return await EnviarAsync("api/Partida/log-jugada", datos);
         }
 
-        public async Task RegistrarCartaRobadaAsync(
+        public async Task<bool> RegistrarCartaRobadaAsync(
             int idPartida, int idJugador, string nombre,
             string color, string valor, string tipo)
         {
@@ -85,10 +79,10 @@ namespace ProyectoUno.Servidor
                 }
             };
 
-            await EnviarAsync("api/Partida/log-robar", datos);
+            return await EnviarAsync("api/Partida/log-robar", datos);
         }
 
-        public async Task RegistrarTurnoAsync(
+        public async Task<bool> RegistrarTurnoAsync(
             int idPartida, int idJugador, string nombre)
         {
             var datos = new
@@ -98,10 +92,10 @@ namespace ProyectoUno.Servidor
                 NombreJugador = nombre
             };
 
-            await EnviarAsync("api/Partida/log-turno", datos);
+            return await EnviarAsync("api/Partida/log-turno", datos);
         }
 
-        public async Task RegistrarAccionEspecialAsync(
+        public async Task<bool> RegistrarAccionEspecialAsync(
             int idPartida, int idJugador,
             string nombre, string tipoAccion)
         {
@@ -113,10 +107,10 @@ namespace ProyectoUno.Servidor
                 TipoAccion = tipoAccion
             };
 
-            await EnviarAsync("api/Partida/log-accion-especial", datos);
+            return await EnviarAsync("api/Partida/log-accion-especial", datos);
         }
 
-        public async Task RegistrarCambioColorAsync(
+        public async Task<bool> RegistrarCambioColorAsync(
             int idPartida, int idJugador,
             string nombre, string nuevoColor)
         {
@@ -128,10 +122,10 @@ namespace ProyectoUno.Servidor
                 NuevoColor = nuevoColor
             };
 
-            await EnviarAsync("api/Partida/log-cambio-color", datos);
+            return await EnviarAsync("api/Partida/log-cambio-color", datos);
         }
 
-        public async Task FinalizarPartidaAsync(
+        public async Task<bool> FinalizarPartidaAsync(
             int idPartida,
             string nombreGanador,
             List<ResultadoJugadorAPI> resultados)
@@ -143,34 +137,33 @@ namespace ProyectoUno.Servidor
                 Resultados = resultados
             };
 
-            await EnviarAsync("api/Partida/finalizar", datos);
+            return await EnviarAsync("api/Partida/finalizar", datos);
         }
 
-        private async Task EnviarAsync(string endpoint, object datos)
+        private async Task<bool> EnviarAsync(string endpoint, object datos)
         {
             try
             {
                 string json = JsonConvert.SerializeObject(datos);
 
-                using (var contenido = new StringContent(
-                    json, Encoding.UTF8, "application/json"))
+                using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
                 {
-                    HttpResponseMessage respuesta = await cliente.PostAsync(
-                        endpoint, contenido);
+                    HttpResponseMessage respuesta = await cliente.PostAsync(endpoint, contenido);
 
                     if (!respuesta.IsSuccessStatusCode)
                     {
                         string error = await respuesta.Content.ReadAsStringAsync();
-
-                        Console.WriteLine(
-                            "Error de API en " + endpoint + ": " + error);
+                        Console.WriteLine("Error de API en " + endpoint + ": " + error);
+                        return false;
                     }
+
+                    return true;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "Error enviando información a la API: " + ex.Message);
+                Console.WriteLine("Error enviando información a la API: " + ex.Message);
+                return false;
             }
         }
     }
