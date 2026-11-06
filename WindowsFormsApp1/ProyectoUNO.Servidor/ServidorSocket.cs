@@ -16,6 +16,8 @@ namespace ProyectoUno.Servidor
         private const int MaxJugadores = 3;
         private TcpListener listener;
         private readonly PartidaServidor partida = new PartidaServidor();
+        // Evita que dos acciones y sus notificaciones se mezclen.
+        private readonly SemaphoreSlim procesamientoAcciones = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<int, JugadorServidor> clientes = new ConcurrentDictionary<int, JugadorServidor>();
         private readonly SemaphoreSlim lugares =  new SemaphoreSlim(MaxJugadores, MaxJugadores);
         private int siguienteId = 0;
@@ -113,8 +115,26 @@ namespace ProyectoUno.Servidor
                     }
 
                     // El servidor utiliza el ID de la conexión
-                    Mensajes respuesta = partida.ProcesarAccion(jugador.Id, mensaje);
+                    await procesamientoAcciones.WaitAsync();
+                    Mensajes respuesta = null;
+                    try
+                    {
+                        respuesta.JugadorId = jugador.Id;
 
+                        // Se responde al jugador que realizó la acción.
+                        await jugador.EnviarAsync(respuesta);
+
+                        // Si fue aceptada, se actualizan los tres clientes.
+                        if (respuesta.Aceptado == true)
+                        {
+                            await NotificarEstadoPartidaAsync();
+                        }
+                    }
+                    finally
+                    {
+                        // Permite procesar la siguiente acción.
+                        procesamientoAcciones.Release();
+                    }
                     respuesta.JugadorId = jugador.Id;
 
                     await jugador.EnviarAsync(respuesta);
