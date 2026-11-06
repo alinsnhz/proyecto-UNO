@@ -117,42 +117,65 @@ namespace ProyectoUno.Servidor
                         continue;
                     }
 
-                    // El servidor utiliza el ID de la conexión
+                    // El ID confiable es el asignado por el servidor a esta conexión.
+                    string tipoAccion = (mensaje.Tipo ?? "").Trim().ToLowerInvariant();
+                    Carta cartaJugada = null;
+                    string turnoAnterior = null;
+                    Mensajes respuesta;
+
                     await procesamientoAcciones.WaitAsync();
-                    Mensajes respuesta = null;
                     try
                     {
+                        if (partida.Juego != null)
+                        {
+                            Jugador jugadorActual = partida.Juego.obtenerJugadorActual();
+                            if (jugadorActual != null)
+                                turnoAnterior = jugadorActual.Nombre;
+
+                            // Guardar la carta antes de procesar la jugada, porque después
+                            // de aceptarla ya habrá sido retirada de la mano.
+                            if (tipoAccion == "jugarcarta" && !string.IsNullOrWhiteSpace(mensaje.CartaId))
+                            {
+                                Jugador jugadorSolicitante = partida.ObtenerJugador(jugador.Id);
+                                if (jugadorSolicitante != null)
+                                {
+                                    foreach (Carta carta in jugadorSolicitante.Cartas)
+                                    {
+                                        if (carta.Id == mensaje.CartaId)
+                                        {
+                                            cartaJugada = carta;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        respuesta = partida.ProcesarAccion(jugador.Id, mensaje);
                         respuesta.JugadorId = jugador.Id;
 
-                        // Se responde al jugador que realizó la acción.
+                        // La respuesta se envía antes de notificar el estado actualizado.
                         await jugador.EnviarAsync(respuesta);
 
-                        // Si fue aceptada, se actualizan los tres clientes.
                         if (respuesta.Aceptado == true)
                         {
-                            await NotificarEstadoPartidaAsync();
+                            await RegistrarAccionEnAPIAsync(
+                                jugador,
+                                mensaje,
+                                tipoAccion,
+                                cartaJugada,
+                                turnoAnterior);
                         }
                     }
                     finally
                     {
-                        // Permite procesar la siguiente acción.
                         procesamientoAcciones.Release();
                     }
-                    respuesta.JugadorId = jugador.Id;
 
-                    await jugador.EnviarAsync(respuesta);
-
+                    // Una sola difusión por acción aceptada, después de modificar el estado.
                     if (respuesta.Aceptado == true)
-                    {
-                        await RegistrarAccionEnAPIAsync(
-                            jugador,
-                            mensaje,
-                            tipoAccion,
-                            cartaJugada,
-                            turnoAnterior);
-
                         await NotificarEstadoPartidaAsync();
-                    }
+
                 }
             }
             catch (Exception ex)

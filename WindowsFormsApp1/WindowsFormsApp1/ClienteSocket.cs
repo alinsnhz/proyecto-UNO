@@ -1,93 +1,134 @@
 ﻿using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.IO;
+using Newtonsoft.Json;
 
 namespace WindowsFormsApp1
 {
-    // Clase responsable de conectar cada cliente con el servidor TCP y mantener la comunicación durante toda la partida.
+    // Mantiene la conexión TCP con el servidor UNO.
     public class ClienteSocket
     {
         private TcpClient _client;
         private NetworkStream _stream;
         private CancellationTokenSource _cts;
         private bool _isConnected;
+        private readonly SemaphoreSlim _bloqueoEnvio = new SemaphoreSlim(1, 1);
 
-        // Eventos para notificar a la interfaz de usuario (InicioForm) de forma desacoplada
         public event Action<string> OnMessageReceived;
         public event Action<string> OnDisconnected;
 
-        // Propiedad de solo lectura para verificar si el cliente se encuentra conectado activamente
         public bool IsConnected => _isConnected;
 
-        // Conecta con la IP del servidor y el puerto 11000 de forma asíncrona, envía el nombre del jugador y arranca la escucha continua.
         public async Task<bool> ConectarAsync(string ipServidor, string nombreJugador)
         {
             try
             {
                 _client = new TcpClient();
-
-                // Conexión con la IP del servidor y el puerto 11000 especificado
                 await _client.ConnectAsync(ipServidor, 11000);
-
                 _stream = _client.GetStream();
-                _isConnected = true;
                 _cts = new CancellationTokenSource();
+                _isConnected = true;
 
-                // Enviar el nombre del jugador inmediatamente al conectarse mediante el protocolo acordado
-                await EnviarMensajeAsync($"CONNECT|{nombreJugador}");
+                // El servidor espera un objeto Mensajes serializado como JSON.
+                await EnviarObjetoAsync(new
+                {
+                    tipo = "Conectar",
+                    jugadorNombre = nombreJugador
+                });
 
-                // Iniciar la tarea de recepción continua de mensajes en segundo plano (sin bloquear la interfaz)
                 _ = Task.Run(() => RecibirMensajesLoopAsync(_cts.Token));
-
                 return true;
             }
-            catch (Exception)
+            catch
             {
-                _isConnected = false;
+                Desconectar();
                 return false;
             }
         }
 
-        // Envia mensajes o solicitudes al servidor utilizando el protocolo acordado.
-        public async Task EnviarMensajeAsync(string mensaje)
+        // Envía una acción usando los nombres de propiedades del protocolo del servidor.
+        public Task EnviarAccionAsync(string tipo, string cartaId = null,
+            string colorElegido = null, int? jugadorObjetivoId = null)
         {
-            if (!_isConnected || _stream == null) return;
+            return EnviarObjetoAsync(new
+            {
+                tipo = tipo,
+                cartaId = cartaId,
+                colorElegido = colorElegido,
+                jugadorObjetivoId = jugadorObjetivoId
+            });
+        }
 
+        public async Task EnviarObjetoAsync(object mensaje)
+        {
+            if (!_isConnected || _stream == null)
+                return;
+
+            string json = JsonConvert.SerializeObject(mensaje);
+            byte[] datos = Encoding.UTF8.GetBytes(json + "\n");
+
+            await _bloqueoEnvio.WaitAsync();
             try
             {
-                byte[] data = Encoding.UTF8.GetBytes(mensaje + "\n");
-                await _stream.WriteAsync(data, 0, data.Length);
+                if (_isConnected && _stream != null)
+                    await _stream.WriteAsync(datos, 0, datos.Length);
             }
-            catch (Exception)
+            catch
             {
                 Desconectar();
-                OnDisconnected?.Invoke("Se perdió la conexión con el servidor al intentar enviar datos.");
+                OnDisconnected?.Invoke("Se perdió la conexión con el servidor al enviar datos.");
+            }
+            finally
+            {
+                _bloqueoEnvio.Release();
             }
         }
 
-        // Bucle continuo que se ejecuta en segundo plano para recibir datos del servidor de forma asincrona, evitando congelar el hilo principal de Windows Forms.
+        // Se conserva este método para llamadas antiguas que envíen JSON directamente.
+        public async Task EnviarMensajeAsync(string mensaje)
+        {
+            if (string.IsNullOrWhiteSpace(mensaje)) return;
+            byte[] datos = Encoding.UTF8.GetBytes(mensaje.TrimEnd('\r', '\n') + "\n");
+            if (!_isConnected || _stream == null) return;
+
+            await _bloqueoEnvio.WaitAsync();
+            try
+            {
+                if (_isConnected && _stream != null)
+                    await _stream.WriteAsync(datos, 0, datos.Length);
+            }
+            catch
+            {
+                Desconectar();
+                OnDisconnected?.Invoke("Se perdió la conexión con el servidor al enviar datos.");
+            }
+            finally
+            {
+                _bloqueoEnvio.Release();
+            }
+        }
+
         private async Task RecibirMensajesLoopAsync(CancellationToken cancellationToken)
         {
             try
             {
-                StreamReader lector = new StreamReader(_stream, Encoding.UTF8);
-
-                while (_isConnected && !cancellationToken.IsCancellationRequested)
+                using (StreamReader lector = new StreamReader(_stream, Encoding.UTF8, false, 1024, true))
                 {
-                    string linea = await lector.ReadLineAsync();
-
-                    if (linea == null) break; // El servidor cerró la conexión
-
-                    if (linea.Length > 0)
-                        OnMessageReceived?.Invoke(linea);
+                    while (_isConnected && !cancellationToken.IsCancellationRequested)
+                    {
+                        string linea = await lector.ReadLineAsync();
+                        if (linea == null) break;
+                        if (!string.IsNullOrWhiteSpace(linea))
+                            OnMessageReceived?.Invoke(linea);
+                    }
                 }
             }
-            catch (Exception)
+            catch
             {
-                // Excepción por cancelación o interrupción de red
+                // La conexión pudo cerrarse o cancelarse mientras se recibían datos.
             }
             finally
             {
@@ -99,22 +140,15 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Metodo para desconectarse correctamente del servidor y liberar los recursos de red.
         public void Desconectar()
         {
-            if (!_isConnected) return;
-
+            if (!_isConnected && _client == null) return;
             _isConnected = false;
-            try
-            {
-                _cts?.Cancel();
-                _stream?.Close();
-                _client?.Close();
-            }
-            catch (Exception)
-            {
-                // Ignorar excepciones menores al liberar sockets cerrados
-            }
+            try { _cts?.Cancel(); } catch { }
+            try { _stream?.Close(); } catch { }
+            try { _client?.Close(); } catch { }
+            _stream = null;
+            _client = null;
         }
     }
 }
