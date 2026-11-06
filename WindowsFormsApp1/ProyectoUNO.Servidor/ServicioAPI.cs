@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 
 namespace ProyectoUno.Servidor
 {
-    // clase que muestra el error en consola si la API falla y permite al servidor seguir funcionando
+    // Servicio responsable de comunicarse con la API.
     public class ServicioAPI
     {
         private static readonly HttpClient cliente = new HttpClient
@@ -15,8 +15,7 @@ namespace ProyectoUno.Servidor
             BaseAddress = new Uri("http://localhost:5198/")
         };
 
-        public async Task<RespuestaInicioAPI> IniciarPartidaAsync(
-            List<string> nombres)
+        public async Task<RespuestaInicioAPI> IniciarPartidaAsync(List<string> nombres)
         {
             var datos = new
             {
@@ -27,30 +26,23 @@ namespace ProyectoUno.Servidor
 
             try
             {
-                using (var contenido = new StringContent(
-                    json, Encoding.UTF8, "application/json"))
+                using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
+                using (HttpResponseMessage respuesta = await cliente.PostAsync("api/Partida/iniciar", contenido))
                 {
-                    HttpResponseMessage respuesta = await cliente.PostAsync(
-                        "api/Partida/iniciar", contenido);
-
-                    string resultado =
-                        await respuesta.Content.ReadAsStringAsync();
+                    string resultado = await respuesta.Content.ReadAsStringAsync();
 
                     if (!respuesta.IsSuccessStatusCode)
                     {
-                        Console.WriteLine(
-                            "Error al iniciar partida en API: " + resultado);
+                        Console.WriteLine("Error al iniciar partida en API: " + resultado);
                         return null;
                     }
 
-                    return JsonConvert.DeserializeObject<RespuestaInicioAPI>(
-                        resultado);
+                    return JsonConvert.DeserializeObject<RespuestaInicioAPI>(resultado);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "No se pudo conectar con la API: " + ex.Message);
+                Console.WriteLine("No se pudo conectar con la API: " + ex.Message);
                 return null;
             }
         }
@@ -119,32 +111,45 @@ namespace ProyectoUno.Servidor
             await EnviarAsync("api/Partida/log-turno", datos);
         }
 
+        public async Task FinalizarPartidaAsync(
+            int idPartida,
+            int idJugadorGanador,
+            Dictionary<int, int> resultados)
+        {
+            var listaResultados = new List<object>();
+
+            foreach (var resultado in resultados)
+            {
+                listaResultados.Add(new
+                {
+                    IdJugador = resultado.Key,
+                    CartasRestantes = resultado.Value
+                });
+            }
+
+            var datos = new
+            {
+                IdPartida = idPartida,
+                IdJugadorGanador = idJugadorGanador,
+                Resultados = listaResultados
+            };
+
+            await EnviarAsync("api/Partida/finalizar", datos);
+        }
+
         private async Task EnviarAsync(string endpoint, object datos)
         {
-            try
-            {
-                string json = JsonConvert.SerializeObject(datos);
+            string json = JsonConvert.SerializeObject(datos);
 
-                using (var contenido = new StringContent(
-                    json, Encoding.UTF8, "application/json"))
+            using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
+            using (HttpResponseMessage respuesta = await cliente.PostAsync(endpoint, contenido))
+            {
+                if (!respuesta.IsSuccessStatusCode)
                 {
-                    HttpResponseMessage respuesta =
-                        await cliente.PostAsync(endpoint, contenido);
+                    string error = await respuesta.Content.ReadAsStringAsync();
 
-                    if (!respuesta.IsSuccessStatusCode)
-                    {
-                        string error =
-                            await respuesta.Content.ReadAsStringAsync();
-
-                        Console.WriteLine(
-                            "Error de API en " + endpoint + ": " + error);
-                    }
+                    throw new Exception("Error de API en " + endpoint + " (HTTP " + (int)respuesta.StatusCode + "): " + error);
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(
-                    "Error enviando información a la API: " + ex.Message);
             }
         }
     }

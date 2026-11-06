@@ -21,4 +21,17 @@ namespace ProyectoUno.API.DTOs
         public string? Valor { get; set; }
         public string? Tipo { get; set; }
     }
+
+    public class FinalizarPartidaDto
+    {
+        public int IdPartida { get; set; }
+        public int IdJugadorGanador { get; set; }
+        public List<ResultadoJugadorDto> Resultados { get; set; } = new List<ResultadoJugadorDto>();
+    }
+
+    public class ResultadoJugadorDto
+    {
+        public int IdJugador { get; set; }
+        public int CartasRestantes { get; set; }
+    }
 }

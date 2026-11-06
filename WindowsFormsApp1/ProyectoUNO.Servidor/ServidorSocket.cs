@@ -22,6 +22,7 @@ namespace ProyectoUno.Servidor
         private volatile bool detenido = false;
         private readonly ServicioAPI servicioAPI = new ServicioAPI();
         private int idPartidaBD = 0;
+        private int partidaFinalizadaBD = 0;
         private readonly ConcurrentDictionary<int, int> idsJugadoresBD = new ConcurrentDictionary<int, int>();
 
         public async Task IniciarAsync()
@@ -61,7 +62,7 @@ namespace ProyectoUno.Servidor
 
                     Console.WriteLine("Conexiones: " + clientes.Count + "/" + MaxJugadores);
 
-                    _ = AtenderClienteAsync(jugador);
+                    = AtenderClienteAsync(jugador);
                 }
             }
             catch (ObjectDisposedException)
@@ -74,7 +75,6 @@ namespace ProyectoUno.Servidor
                     throw;
             }
         }
-
         private async Task AtenderClienteAsync(JugadorServidor jugador)
         {
             try
@@ -104,7 +104,6 @@ namespace ProyectoUno.Servidor
                     if (mensaje == null)
                         continue;
 
-                    // El primer mensaje debe registrar al jugador
                     if (!jugador.Registrado)
                     {
                         await ProcesarRegistroAsync(jugador, mensaje);
@@ -112,17 +111,25 @@ namespace ProyectoUno.Servidor
                         continue;
                     }
 
-                    // El servidor utiliza el ID de la conexión
                     Mensajes respuesta = partida.ProcesarAccion(jugador.Id, mensaje);
 
                     respuesta.JugadorId = jugador.Id;
 
+                    if (respuesta.Aceptado == true)
+                    {
+                        await RegistrarAccionBDAsync(jugador, mensaje);
+                    }
+
                     await jugador.EnviarAsync(respuesta);
 
-                    // Si la acción fue aceptada, actualizar a todos
                     if (respuesta.Aceptado == true)
                     {
                         await NotificarEstadoPartidaAsync();
+
+                        if (partida.Juego.Ganador != null)
+                        {
+                            await FinalizarPartidaBDAsync();
+                        }
                     }
                 }
             }
@@ -155,7 +162,7 @@ namespace ProyectoUno.Servidor
                     await NotificarInterrupcionAsync();
                 }
                 else if (estabaRegistrado &&
-                         partida.CantidadJugadores > 0)
+                        partida.CantidadJugadores > 0)
                 {
                     await NotificarSalaAsync();
                 }
@@ -393,6 +400,142 @@ namespace ProyectoUno.Servidor
                 elemento.Value.Desconectar();
 
             clientes.Clear();
+        }
+
+        private async Task RegistrarAccionBDAsync (JugadorServidor jugadorServidor, Mensajes solicitud)
+        {
+            if (idPartidaBD <= 0 || partida.Juego == null)
+                return;
+
+            try
+            {
+                string accion = solicitud.Tipo.ToLowerInvariant();
+
+                var jugadorJuego = partida.Juego.jugadores.Find(
+                    j => j.ID == jugadorServidor.Id
+                );
+
+                if (jugadorJuego == null)
+                    return;
+
+                if (!idsJugadoresBD.TryGetValue(
+                    jugadorJuego.ID, out int idJugadorBD))
+                    return;
+
+                // Registrar carta jugada.
+                if (accion == "jugarcarta")
+                {
+                    var carta = partida.Juego.cartaActual;
+
+                    if (carta != null)
+                    {
+                        await servicioAPI.RegistrarJugadaAsync(
+                            idPartidaBD,
+                            idJugadorBD,
+                            jugadorJuego.Nombre,
+                            carta.Color,
+                            carta.Valor,
+                            carta.Tipo
+                        );
+                    }
+                }
+
+                else if (accion == "robarcarta" || accion == "robar")
+                {
+                    var carta = partida.Juego.CartaRobada;
+                    var jugadorRobo = partida.Juego.JugadorQueRobo;
+
+                    if (carta != null &&
+                        jugadorRobo != null &&
+                        idsJugadoresBD.TryGetValue(
+                            jugadorRobo.ID, out int idRoboBD))
+                    {
+                        await servicioAPI.RegistrarCartaRobadaAsync(
+                            idPartidaBD,
+                            idRoboBD,
+                            jugadorRobo.Nombre,
+                            carta.Color,
+                            carta.Valor,
+                            carta.Tipo
+                        );
+                    }
+                }
+
+                if (accion == "jugarcarta" ||
+                    accion == "pasarturno" ||
+                    accion == "pasar")
+                {
+                    if (partida.Juego.Ganador == null)
+                    {
+                        var siguienteJugador =
+                            partida.Juego.obtenerJugadorActual();
+
+                        if (siguienteJugador != null &&
+                            idsJugadoresBD.TryGetValue(
+                                siguienteJugador.ID, out int idSiguienteBD))
+                        {
+                            await servicioAPI.RegistrarTurnoAsync(
+                                idPartidaBD,
+                                idSiguienteBD,
+                                siguienteJugador.Nombre
+                            );
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al registrar la acción en la API: " + ex.Message
+                );
+            }
+        }
+
+        private async Task FinalizarPartidaBDAsync()
+        {
+            if (idPartidaBD <= 0 || partida.Juego.Ganador == null)
+                return;
+
+            if (Interlocked.CompareExchange(ref partidaFinalizadaBD, 1, 0) != 0)
+                return;
+
+            int idGanadorServidor = partida.Juego.Ganador.ID;
+
+            if (!idsJugadoresBD.TryGetValue(idGanadorServidor, out int idGanadorBD))
+            {
+                Interlocked.Exchange(ref partidaFinalizadaBD, 0);
+                return;
+            }
+
+            var resultados = new Dictionary<int, int>();
+
+            foreach (var jugador in partida.Juego.jugadores)
+            {
+                if (!idsJugadoresBD.TryGetValue(jugador.ID, out int idJugadorBD))
+                {
+                    Interlocked.Exchange(ref partidaFinalizadaBD, 0);
+                    return;
+                }
+
+                resultados[idJugadorBD] = jugador.Cartas.Count;
+            }
+
+            try
+            {
+                await servicioAPI.FinalizarPartidaAsync(
+                    idPartidaBD,
+                    idGanadorBD,
+                    resultados
+                );
+
+                Console.WriteLine("Resultado de la partida guardado correctamente en MySQL."
+                );
+            }
+            catch (Exception ex)
+            {
+                Interlocked.Exchange(ref partidaFinalizadaBD, 0);
+
+                Console.WriteLine("Error al guardar el resultado de la partida: " + ex.Message);
+            }
         }
     }
 }

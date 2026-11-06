@@ -37,7 +37,12 @@ namespace WindowsFormsApp1
                 _cts = new CancellationTokenSource();
 
                 // Enviar el nombre del jugador inmediatamente al conectarse mediante el protocolo acordado
-                await EnviarMensajeAsync($"CONNECT|{nombreJugador}");
+                string mensajeConexion = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    tipo = "Conectar", jugadorNombre = nombreJugador
+                });
+
+                await EnviarMensajeAsync(mensajeConexion);
 
                 // Iniciar la tarea de recepción continua de mensajes en segundo plano (sin bloquear la interfaz)
                 _ = Task.Run(() => RecibirMensajesLoopAsync(_cts.Token));
@@ -115,6 +120,32 @@ namespace WindowsFormsApp1
             {
                 // Ignorar excepciones menores al liberar sockets cerrados
             }
+        }
+
+        public async Task EnviarAccionAsync(string tipo)
+        {
+            var mensaje = new
+            {
+                tipo = tipo
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(mensaje);
+
+            await EnviarMensajeAsync(json);
+        }
+
+        public async Task EnviarJugadaAsync(string cartaId, string colorElegido = "")
+        {
+            var mensaje = new
+            {
+                tipo = "JugarCarta",
+                cartaId = cartaId,
+                colorElegido = colorElegido
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(mensaje);
+
+            await EnviarMensajeAsync(json);
         }
     }
 }

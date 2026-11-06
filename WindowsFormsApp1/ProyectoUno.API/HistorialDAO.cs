@@ -25,7 +25,6 @@ namespace ProyectoUno.API
                 }
             }
         }
-
         public void GuardarGanador(int idPartida, string nombreGanador)
         {
             int idGanador = jugadorDAO.ObtenerOCrear(nombreGanador);
@@ -115,6 +114,89 @@ namespace ProyectoUno.API
                     var tabla = new DataTable();
                     adaptador.Fill(tabla);
                     return tabla;
+                }
+            }
+        }
+
+        public bool FinalizarPartida(int idPartida, int idJugadorGanador, Dictionary<int, int> resultados)
+        {
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var transaccion = con.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var cmd = new MySqlCommand(
+                            @"SELECT IdJugadorGanador
+                            FROM Partida
+                            WHERE IdPartida = @p
+                            FOR UPDATE",
+                            con, transaccion))
+                        {
+                            cmd.Parameters.AddWithValue("@p", idPartida);
+
+                            object resultado = cmd.ExecuteScalar();
+
+                            if (resultado == null || resultado == DBNull.Value)
+                            {
+                                //no hay ganador
+                            }
+                            else
+                            {
+                                transaccion.Rollback();
+                                return false;
+                            }
+                        }
+
+                        using (var cmd = new MySqlCommand(
+                            @"UPDATE Partida
+                            SET IdJugadorGanador = @g
+                            WHERE IdPartida = @p
+                            AND IdJugadorGanador IS NULL",
+                            con, transaccion))
+                        {
+                            cmd.Parameters.AddWithValue("@g", idJugadorGanador);
+                            cmd.Parameters.AddWithValue("@p", idPartida);
+
+                            if (cmd.ExecuteNonQuery() != 1)
+                            {
+                                transaccion.Rollback();
+                                return false;
+                            }
+                        }
+
+                        foreach (var jugador in resultados)
+                        {
+                            using (var cmd = new MySqlCommand(
+                                @"UPDATE ResultadoPartida
+                                SET CartasRestantes = @c,
+                                    Gano = @g
+                                WHERE IdPartida = @p
+                                AND IdJugador = @j",
+                                con, transaccion))
+                            {
+                                cmd.Parameters.AddWithValue("@c", jugador.Value);
+                                cmd.Parameters.AddWithValue(
+                                    "@g", jugador.Key == idJugadorGanador);
+                                cmd.Parameters.AddWithValue("@p", idPartida);
+                                cmd.Parameters.AddWithValue("@j", jugador.Key);
+
+                                if (cmd.ExecuteNonQuery() != 1)
+                                    throw new Exception(
+                                        "No se encontró el resultado de un jugador.");
+                            }
+                        }
+
+                        transaccion.Commit();
+                        return true;
+                    }
+                    catch
+                    {
+                        transaccion.Rollback();
+                        throw;
+                    }
                 }
             }
         }
