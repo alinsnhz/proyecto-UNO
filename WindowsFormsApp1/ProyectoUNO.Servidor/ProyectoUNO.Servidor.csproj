@@ -12,6 +12,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\ProyectoUno.API\ProyectoUno.API.csproj" />
 		<ProjectReference Include="..\ProyectoUNO.Protocolo\ProyectoUNO.Protocolo.csproj" />
 		<ProjectReference Include="..\WindowsFormsApp1\proyectoUNO.csproj" />
 	</ItemGroup>
