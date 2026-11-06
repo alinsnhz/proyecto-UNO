@@ -13,6 +13,7 @@ namespace WindowsFormsApp1
     /* Formulario de inicio del juego UNO adaptado para multijugador cliente-servidor,
      encargado de recopilar el nombre del jugador, asignar un icono aleatorio, validar la IP
      y dar inicio inmediato a la partida principal al establecer la conexión TCP*/
+
     public partial class InicioForm : Form
     {
         // Control de texto donde el jugador ingresará su nombre.
