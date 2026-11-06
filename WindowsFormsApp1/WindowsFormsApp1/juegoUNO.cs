@@ -7,38 +7,52 @@ namespace proyectoUNO
     public class juegoUNO
     {
         public List<Jugador> jugadores { get; set; }
-
         public int jugadorActual { get; set; }
-
         public Carta cartaActual { get; set; }
-
         public int direccion { get; set; }
-
         public int cartasARobar { get; set; }
-
         public Mazo Mazo { get; set; }
-
         public List<Carta> pilaDescarte { get; set; }
-
         public List<string> registroAcciones { get; set; }
 
         public bool declaroUNO { get; set; }
-
         public bool oportunidadUNO { get; set; }
-
         public bool partidaTerminada { get; set; }
 
         public Jugador Ganador { get; set; }
-
         public Jugador jugadorUNO { get; set; }
 
-        // Control de la carta que se acaba de robar.
         public Jugador JugadorQueRobo { get; private set; }
-
         public Carta CartaRobada { get; private set; }
 
-        // Guarda las cartas robadas por penalizaciones.
-        public List<Tuple<Jugador, Carta>> CartasRobadasPorPenalizacion { get; private set; }
+        public List<Tuple<Jugador, Carta>>
+            CartasRobadasPorPenalizacion
+        { get; private set; }
+
+        public juegoUNO()
+        {
+            jugadores = new List<Jugador>();
+            pilaDescarte = new List<Carta>();
+            registroAcciones = new List<string>();
+
+            CartasRobadasPorPenalizacion =
+                new List<Tuple<Jugador, Carta>>();
+
+            Mazo = new Mazo();
+
+            direccion = 1;
+            jugadorActual = 0;
+            cartasARobar = 0;
+
+            declaroUNO = false;
+            oportunidadUNO = false;
+            partidaTerminada = false;
+
+            Ganador = null;
+            jugadorUNO = null;
+            JugadorQueRobo = null;
+            CartaRobada = null;
+        }
 
         public bool TieneCartaRobadaPendiente(Jugador jugador)
         {
@@ -53,36 +67,11 @@ namespace proyectoUNO
             CartaRobada = null;
         }
 
-        public juegoUNO()
-        {
-            jugadores = new List<Jugador>();
-            pilaDescarte = new List<Carta>();
-            registroAcciones = new List<string>();
-
-            CartasRobadasPorPenalizacion =
-                new List<Tuple<Jugador, Carta>>();
-
-            direccion = 1;
-            jugadorActual = 0;
-            cartasARobar = 0;
-
-            declaroUNO = false;
-            oportunidadUNO = false;
-            partidaTerminada = false;
-
-            Ganador = null;
-            jugadorUNO = null;
-
-            JugadorQueRobo = null;
-            CartaRobada = null;
-
-            Mazo = new Mazo();
-        }
-
         public void iniciarPartida()
         {
             if (jugadores.Count != 3)
-                throw new Exception("La partida necesita exactamente 3 jugadores.");
+                throw new InvalidOperationException(
+                    "La partida necesita exactamente 3 jugadores.");
 
             Mazo = new Mazo();
             Mazo.crearMazo();
@@ -103,11 +92,12 @@ namespace proyectoUNO
             Ganador = null;
             jugadorUNO = null;
 
-            JugadorQueRobo = null;
-            CartaRobada = null;
+            LimpiarCartaRobada();
 
             foreach (Jugador jugador in jugadores)
+            {
                 jugador.Cartas.Clear();
+            }
 
             repartirCartasIniciales();
         }
@@ -122,7 +112,8 @@ namespace proyectoUNO
         public void repartirCartasIniciales()
         {
             if (!puedeRepartirCartasIniciales())
-                throw new Exception("No hay suficientes cartas para repartir.");
+                throw new InvalidOperationException(
+                    "No hay suficientes cartas para repartir.");
 
             foreach (Jugador jugador in jugadores)
             {
@@ -131,7 +122,8 @@ namespace proyectoUNO
                     Carta carta = Mazo.robarCarta();
 
                     if (carta == null)
-                        throw new Exception("No fue posible repartir las cartas.");
+                        throw new InvalidOperationException(
+                            "No fue posible repartir las cartas.");
 
                     jugador.agregarCarta(carta);
                 }
@@ -146,23 +138,25 @@ namespace proyectoUNO
             {
                 carta = Mazo.robarCarta();
 
-                if (carta != null &&
-                    carta.Tipo != "Comodin" &&
+                if (carta == null)
+                    continue;
+
+                if (carta.Tipo != "Comodin" &&
                     carta.Tipo != "+4" &&
                     carta.Tipo != "Reversa" &&
                     carta.Tipo != "Salta" &&
                     carta.Tipo != "+2")
                     break;
 
-                if (carta != null)
-                    Mazo.Cartas.Add(carta);
+                Mazo.Cartas.Add(carta);
+                carta = null;
             }
 
             if (carta == null)
-                throw new Exception("No se encontró una carta inicial válida.");
+                throw new InvalidOperationException(
+                    "No se encontró una carta inicial válida.");
 
             agregarCartaDescarte(carta);
-
             registroAcciones.Add("Se colocó la carta inicial.");
         }
 
@@ -218,12 +212,14 @@ namespace proyectoUNO
         {
             direccion *= -1;
 
-            registroAcciones.Add("Se cambió el sentido del juego.");
+            registroAcciones.Add(
+                "Se cambió el sentido del juego.");
         }
 
         public void aplicarSalta()
         {
-            registroAcciones.Add("Se saltó el turno de un jugador.");
+            registroAcciones.Add(
+                "Se saltó el turno de un jugador.");
 
             cambiarTurno();
             cambiarTurno();
@@ -231,31 +227,33 @@ namespace proyectoUNO
 
         public void aplicaPenalizacionRobo(int cantidad)
         {
-            if (jugadores.Count == 0)
+            if (jugadores.Count == 0 || cantidad <= 0)
                 return;
 
-            // Avanza al jugador que recibe la penalización.
             cambiarTurno();
 
             Jugador afectado = obtenerJugadorActual();
+
+            if (afectado == null)
+                return;
 
             for (int i = 0; i < cantidad; i++)
             {
                 Carta carta = RobarDelMazo();
 
-                if (carta != null)
-                {
-                    afectado.agregarCarta(carta);
+                if (carta == null)
+                    break;
 
-                    CartasRobadasPorPenalizacion.Add(
-                        Tuple.Create(afectado, carta));
-                }
+                afectado.agregarCarta(carta);
+
+                CartasRobadasPorPenalizacion.Add(
+                    Tuple.Create(afectado, carta));
             }
 
             registroAcciones.Add(
-                afectado.Nombre + " recibió " + cantidad + " cartas de penalización.");
+                afectado.Nombre + " recibió " +
+                cantidad + " cartas de penalización.");
 
-            // El jugador penalizado pierde su turno.
             cambiarTurno();
         }
 
@@ -266,22 +264,27 @@ namespace proyectoUNO
 
         public void aplicarComodin(string color)
         {
-            if (!ReglasUNO.EsColorValido(color))
+            if (!ReglasUNO.EsColorValido(color) ||
+                cartaActual == null)
                 return;
 
             cartaActual.Color = color;
 
-            registroAcciones.Add("El color cambió a " + color + ".");
+            registroAcciones.Add(
+                "El color cambió a " + color + ".");
         }
 
         public void aplicarMasCuatro(string color)
         {
-            if (!ReglasUNO.EsColorValido(color))
+            if (!ReglasUNO.EsColorValido(color) ||
+                cartaActual == null)
                 return;
 
             cartaActual.Color = color;
 
-            registroAcciones.Add("Se eligió el color " + color + ".");
+            registroAcciones.Add(
+                "Se eligió el color " + color + ".");
+
             aplicaPenalizacionRobo(4);
         }
 
@@ -323,18 +326,20 @@ namespace proyectoUNO
 
             Carta carta = RobarDelMazo();
 
-            if (carta != null)
-            {
-                jugador.agregarCarta(carta);
+            if (carta == null)
+                return null;
 
-                CartasRobadasPorPenalizacion.Add(
-                    Tuple.Create(jugador, carta));
-            }
+            jugador.agregarCarta(carta);
+
+            CartasRobadasPorPenalizacion.Add(
+                Tuple.Create(jugador, carta));
 
             return carta;
         }
 
-        public bool puedeJugarCartaRobada(Jugador jugador, Carta carta)
+        public bool puedeJugarCartaRobada(
+            Jugador jugador,
+            Carta carta)
         {
             return TieneCartaRobadaPendiente(jugador) &&
                    CartaRobada != null &&
@@ -358,7 +363,8 @@ namespace proyectoUNO
             JugadorQueRobo = jugador;
             CartaRobada = carta;
 
-            registroAcciones.Add(jugador.Nombre + " robó una carta.");
+            registroAcciones.Add(
+                jugador.Nombre + " robó una carta.");
 
             return carta;
         }
@@ -368,10 +374,10 @@ namespace proyectoUNO
             if (!ReglasUNO.PuedePasarTurno(this, jugador))
                 return false;
 
-            JugadorQueRobo = null;
-            CartaRobada = null;
+            LimpiarCartaRobada();
 
-            registroAcciones.Add(jugador.Nombre + " terminó su turno.");
+            registroAcciones.Add(
+                jugador.Nombre + " terminó su turno.");
 
             cambiarTurno();
 
@@ -408,7 +414,8 @@ namespace proyectoUNO
 
             declaroUNO = true;
 
-            registroAcciones.Add(jugador.Nombre + " declaró UNO.");
+            registroAcciones.Add(
+                jugador.Nombre + " declaró UNO.");
 
             return true;
         }
@@ -436,10 +443,10 @@ namespace proyectoUNO
             Ganador = jugador;
             partidaTerminada = true;
 
-            JugadorQueRobo = null;
-            CartaRobada = null;
+            LimpiarCartaRobada();
 
-            registroAcciones.Add(jugador.Nombre + " ganó la partida.");
+            registroAcciones.Add(
+                jugador.Nombre + " ganó la partida.");
         }
 
         public List<Jugador> obtenerPerdedores()

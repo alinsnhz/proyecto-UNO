@@ -179,6 +179,10 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\ProyectoUNO.Logica\ProyectoUNO.Logica.csproj">
+      <Project>{de524a67-26cd-4fb2-8f33-430f28ee9ad5}</Project>
+      <Name>ProyectoUNO.Logica</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ProyectoUNO.Protocolo\ProyectoUNO.Protocolo.csproj">
       <Project>{f07084c0-8ed2-4c3c-b820-84c05dadf7ff}</Project>
       <Name>ProyectoUNO.Protocolo</Name>
