@@ -23,8 +23,14 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("partidaIniciada")]
         public bool PartidaIniciada { get; set; }
 
+        [JsonProperty("puedePasarTurno")]
+        public bool PuedePasarTurno { get; set; }
+
         [JsonProperty("jugadoresRegistrados")]
         public int JugadoresRegistrados { get; set; }
+
+        [JsonProperty("miJugadorId")]
+        public int MiJugadorId { get; set; }
 
         [JsonProperty("ganador")]
         public string Ganador { get; set; }

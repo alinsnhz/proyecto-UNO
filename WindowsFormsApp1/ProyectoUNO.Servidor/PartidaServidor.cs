@@ -481,6 +481,7 @@ namespace ProyectoUno.Servidor
                     Juego != null && Juego.partidaTerminada;
 
                 estado.JugadoresRegistrados = jugadores.Count;
+                estado.MiJugadorId = id;
 
                 if (Juego == null)
                 {
@@ -502,6 +503,10 @@ namespace ProyectoUno.Servidor
 
                 if (actual != null)
                     estado.JugadorActual = actual.Nombre;
+
+                // Solo el jugador que acaba de robar puede pasar su turno.
+                estado.PuedePasarTurno = actual != null &&
+                    actual.ID == id && Juego.TieneCartaRobadaPendiente(actual);
 
                 estado.Sentido = Juego.direccion;
 
