@@ -118,5 +118,43 @@ namespace ProyectoUno.API
                 }
             }
         }
+
+        public bool PartidaFinalizada(int idPartida)
+        {
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var cmd = new MySqlCommand(
+                    "SELECT IdJugadorGanador FROM Partida WHERE IdPartida = @p", con))
+                {
+                    cmd.Parameters.AddWithValue("@p", idPartida);
+
+                    var resultado = cmd.ExecuteScalar();
+
+                    return resultado != null &&
+                        resultado != DBNull.Value;
+                }
+            }
+        }
+
+        public bool JugadorPertenecePartida(int idPartida, int idJugador)
+        {
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var cmd = new MySqlCommand(
+                    @"SELECT COUNT(*)
+                    FROM ResultadoPartida
+                    WHERE IdPartida=@p AND IdJugador=@j", con))
+                {
+                    cmd.Parameters.AddWithValue("@p", idPartida);
+                    cmd.Parameters.AddWithValue("@j", idJugador);
+
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                }
+            }
+        }
     }
 }
