@@ -3,6 +3,7 @@ using ProyectoUno.Protocolo;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -17,7 +18,7 @@ namespace ProyectoUno.Servidor
         private TcpListener listener;
         private readonly PartidaServidor partida = new PartidaServidor();
         private readonly ConcurrentDictionary<int, JugadorServidor> clientes = new ConcurrentDictionary<int, JugadorServidor>();
-        private readonly SemaphoreSlim lugares =  new SemaphoreSlim(MaxJugadores, MaxJugadores);
+        private readonly SemaphoreSlim lugares = new SemaphoreSlim(MaxJugadores, MaxJugadores);
         private int siguienteId = 0;
         private volatile bool detenido = false;
         private readonly ServicioAPI servicioAPI = new ServicioAPI();
@@ -33,7 +34,6 @@ namespace ProyectoUno.Servidor
             detenido = false;
 
             Console.WriteLine(" SERVIDOR UNO INICIADO");
-
             Console.WriteLine("Puerto: " + Puerto);
             Console.WriteLine("Esperando jugadores...");
 
@@ -41,8 +41,7 @@ namespace ProyectoUno.Servidor
             {
                 while (!detenido)
                 {
-                    TcpClient cliente =
-                        await listener.AcceptTcpClientAsync();
+                    TcpClient cliente = await listener.AcceptTcpClientAsync();
 
                     if (!await lugares.WaitAsync(0))
                     {
@@ -52,13 +51,11 @@ namespace ProyectoUno.Servidor
 
                     int id = Interlocked.Increment(ref siguienteId);
 
-                    JugadorServidor jugador =
-                        new JugadorServidor(id, cliente);
+                    JugadorServidor jugador = new JugadorServidor(id, cliente);
 
                     clientes.TryAdd(id, jugador);
 
                     Console.WriteLine("Nueva conexión. ID asignado: " + id);
-
                     Console.WriteLine("Conexiones: " + clientes.Count + "/" + MaxJugadores);
 
                     _ = AtenderClienteAsync(jugador);
@@ -97,7 +94,6 @@ namespace ProyectoUno.Servidor
                     catch (JsonException)
                     {
                         await EnviarRespuestaAsync(jugador, "Error", false, "El mensaje JSON no es válido");
-
                         continue;
                     }
 
@@ -108,7 +104,6 @@ namespace ProyectoUno.Servidor
                     if (!jugador.Registrado)
                     {
                         await ProcesarRegistroAsync(jugador, mensaje);
-
                         continue;
                     }
 
@@ -117,8 +112,9 @@ namespace ProyectoUno.Servidor
 
                     respuesta.JugadorId = jugador.Id;
 
-                    await jugador.EnviarAsync(respuesta);// Registrar en la API solamente las cartas jugadas correctamente.
-                   
+                    await jugador.EnviarAsync(respuesta);
+
+                    // Registrar en la API solamente las cartas jugadas correctamente.
                     if (respuesta.Aceptado == true &&
                         string.Equals(
                             mensaje.Tipo?.Trim(),
@@ -151,7 +147,76 @@ namespace ProyectoUno.Servidor
                         }
                     }
 
-                    // Si la acción fue aceptada, actualizar a todos
+                    // Registrar en la API las cartas robadas correctamente.
+                    if (respuesta.Aceptado == true &&
+                        (string.Equals(
+                            mensaje.Tipo?.Trim(),
+                            "robarcarta",
+                            StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(
+                            mensaje.Tipo?.Trim(),
+                            "robar",
+                            StringComparison.OrdinalIgnoreCase)) &&
+                        respuesta.CartaJugada != null)
+                    {
+                        if (idPartidaBD > 0 &&
+                            idsJugadoresBD.TryGetValue(jugador.Id, out int idJugadorBD))
+                        {
+                            await servicioAPI.RegistrarCartaRobadaAsync(
+                                idPartidaBD,
+                                idJugadorBD,
+                                jugador.Nombre,
+                                respuesta.CartaJugada.Color,
+                                respuesta.CartaJugada.Valor,
+                                respuesta.CartaJugada.Tipo);
+                        }
+                        else
+                        {
+                            Console.WriteLine(
+                                "No se encontraron los IDs de la partida o del jugador para registrar la carta robada.");
+                        }
+                    }
+
+                    // Registrar los efectos de las cartas especiales.
+                    // No se registra si el jugador ganó inmediatamente,
+                    // porque en ese caso el efecto no llegó a ejecutarse.
+                    if (respuesta.Aceptado == true &&
+                        !string.Equals(
+                            respuesta.Mensaje,
+                            "¡Has ganado la partida!",
+                            StringComparison.Ordinal) &&
+                        string.Equals(
+                            mensaje.Tipo?.Trim(),
+                            "jugarcarta",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        respuesta.CartaJugada != null)
+                    {
+                        string tipoCarta = respuesta.CartaJugada.Tipo;
+
+                        if (tipoCarta == "Reversa" ||
+                            tipoCarta == "Salta" ||
+                            tipoCarta == "+2" ||
+                            tipoCarta == "+4" ||
+                            tipoCarta == "Comodin")
+                        {
+                            if (idPartidaBD > 0 &&
+                                idsJugadoresBD.TryGetValue(jugador.Id, out int idJugadorBD))
+                            {
+                                await servicioAPI.RegistrarEfectoAsync(
+                                    idPartidaBD,
+                                    idJugadorBD,
+                                    jugador.Nombre,
+                                    tipoCarta);
+                            }
+                            else
+                            {
+                                Console.WriteLine(
+                                    "No se encontraron los IDs para registrar el efecto especial.");
+                            }
+                        }
+                    }
+
+                    // Si la acción fue aceptada, actualizar a todos.
                     if (respuesta.Aceptado == true)
                     {
                         await NotificarEstadoPartidaAsync();
@@ -209,31 +274,32 @@ namespace ProyectoUno.Servidor
                 !mensaje.Tipo.Equals("Conectar", StringComparison.OrdinalIgnoreCase))
             {
                 await EnviarRespuestaAsync(jugador, "Error", false, "Debes enviar primero un mensaje de conexión");
-
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(mensaje.JugadorNombre))
             {
                 await EnviarRespuestaAsync(jugador, "Error", false, "Debes proporcionar un nombre de jugador");
-
                 return;
             }
 
             jugador.Nombre = mensaje.JugadorNombre.Trim();
 
-            bool registrado =
-                partida.RegistrarJugador(jugador);
+            bool registrado = partida.RegistrarJugador(jugador);
 
             if (!registrado)
             {
-                await EnviarRespuestaAsync(jugador, "Error", false, "No fue posible registrar al jugador" 
-                    + "La sala puede estar llena o la partida interrumpida");
+                await EnviarRespuestaAsync(
+                    jugador,
+                    "Error",
+                    false,
+                    "No fue posible registrar al jugador. La sala puede estar llena o la partida interrumpida");
 
                 return;
             }
 
             Console.WriteLine("Jugador " + jugador.Id + " registrado con nombre: " + jugador.Nombre);
+
             if (partida.Iniciada)
             {
                 var jugadoresPartida = partida.ObtenerJugadores();
@@ -295,7 +361,11 @@ namespace ProyectoUno.Servidor
             await NotificarSalaAsync();
         }
 
-        private async Task EnviarRespuestaAsync(JugadorServidor jugador, string tipo, bool aceptado, string mensaje)
+        private async Task EnviarRespuestaAsync(
+            JugadorServidor jugador,
+            string tipo,
+            bool aceptado,
+            string mensaje)
         {
             await jugador.EnviarAsync(
                 new Mensajes
@@ -331,7 +401,8 @@ namespace ProyectoUno.Servidor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("No se pudo actualizar al jugador " + jugador.Id + ": " + ex.Message);
+                    Console.WriteLine(
+                        "No se pudo actualizar al jugador " + jugador.Id + ": " + ex.Message);
                 }
             }
         }
@@ -344,16 +415,14 @@ namespace ProyectoUno.Servidor
             {
                 try
                 {
-                    EstadoPartidaDto estado =
-                        partida.CrearEstadoPara(jugador.Id);
+                    EstadoPartidaDto estado = partida.CrearEstadoPara(jugador.Id);
 
                     string tipo = partida.Iniciada
                         ? "PartidaIniciada"
                         : "EsperandoJugadores";
 
                     string mensaje = partida.Iniciada
-                        ? "Los tres jugadores están conectados. " +
-                          "¡Comienza la partida!"
+                        ? "Los tres jugadores están conectados. ¡Comienza la partida!"
                         : "Esperando a los demás jugadores.";
 
                     await jugador.EnviarAsync(
@@ -368,7 +437,8 @@ namespace ProyectoUno.Servidor
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("No se pudo notificar al jugador " + jugador.Id + ": " + ex.Message);
+                    Console.WriteLine(
+                        "No se pudo notificar al jugador " + jugador.Id + ": " + ex.Message);
                 }
             }
         }
@@ -387,14 +457,14 @@ namespace ProyectoUno.Servidor
                             Tipo = "PartidaInterrumpida",
                             Aceptado = false,
                             Mensaje =
-                                "Un jugador se desconectó " +
-                                "La partida ha sido interrumpida"
+                                "Un jugador se desconectó. La partida ha sido interrumpida."
                         }
                     );
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("No se pudo notificar al jugador " + jugador.Id + ": " + ex.Message);
+                    Console.WriteLine(
+                        "No se pudo notificar al jugador " + jugador.Id + ": " + ex.Message);
                 }
             }
         }
@@ -411,8 +481,7 @@ namespace ProyectoUno.Servidor
                     {
                         Tipo = "ServidorLleno",
                         Aceptado = false,
-                        Mensaje =
-                            "La sala ya tiene tres jugadores."
+                        Mensaje = "La sala ya tiene tres jugadores."
                     };
 
                     string json = JsonConvert.SerializeObject(respuesta);
@@ -422,7 +491,7 @@ namespace ProyectoUno.Servidor
             }
             catch (Exception)
             {
-                // El cliente pudo desconectarse
+                //el cliente pudo desconectarse
             }
             finally
             {

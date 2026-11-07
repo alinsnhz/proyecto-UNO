@@ -118,6 +118,23 @@ namespace ProyectoUno.Servidor
             await EnviarAsync("api/Partida/log-turno", datos);
         }
 
+        public async Task RegistrarEfectoAsync(
+            int idPartida,
+            int idJugador,
+            string nombre,
+            string efecto)
+        {
+            var datos = new
+            {
+                IdPartida = idPartida,
+                IdJugador = idJugador,
+                NombreJugador = nombre,
+                Efecto = efecto
+            };
+
+            await EnviarAsync("api/Partida/log-efecto", datos);
+        }
+
         private async Task<bool> EnviarAsync(string endpoint, object datos)
         {
             try

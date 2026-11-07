@@ -80,6 +80,33 @@ namespace ProyectoUno.API.Controllers
             return Ok(new { Mensaje = "Turno registrado correctamente" });
         }
 
+        [HttpPost("log-efecto")]
+        public IActionResult RegistrarEfecto([FromBody] RegistrarEfectoDto dto)
+        {
+            if (dto == null ||
+                dto.IdPartida <= 0 ||
+                dto.IdJugador <= 0 ||
+                string.IsNullOrWhiteSpace(dto.NombreJugador) ||
+                string.IsNullOrWhiteSpace(dto.Efecto))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "Datos del efecto inválidos."
+                });
+            }
+
+            _logJuegoDAO.RegistrarEfectoEspecial(
+                dto.IdPartida,
+                dto.IdJugador,
+                dto.NombreJugador,
+                dto.Efecto);
+
+            return Ok(new
+            {
+                Mensaje = "Efecto especial registrado correctamente."
+            });
+        }
+
         [HttpPost("log-robar")]
         public IActionResult RegistrarCartaRobada([FromBody] RegistrarJugadaDto dto)
         {

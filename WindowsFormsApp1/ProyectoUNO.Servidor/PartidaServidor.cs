@@ -346,13 +346,23 @@ namespace ProyectoUno.Servidor
                     "No hay cartas disponibles para robar.");
             }
 
+            CartaEstadoDto cartaRobada = new CartaEstadoDto
+            {
+                Id = carta.Id,
+                Color = carta.Color,
+                Valor = carta.Valor,
+                Tipo = carta.Tipo
+            };
+
             CerrarOportunidadUNO(jugador);
 
             // El turno NO cambia. El jugador puede jugar
             // la carta recién robada o pasar.
             return CrearRespuesta(
-                solicitud, true,
-                "Has robado una carta. Puedes jugarla si es válida o pasar tu turno.");
+                solicitud,
+                true,
+                "Has robado una carta. Puedes jugarla si es válida o pasar tu turno.",
+                cartaRobada);
         }
 
         private Mensajes ProcesarPasarTurno(
