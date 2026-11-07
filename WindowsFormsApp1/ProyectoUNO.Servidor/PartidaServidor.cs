@@ -186,9 +186,7 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        private Mensajes ProcesarJugarCarta(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarJugarCarta(Jugador jugador, Mensajes solicitud)
         {
             if (string.IsNullOrWhiteSpace(solicitud.CartaId))
             {
@@ -241,6 +239,14 @@ namespace ProyectoUno.Servidor
             // cuando otro jugador comienza una acción válida.
             CerrarOportunidadUNO(jugador);
 
+            CartaEstadoDto cartaJugada = new CartaEstadoDto
+            {
+                Id = carta.Id,
+                Color = carta.Color,
+                Valor = carta.Valor,
+                Tipo = carta.Tipo
+            };
+
             // Se retira la carta únicamente después de validarla.
             jugador.quitarCarta(carta);
 
@@ -265,7 +271,10 @@ namespace ProyectoUno.Servidor
                 Juego.declaroUNO = false;
 
                 return CrearRespuesta(
-                    solicitud, true, "¡Has ganado la partida!");
+                    solicitud,
+                    true,
+                    "¡Has ganado la partida!",
+                    cartaJugada);
             }
 
             // Se registra la oportunidad de declarar UNO.
@@ -312,13 +321,10 @@ namespace ProyectoUno.Servidor
                     break;
             }
 
-            return CrearRespuesta(
-                solicitud, true, "Carta jugada correctamente.");
+            return CrearRespuesta(solicitud, true, "Carta jugada correctamente.", cartaJugada);
         }
 
-        private Mensajes ProcesarRobarCarta(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarRobarCarta(Jugador jugador, Mensajes solicitud)
         {
             if (!ReglasUNO.PuedeRobar(Juego, jugador))
             {
@@ -336,18 +342,26 @@ namespace ProyectoUno.Servidor
                     "No hay cartas disponibles para robar.");
             }
 
+            CartaEstadoDto cartaRobada = new CartaEstadoDto
+            {
+                Id = carta.Id,
+                Color = carta.Color,
+                Valor = carta.Valor,
+                Tipo = carta.Tipo
+            };
+
             CerrarOportunidadUNO(jugador);
 
             // El turno NO cambia. El jugador puede jugar
             // la carta recién robada o pasar.
             return CrearRespuesta(
-                solicitud, true,
-                "Has robado una carta. Puedes jugarla si es válida o pasar tu turno.");
+                solicitud,
+                true,
+                "Has robado una carta. Puedes jugarla si es válida o pasar tu turno.",
+                cartaRobada);
         }
 
-        private Mensajes ProcesarPasarTurno(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarPasarTurno(Jugador jugador, Mensajes solicitud)
         {
             if (!ReglasUNO.PuedePasarTurno(Juego, jugador))
             {
@@ -369,9 +383,7 @@ namespace ProyectoUno.Servidor
                 solicitud, true, "Tu turno ha terminado.");
         }
 
-        private Mensajes ProcesarDeclararUNO(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarDeclararUNO(Jugador jugador, Mensajes solicitud)
         {
             if (Juego.declararUNO(jugador))
             {
@@ -385,9 +397,7 @@ namespace ProyectoUno.Servidor
                 "No puedes declarar UNO en este momento.");
         }
 
-        private Mensajes ProcesarAcusarUNO(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarAcusarUNO(Jugador jugador, Mensajes solicitud)
         {
             if (!solicitud.JugadorObjetivoId.HasValue)
             {
@@ -453,10 +463,7 @@ namespace ProyectoUno.Servidor
             return null;
         }
 
-        private Mensajes CrearRespuesta(
-            Mensajes solicitud,
-            bool aceptado,
-            string mensaje)
+        private Mensajes CrearRespuesta(Mensajes solicitud, bool aceptado, string mensaje, CartaEstadoDto cartaJugada = null)
         {
             return new Mensajes
             {
@@ -467,7 +474,8 @@ namespace ProyectoUno.Servidor
                     ? null
                     : solicitud.IdSolicitud,
                 Aceptado = aceptado,
-                Mensaje = mensaje
+                Mensaje = mensaje,
+                CartaJugada = cartaJugada
             };
         }
 

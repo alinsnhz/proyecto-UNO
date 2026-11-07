@@ -86,6 +86,36 @@ namespace ProyectoUno.API
             return existente != null ? existente.IdJugador : Crear(nombre);
         }
 
+        public int ObtenerOCrear(string nombre, MySqlConnection con, MySqlTransaction transaccion)
+        {
+            if (string.IsNullOrWhiteSpace(nombre))
+                throw new ArgumentException("El nombre del jugador no puede estar vacío.");
+
+            // Buscar si el jugador ya existe
+            using (var cmd = new MySqlCommand(
+                "SELECT IdJugador FROM Jugador WHERE Nombre = @n",
+                con,
+                transaccion))
+            {
+                cmd.Parameters.AddWithValue("@n", nombre);
+
+                var resultado = cmd.ExecuteScalar();
+
+                if (resultado != null && resultado != DBNull.Value)
+                    return Convert.ToInt32(resultado);
+            }
+
+            // Crear el jugador si no existe.
+            using (var cmd = new MySqlCommand(
+                "INSERT INTO Jugador (Nombre) VALUES (@n); SELECT LAST_INSERT_ID();",
+                con,
+                transaccion))
+            {
+                cmd.Parameters.AddWithValue("@n", nombre);
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+        }
+
         public List<JugadorRegistro> ObtenerTodos()
         {
             var lista = new List<JugadorRegistro>();

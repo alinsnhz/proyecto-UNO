@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
@@ -44,8 +45,12 @@ namespace ProyectoUno.Servidor
         }
 
         public async Task<bool> RegistrarJugadaAsync(
-            int idPartida, int idJugador, string nombre,
-            string color, string valor, string tipo)
+            int idPartida,
+            int idJugador,
+            string nombre,
+            string color,
+            string valor,
+            string tipo)
         {
             var datos = new
             {
@@ -64,8 +69,12 @@ namespace ProyectoUno.Servidor
         }
 
         public async Task<bool> RegistrarCartaRobadaAsync(
-            int idPartida, int idJugador, string nombre,
-            string color, string valor, string tipo)
+            int idPartida,
+            int idJugador,
+            string nombre,
+            string color,
+            string valor,
+            string tipo)
         {
             var datos = new
             {
@@ -84,7 +93,9 @@ namespace ProyectoUno.Servidor
         }
 
         public async Task<bool> RegistrarTurnoAsync(
-            int idPartida, int idJugador, string nombre)
+            int idPartida,
+            int idJugador,
+            string nombre)
         {
             var datos = new
             {
@@ -97,8 +108,10 @@ namespace ProyectoUno.Servidor
         }
 
         public async Task<bool> RegistrarAccionEspecialAsync(
-            int idPartida, int idJugador,
-            string nombre, string tipoAccion)
+            int idPartida,
+            int idJugador,
+            string nombre,
+            string tipoAccion)
         {
             var datos = new
             {
@@ -111,9 +124,12 @@ namespace ProyectoUno.Servidor
             return await EnviarAsync("api/Partida/log-accion-especial", datos);
         }
 
+        // Se conserva el registro de cambio de color de la main.
         public async Task<bool> RegistrarCambioColorAsync(
-            int idPartida, int idJugador,
-            string nombre, string nuevoColor)
+            int idPartida,
+            int idJugador,
+            string nombre,
+            string nuevoColor)
         {
             var datos = new
             {
@@ -126,49 +142,90 @@ namespace ProyectoUno.Servidor
             return await EnviarAsync("api/Partida/log-cambio-color", datos);
         }
 
+        // Registro de efectos especiales de la branch 66.
+        public async Task<bool> RegistrarEfectoAsync(
+            int idPartida,
+            int idJugador,
+            string nombre,
+            string efecto)
+        {
+            var datos = new
+            {
+                IdPartida = idPartida,
+                IdJugador = idJugador,
+                NombreJugador = nombre,
+                Efecto = efecto
+            };
+
+            return await EnviarAsync("api/Partida/log-efecto", datos);
+        }
+
+        // Finalización con los resultados identificados por ID.
         public async Task<bool> FinalizarPartidaAsync(
             int idPartida,
             int idJugadorGanador,
-            Dictionary<int, int> resultados)
+            List<ResultadoJugadorFinalAPI> resultados)
         {
-            var listaResultados = new List<object>();
+            var datos = new
+            {
+                IdPartida = idPartida,
+                IdJugadorGanador = idJugadorGanador,
+                Resultados = resultados
+            };
+
+            return await EnviarAsync("api/Partida/finalizar", datos);
+        }
+
+        public async Task<bool> FinalizarPartidaAsync(int idPartida, int idJugadorGanador, Dictionary<int, int> resultados)
+        {
+            var lista = new List<ResultadoJugadorFinalAPI>();
 
             foreach (var resultado in resultados)
             {
-                listaResultados.Add(new
+                lista.Add(new ResultadoJugadorFinalAPI
                 {
                     IdJugador = resultado.Key,
                     CartasRestantes = resultado.Value
                 });
             }
 
-            var datos = new
-            {
-                IdPartida = idPartida,
-                IdJugadorGanador = idJugadorGanador,
-                Resultados = listaResultados
-            };
-
-            return await EnviarAsync("api/Partida/finalizar", datos);
+            return await FinalizarPartidaAsync(
+                idPartida,
+                idJugadorGanador,
+                lista);
         }
 
+        // Método común para enviar información a la API.
         private async Task<bool> EnviarAsync(string endpoint, object datos)
         {
             string json = JsonConvert.SerializeObject(datos);
 
-            using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
-            using (HttpResponseMessage respuesta = await cliente.PostAsync(endpoint, contenido))
+            try
             {
-                if (!respuesta.IsSuccessStatusCode)
+                using (var contenido = new StringContent(
+                    json, Encoding.UTF8, "application/json"))
+                using (HttpResponseMessage respuesta =
+                    await cliente.PostAsync(endpoint, contenido))
                 {
-                    string error = await respuesta.Content.ReadAsStringAsync();
+                    if (!respuesta.IsSuccessStatusCode)
+                    {
+                        string error = await respuesta.Content.ReadAsStringAsync();
 
-                    throw new Exception(
-                        "Error de API en " + endpoint +
-                        " (HTTP " + (int)respuesta.StatusCode + "): " + error);
+                        Console.WriteLine(
+                            "Error de API en " + endpoint + ": " + error);
+
+                        return false;
+                    }
+
+                    return true;
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "Error enviando información a la API: " + ex.Message);
 
-                return true;
+                return false;
             }
         }
     }
@@ -179,10 +236,15 @@ namespace ProyectoUno.Servidor
         public List<int> IdsJugadores { get; set; }
     }
 
-    // Se conserva temporalmente por compatibilidad con el código del servidor.
+    // Se conserva temporalmente por compatibilidad con código anterior.
     public class ResultadoJugadorAPI
     {
         public string NombreJugador { get; set; }
+        public int CartasRestantes { get; set; }
+    }
+    public class ResultadoJugadorFinalAPI
+    {
+        public int IdJugador { get; set; }
         public int CartasRestantes { get; set; }
     }
 }

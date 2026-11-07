@@ -28,6 +28,11 @@ namespace ProyectoUno.API
             InsertarEvento(idPartida, idJugador, $"{nombreJugador} jugó: {carta}");
         }
 
+        public void RegistrarEfectoEspecial(int idPartida, int idJugador, string nombreJugador, string efecto)
+        {
+            InsertarEvento(idPartida, idJugador, $"{nombreJugador} activó el efecto {efecto}.");
+        }
+
         public void RegistrarCartaRobada(int idPartida, int idJugador, string nombreJugador, string carta)
         {
             InsertarEvento(idPartida, idJugador, $"{nombreJugador} robó una carta: {carta}");

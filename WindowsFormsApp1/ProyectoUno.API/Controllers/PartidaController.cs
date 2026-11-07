@@ -5,6 +5,7 @@ using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using ProyectoUno.API;
 using ProyectoUno.API.DTOs;
+using WindowsFormsApp1;
 
 namespace ProyectoUno.API.Controllers
 {
@@ -16,6 +17,20 @@ namespace ProyectoUno.API.Controllers
         private readonly LogJuegoDAO _logJuegoDAO = new LogJuegoDAO();
         private readonly JugadorDAO _jugadorDAO = new JugadorDAO();
 
+        private bool JugadorValido(int idJugador, string nombreJugador)
+        {
+            if (idJugador <= 0 || string.IsNullOrWhiteSpace(nombreJugador))
+                return false;
+
+            var jugador = _jugadorDAO.ObtenerPorId(idJugador);
+
+            return jugador != null &&
+                string.Equals(
+                    jugador.Nombre,
+                    nombreJugador.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
         private List<Dictionary<string, object>> ConvertirTabla(DataTable tabla)
         {
             var resultado = new List<Dictionary<string, object>>();
@@ -26,8 +41,7 @@ namespace ProyectoUno.API.Controllers
 
                 foreach (DataColumn columna in tabla.Columns)
                 {
-                    registro[columna.ColumnName] =
-                        fila[columna] == DBNull.Value ? null : fila[columna];
+                    registro[columna.ColumnName] = fila[columna] == DBNull.Value ? null : fila[columna];
                 }
 
                 resultado.Add(registro);
@@ -49,9 +63,7 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            List<string> nombres = dto.NombresJugadores
-                .Select(n => n?.Trim())
-                .ToList();
+            List<string> nombres = dto.NombresJugadores.Select(n => n?.Trim()).ToList();
 
             if (nombres.Any(string.IsNullOrWhiteSpace))
             {
@@ -69,29 +81,34 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            List<int> ids = new List<int>();
-
-            foreach (string nombre in nombres)
+            try
             {
-                int id = _jugadorDAO.ObtenerOCrear(nombre);
-                ids.Add(id);
+                ResultadoInicioPartida resultado =
+                    _historialDAO.GuardarPartidaConParticipantes(nombres);
+
+                return Ok(new
+                {
+                    IdPartida = resultado.IdPartida,
+                    IdsJugadores = resultado.IdsJugadores,
+                    Mensaje = "Partida iniciada correctamente."
+                });
             }
-
-            int idPartida = _historialDAO.GuardarPartida();
-            _historialDAO.GuardarParticipantes(idPartida, nombres);
-
-            return Ok(new
+            catch (Exception ex)
             {
-                IdPartida = idPartida,
-                IdsJugadores = ids,
-                Mensaje = "Partida iniciada correctamente."
-            });
+                Console.WriteLine("Error al iniciar partida: " + ex.Message);
+
+                return StatusCode(500, new
+                {
+                    Mensaje = "No se pudo registrar la partida en la base de datos."
+                });
+            }
         }
 
         [HttpPost("log-jugada")]
         public IActionResult RegistrarJugada([FromBody] RegistrarJugadaDto dto)
         {
-            if (!JugadorValido(dto.IdJugador, dto.NombreJugador))
+            if (dto == null ||
+                !JugadorValido(dto.IdJugador, dto.NombreJugador))
             {
                 return BadRequest(new
                 {
@@ -99,7 +116,7 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            if (!_historialDAO.JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
             {
                 return BadRequest(new
                 {
@@ -140,7 +157,8 @@ namespace ProyectoUno.API.Controllers
         [HttpPost("log-turno")]
         public IActionResult RegistrarTurno([FromBody] RegistrarTurnoDto dto)
         {
-            if (!JugadorValido(dto.IdJugador, dto.NombreJugador))
+            if (dto == null ||
+                !JugadorValido(dto.IdJugador, dto.NombreJugador))
             {
                 return BadRequest(new
                 {
@@ -148,7 +166,7 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            if (!_historialDAO.JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
             {
                 return BadRequest(new
                 {
@@ -168,10 +186,39 @@ namespace ProyectoUno.API.Controllers
             });
         }
 
+        [HttpPost("log-efecto")]
+        public IActionResult RegistrarEfecto([FromBody] RegistrarEfectoDto dto)
+        {
+            if (dto == null ||
+                dto.IdPartida <= 0 ||
+                dto.IdJugador <= 0 ||
+                string.IsNullOrWhiteSpace(dto.NombreJugador) ||
+                string.IsNullOrWhiteSpace(dto.Efecto))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "Datos del efecto inválidos."
+                });
+            }
+
+            _logJuegoDAO.RegistrarEfectoEspecial(
+                dto.IdPartida,
+                dto.IdJugador,
+                dto.NombreJugador.Trim(),
+                dto.Efecto.Trim()
+            );
+
+            return Ok(new
+            {
+                Mensaje = "Efecto especial registrado correctamente."
+            });
+        }
+
         [HttpPost("log-robar")]
         public IActionResult RegistrarCartaRobada([FromBody] RegistrarJugadaDto dto)
         {
-            if (!JugadorValido(dto.IdJugador, dto.NombreJugador))
+            if (dto == null ||
+                !JugadorValido(dto.IdJugador, dto.NombreJugador))
             {
                 return BadRequest(new
                 {
@@ -179,7 +226,7 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            if (!_historialDAO.JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
             {
                 return BadRequest(new
                 {
@@ -221,7 +268,8 @@ namespace ProyectoUno.API.Controllers
         public IActionResult RegistrarAccionEspecial(
             [FromBody] RegistrarAccionEspecialDto dto)
         {
-            if (!JugadorValido(dto.IdJugador, dto.NombreJugador))
+            if (dto == null ||
+                !JugadorValido(dto.IdJugador, dto.NombreJugador))
             {
                 return BadRequest(new
                 {
@@ -229,7 +277,7 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            if (!_historialDAO.JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
             {
                 return BadRequest(new
                 {
@@ -267,7 +315,8 @@ namespace ProyectoUno.API.Controllers
         public IActionResult RegistrarCambioColor(
             [FromBody] RegistrarCambioColorDto dto)
         {
-            if (!JugadorValido(dto.IdJugador, dto.NombreJugador))
+            if (dto == null ||
+                !JugadorValido(dto.IdJugador, dto.NombreJugador))
             {
                 return BadRequest(new
                 {
@@ -275,7 +324,7 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            if (!JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
+            if (!_historialDAO.JugadorPertenecePartida(dto.IdPartida, dto.IdJugador))
             {
                 return BadRequest(new
                 {
@@ -311,7 +360,6 @@ namespace ProyectoUno.API.Controllers
             });
         }
 
-
         [HttpPost("finalizar")]
         public IActionResult FinalizarPartida(
             [FromBody] FinalizarPartidaDto dto)
@@ -339,7 +387,6 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            // Evita jugadores repetidos.
             if (dto.Resultados
                 .Select(r => r.IdJugador)
                 .Distinct()
@@ -351,7 +398,6 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            // Comprueba que los tres jugadores existan y pertenezcan a la partida.
             foreach (var resultado in dto.Resultados)
             {
                 var jugador = _jugadorDAO.ObtenerPorId(resultado.IdJugador);
@@ -367,7 +413,6 @@ namespace ProyectoUno.API.Controllers
                     });
                 }
 
-                // Si se envió el nombre, comprueba que coincida con el ID.
                 if (!string.IsNullOrWhiteSpace(resultado.NombreJugador) &&
                     !string.Equals(
                         jugador.Nombre,
@@ -381,7 +426,6 @@ namespace ProyectoUno.API.Controllers
                 }
             }
 
-            // El ganador debe estar entre los tres jugadores y tener cero cartas.
             var ganador = dto.Resultados.FirstOrDefault(
                 r => r.IdJugador == dto.IdJugadorGanador);
 
@@ -393,7 +437,6 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            // Comprueba el nombre del ganador si fue enviado.
             if (!string.IsNullOrWhiteSpace(dto.NombreGanador))
             {
                 var jugadorGanador =
@@ -412,7 +455,6 @@ namespace ProyectoUno.API.Controllers
                 }
             }
 
-            // La finalización y los resultados se guardan en una única transacción.
             bool finalizada = _historialDAO.FinalizarPartida(
                 dto.IdPartida,
                 dto.IdJugadorGanador,
@@ -435,7 +477,6 @@ namespace ProyectoUno.API.Controllers
                 Mensaje = "Resultado final registrado correctamente."
             });
         }
-
 
         // Consulta el historial general de partidas.
         [HttpGet("historial")]
