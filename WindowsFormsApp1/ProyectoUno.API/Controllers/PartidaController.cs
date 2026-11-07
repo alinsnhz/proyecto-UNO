@@ -1,7 +1,7 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using ProyectoUno.API;
 using ProyectoUno.API.DTOs;
@@ -15,6 +15,26 @@ namespace ProyectoUno.API.Controllers
         private readonly HistorialDAO _historialDAO = new HistorialDAO();
         private readonly LogJuegoDAO _logJuegoDAO = new LogJuegoDAO();
         private readonly JugadorDAO _jugadorDAO = new JugadorDAO();
+
+        private List<Dictionary<string, object>> ConvertirTabla(DataTable tabla)
+        {
+            var resultado = new List<Dictionary<string, object>>();
+
+            foreach (DataRow fila in tabla.Rows)
+            {
+                var registro = new Dictionary<string, object>();
+
+                foreach (DataColumn columna in tabla.Columns)
+                {
+                    registro[columna.ColumnName] =
+                        fila[columna] == DBNull.Value ? null : fila[columna];
+                }
+
+                resultado.Add(registro);
+            }
+
+            return resultado;
+        }
 
         [HttpPost("iniciar")]
         public IActionResult IniciarPartida([FromBody] IniciarPartidaDto dto)
@@ -291,31 +311,26 @@ namespace ProyectoUno.API.Controllers
             });
         }
 
+
         [HttpPost("finalizar")]
         public IActionResult FinalizarPartida(
             [FromBody] FinalizarPartidaDto dto)
         {
             if (dto == null ||
                 dto.IdPartida <= 0 ||
-                string.IsNullOrWhiteSpace(dto.NombreGanador))
+                dto.IdJugadorGanador <= 0 ||
+                dto.Resultados == null ||
+                dto.Resultados.Count != 3)
             {
                 return BadRequest(new
                 {
-                    Mensaje = "Los datos de finalización son inválidos."
-                });
-            }
-
-            if (dto.Resultados == null || dto.Resultados.Count != 3)
-            {
-                return BadRequest(new
-                {
-                    Mensaje = "Se deben enviar los resultados de los 3 jugadores."
+                    Mensaje = "Los datos de finalización son inválidos. Se requieren los 3 jugadores."
                 });
             }
 
             if (dto.Resultados.Any(r =>
                 r == null ||
-                string.IsNullOrWhiteSpace(r.NombreJugador) ||
+                r.IdJugador <= 0 ||
                 r.CartasRestantes < 0))
             {
                 return BadRequest(new
@@ -324,11 +339,11 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            var nombres = dto.Resultados
-                .Select(r => r.NombreJugador.Trim())
-                .ToList();
-
-            if (nombres.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 3)
+            // Evita jugadores repetidos.
+            if (dto.Resultados
+                .Select(r => r.IdJugador)
+                .Distinct()
+                .Count() != 3)
             {
                 return BadRequest(new
                 {
@@ -336,64 +351,84 @@ namespace ProyectoUno.API.Controllers
                 });
             }
 
-            var ganador = dto.Resultados.FirstOrDefault(r =>
-                string.Equals(
-                    r.NombreJugador.Trim(),
-                    dto.NombreGanador.Trim(),
-                    StringComparison.OrdinalIgnoreCase
-                )
-            );
+            // Comprueba que los tres jugadores existan y pertenezcan a la partida.
+            foreach (var resultado in dto.Resultados)
+            {
+                var jugador = _jugadorDAO.ObtenerPorId(resultado.IdJugador);
+
+                if (jugador == null ||
+                    !_historialDAO.JugadorPertenecePartida(
+                        dto.IdPartida,
+                        resultado.IdJugador))
+                {
+                    return BadRequest(new
+                    {
+                        Mensaje = "Uno de los jugadores no existe o no pertenece a esta partida."
+                    });
+                }
+
+                // Si se envió el nombre, comprueba que coincida con el ID.
+                if (!string.IsNullOrWhiteSpace(resultado.NombreJugador) &&
+                    !string.Equals(
+                        jugador.Nombre,
+                        resultado.NombreJugador.Trim(),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new
+                    {
+                        Mensaje = "El nombre y el ID de uno de los jugadores no coinciden."
+                    });
+                }
+            }
+
+            // El ganador debe estar entre los tres jugadores y tener cero cartas.
+            var ganador = dto.Resultados.FirstOrDefault(
+                r => r.IdJugador == dto.IdJugadorGanador);
 
             if (ganador == null || ganador.CartasRestantes != 0)
             {
                 return BadRequest(new
                 {
-                    Mensaje = "El ganador debe estar en los resultados y tener 0 cartas restantes."
+                    Mensaje = "El ganador debe pertenecer a la partida y tener 0 cartas restantes."
                 });
             }
 
-            if (_historialDAO.PartidaFinalizada(dto.IdPartida))
+            // Comprueba el nombre del ganador si fue enviado.
+            if (!string.IsNullOrWhiteSpace(dto.NombreGanador))
             {
-                return BadRequest(new
-                {
-                    Mensaje = "Esta partida ya fue finalizada."
-                });
-            }
+                var jugadorGanador =
+                    _jugadorDAO.ObtenerPorId(dto.IdJugadorGanador);
 
-            foreach (var resultado in dto.Resultados)
-            {
-                var jugador = _jugadorDAO.ObtenerPorNombre(
-                    resultado.NombreJugador.Trim());
-
-                if (jugador == null ||
-                    !_historialDAO.JugadorPertenecePartida(
-                        dto.IdPartida, jugador.IdJugador))
+                if (jugadorGanador == null ||
+                    !string.Equals(
+                        jugadorGanador.Nombre,
+                        dto.NombreGanador.Trim(),
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(new
                     {
-                        Mensaje = "Uno de los jugadores no pertenece a esta partida."
+                        Mensaje = "El nombre del ganador no coincide con su ID."
                     });
                 }
             }
 
-            foreach (var resultado in dto.Resultados)
+            // La finalización y los resultados se guardan en una única transacción.
+            bool finalizada = _historialDAO.FinalizarPartida(
+                dto.IdPartida,
+                dto.IdJugadorGanador,
+                dto.Resultados.ToDictionary(
+                    r => r.IdJugador,
+                    r => r.CartasRestantes
+                )
+            );
+
+            if (!finalizada)
             {
-                _historialDAO.GuardarResultado(
-                    dto.IdPartida,
-                    resultado.NombreJugador.Trim(),
-                    resultado.CartasRestantes
-                );
+                return Conflict(new
+                {
+                    Mensaje = "La partida ya fue finalizada o no se pudo finalizar."
+                });
             }
-
-            _historialDAO.GuardarGanador(
-                dto.IdPartida,
-                dto.NombreGanador.Trim()
-            );
-
-            _historialDAO.RegistrarGanadasPerdidas(
-                dto.IdPartida,
-                dto.NombreGanador.Trim()
-            );
 
             return Ok(new
             {
@@ -401,26 +436,24 @@ namespace ProyectoUno.API.Controllers
             });
         }
 
-        private bool JugadorPertenecePartida(int idPartida, int idJugador)
+
+        // Consulta el historial general de partidas.
+        [HttpGet("historial")]
+        public IActionResult ObtenerHistorial()
         {
-            return idPartida > 0 &&
-                   idJugador > 0 &&
-                   _historialDAO.JugadorPertenecePartida(idPartida, idJugador);
+            var historial = _historialDAO.ConsultarHistorial();
+            return Ok(ConvertirTabla(historial));
         }
 
-        private bool JugadorValido(int idJugador, string nombreJugador)
+        // Consulta los eventos de una partida específica.
+        [HttpGet("historial/{idPartida:int}")]
+        public IActionResult ObtenerLogDePartida(int idPartida)
         {
-            if (idJugador <= 0 || string.IsNullOrWhiteSpace(nombreJugador))
-                return false;
+            if (idPartida <= 0)
+                return BadRequest("El ID de partida no es válido.");
 
-            var jugador = _jugadorDAO.ObtenerPorId(idJugador);
-
-            return jugador != null &&
-                   string.Equals(
-                       jugador.Nombre,
-                       nombreJugador.Trim(),
-                       StringComparison.OrdinalIgnoreCase
-                   );
+            var log = _logJuegoDAO.ObtenerLogDePartida(idPartida);
+            return Ok(ConvertirTabla(log));
         }
     }
 }

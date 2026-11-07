@@ -1,5 +1,4 @@
-﻿
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace ProyectoUno.API.DTOs
@@ -95,7 +94,9 @@ namespace ProyectoUno.API.DTOs
         [Range(1, int.MaxValue)]
         public int IdPartida { get; set; }
 
-        [Required]
+        [Range(1, int.MaxValue)]
+        public int IdJugadorGanador { get; set; }
+
         [StringLength(100)]
         public string? NombreGanador { get; set; }
 
@@ -108,7 +109,9 @@ namespace ProyectoUno.API.DTOs
 
     public class ResultadoJugadorDto
     {
-        [Required]
+        [Range(1, int.MaxValue)]
+        public int IdJugador { get; set; }
+
         [StringLength(100)]
         public string? NombreJugador { get; set; }
 

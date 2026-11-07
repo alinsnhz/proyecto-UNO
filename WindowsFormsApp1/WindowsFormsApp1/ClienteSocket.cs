@@ -150,5 +150,31 @@ namespace WindowsFormsApp1
             _stream = null;
             _client = null;
         }
+
+        public async Task EnviarAccionAsync(string tipo)
+        {
+            var mensaje = new
+            {
+                tipo = tipo
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(mensaje);
+
+            await EnviarMensajeAsync(json);
+        }
+
+        public async Task EnviarJugadaAsync(string cartaId, string colorElegido = "")
+        {
+            var mensaje = new
+            {
+                tipo = "JugarCarta",
+                cartaId = cartaId,
+                colorElegido = colorElegido
+            };
+
+            string json = System.Text.Json.JsonSerializer.Serialize(mensaje);
+
+            await EnviarMensajeAsync(json);
+        }
     }
 }

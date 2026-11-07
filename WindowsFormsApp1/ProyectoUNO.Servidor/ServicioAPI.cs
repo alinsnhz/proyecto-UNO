@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 
 namespace ProyectoUno.Servidor
 {
+    // Servicio responsable de comunicarse con la API.
     public class ServicioAPI
     {
         private static readonly HttpClient cliente = new HttpClient
@@ -22,8 +23,8 @@ namespace ProyectoUno.Servidor
             try
             {
                 using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
+                using (HttpResponseMessage respuesta = await cliente.PostAsync("api/Partida/iniciar", contenido))
                 {
-                    HttpResponseMessage respuesta = await cliente.PostAsync("api/Partida/iniciar", contenido);
                     string resultado = await respuesta.Content.ReadAsStringAsync();
 
                     if (!respuesta.IsSuccessStatusCode)
@@ -127,14 +128,25 @@ namespace ProyectoUno.Servidor
 
         public async Task<bool> FinalizarPartidaAsync(
             int idPartida,
-            string nombreGanador,
-            List<ResultadoJugadorAPI> resultados)
+            int idJugadorGanador,
+            Dictionary<int, int> resultados)
         {
+            var listaResultados = new List<object>();
+
+            foreach (var resultado in resultados)
+            {
+                listaResultados.Add(new
+                {
+                    IdJugador = resultado.Key,
+                    CartasRestantes = resultado.Value
+                });
+            }
+
             var datos = new
             {
                 IdPartida = idPartida,
-                NombreGanador = nombreGanador,
-                Resultados = resultados
+                IdJugadorGanador = idJugadorGanador,
+                Resultados = listaResultados
             };
 
             return await EnviarAsync("api/Partida/finalizar", datos);
@@ -142,28 +154,21 @@ namespace ProyectoUno.Servidor
 
         private async Task<bool> EnviarAsync(string endpoint, object datos)
         {
-            try
-            {
-                string json = JsonConvert.SerializeObject(datos);
+            string json = JsonConvert.SerializeObject(datos);
 
-                using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
+            using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
+            using (HttpResponseMessage respuesta = await cliente.PostAsync(endpoint, contenido))
+            {
+                if (!respuesta.IsSuccessStatusCode)
                 {
-                    HttpResponseMessage respuesta = await cliente.PostAsync(endpoint, contenido);
+                    string error = await respuesta.Content.ReadAsStringAsync();
 
-                    if (!respuesta.IsSuccessStatusCode)
-                    {
-                        string error = await respuesta.Content.ReadAsStringAsync();
-                        Console.WriteLine("Error de API en " + endpoint + ": " + error);
-                        return false;
-                    }
-
-                    return true;
+                    throw new Exception(
+                        "Error de API en " + endpoint +
+                        " (HTTP " + (int)respuesta.StatusCode + "): " + error);
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error enviando información a la API: " + ex.Message);
-                return false;
+
+                return true;
             }
         }
     }
@@ -174,6 +179,7 @@ namespace ProyectoUno.Servidor
         public List<int> IdsJugadores { get; set; }
     }
 
+    // Se conserva temporalmente por compatibilidad con el código del servidor.
     public class ResultadoJugadorAPI
     {
         public string NombreJugador { get; set; }

@@ -7,6 +7,8 @@ using System.Windows.Forms;
 using proyectoUNO;
 using System.Threading.Tasks;
 using static WindowsFormsApp1.EstiloUI;
+using System.Text;
+using System.Text.Json;
 
 namespace WindowsFormsApp1
 {
@@ -27,6 +29,9 @@ namespace WindowsFormsApp1
 
         // Botón principal para iniciar la conexión con el servidor.
         private readonly Button btnJugar = new Button();
+
+        // Botón para consultar el historial general de partidas.
+        private readonly Button btnHistorial = new Button();
 
         // Control decorativo que muestra un abanico de cartas en la interfaz de bienvenida.
         private readonly AbanicoCartas decoracion = new AbanicoCartas();
@@ -87,6 +92,18 @@ namespace WindowsFormsApp1
             btnJugar.Click += (s, e) => Jugar();
             this.Controls.Add(btnJugar);
             this.AcceptButton = btnJugar;
+
+            // Configuración del botón para consultar el historial.
+            btnHistorial.Text = "VER HISTORIAL";
+            btnHistorial.FlatStyle = FlatStyle.Flat;
+            btnHistorial.FlatAppearance.BorderSize = 0;
+            btnHistorial.BackColor = Color.FromArgb(255, 221, 0);
+            btnHistorial.ForeColor = Color.FromArgb(150, 10, 10);
+            btnHistorial.Font = new Font("Segoe UI Black", 11f, FontStyle.Bold);
+            btnHistorial.Cursor = Cursors.Hand;
+            btnHistorial.Click += async (s, e) => await VerHistorialAsync();
+
+            this.Controls.Add(btnHistorial);
 
             // Configuración del componente visual decorativo del abanico de cartas.
             decoracion.Orientacion = 0f;
@@ -212,6 +229,73 @@ namespace WindowsFormsApp1
             txtNombre.Enabled = habilitado;
         }
 
+        private async Task VerHistorialAsync()
+        {
+            try
+            {
+                btnHistorial.Enabled = false;
+                btnHistorial.Text = "CARGANDO...";
+
+                List<JsonElement> partidas =
+                    await APICliente.ObtenerHistorialAsync();
+
+                if (partidas == null || partidas.Count == 0)
+                {
+                    MessageBox.Show(
+                        "No hay partidas registradas.",
+                        "Historial",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+
+                    return;
+                }
+
+                StringBuilder texto = new StringBuilder();
+
+                foreach (JsonElement partida in partidas)
+                {
+                    string id = ObtenerValor(partida, "Partida");
+                    string fecha = ObtenerValor(partida, "Fecha");
+                    string ganador = ObtenerValor(partida, "Ganador");
+
+                    texto.AppendLine("Partida: " + id);
+                    texto.AppendLine("Fecha: " + fecha);
+                    texto.AppendLine("Ganador: " + ganador);
+                    texto.AppendLine("--------------------------------");
+                }
+
+                MessageBox.Show(
+                    texto.ToString(),
+                    "Historial de partidas",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "No se pudo consultar el historial: " + ex.Message,
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+            finally
+            {
+                btnHistorial.Enabled = true;
+                btnHistorial.Text = "VER HISTORIAL";
+            }
+        }
+
+        private string ObtenerValor(JsonElement elemento, string propiedad)
+        {
+            if (elemento.TryGetProperty(propiedad, out JsonElement valor))
+                return valor.ToString();
+
+            return "No disponible";
+        }
+
         // Calcula y reubica dinámicamente las posiciones y tamaños de todos los controles visuales 
         // (caja de IP, icono, caja de texto del nombre, botón de jugar y abanico) en función de las dimensiones actuales de la ventana.
         private void Acomodar()
@@ -248,10 +332,26 @@ namespace WindowsFormsApp1
             btnJugar.SetBounds((W - btnAncho) / 2, panelY + panelAlto + 18, btnAncho, 58);
             Redondear(btnJugar, 29);
 
+            // Botón para consultar el historial.
+            btnHistorial.SetBounds(
+                (W - 220) / 2,
+                btnJugar.Bottom + 10,
+                220,
+                42
+            );
+
+            Redondear(btnHistorial, 20);
+
             // Abanico de cartas decorativo en la parte inferior.
-            int abY = btnJugar.Bottom + 8;
+            int abY = btnHistorial.Bottom + 8;
             int abAncho = Limitar((int)(W * 0.7), 520, 1000);
-            decoracion.SetBounds((W - abAncho) / 2, abY, abAncho, Math.Max(110, H - abY));
+
+            decoracion.SetBounds(
+                (W - abAncho) / 2,
+                abY,
+                abAncho,
+                Math.Max(110, H - abY)
+            );
 
             Invalidate();
         }

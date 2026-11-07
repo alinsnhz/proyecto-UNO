@@ -15,7 +15,7 @@ namespace proyectoUNO
     {
         private static readonly HttpClient client = new HttpClient
         {
-            BaseAddress = new Uri("https://localhost:7198/")
+            BaseAddress = new Uri("http://10.103.150.31:5198/")
         };
 
         //envía los nombres de los jugadores a la API para crear la partida y devuelve la respuesta
@@ -36,6 +36,27 @@ namespace proyectoUNO
                 System.Windows.Forms.MessageBox.Show("Error conectando con la API: " + ex.Message);
             }
             return null;
+        }
+
+        // Consulta el historial general de partidas.
+        public static async Task<List<JsonElement>> ObtenerHistorialAsync()
+        {
+            var response = await client.GetAsync("api/Partida/historial");
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<List<JsonElement>>();
+        }
+
+        // Consulta los eventos de una partida específica.
+        public static async Task<List<JsonElement>> ObtenerLogDePartidaAsync(int idPartida)
+        {
+            var response = await client.GetAsync($"api/Partida/historial/{idPartida}"
+            );
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<List<JsonElement>>();
         }
 
         //envía a la API los datos de la partida, jugador y carta jugada

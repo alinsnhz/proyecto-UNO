@@ -460,7 +460,9 @@ namespace ProyectoUno.Servidor
         {
             return new Mensajes
             {
-                Tipo = "Respuesta",
+                Tipo = solicitud == null
+                    ? "Respuesta"
+                    : solicitud.Tipo,
                 IdSolicitud = solicitud == null
                     ? null
                     : solicitud.IdSolicitud,
