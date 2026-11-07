@@ -117,7 +117,39 @@ namespace ProyectoUno.Servidor
 
                     respuesta.JugadorId = jugador.Id;
 
-                    await jugador.EnviarAsync(respuesta);
+                    await jugador.EnviarAsync(respuesta);// Registrar en la API solamente las cartas jugadas correctamente.
+                   
+                    if (respuesta.Aceptado == true &&
+                        string.Equals(
+                            mensaje.Tipo?.Trim(),
+                            "jugarcarta",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        respuesta.CartaJugada != null)
+                    {
+                        if (idPartidaBD > 0 &&
+                            idsJugadoresBD.TryGetValue(jugador.Id, out int idJugadorBD))
+                        {
+                            bool registrada = await servicioAPI.RegistrarJugadaAsync(
+                                idPartidaBD,
+                                idJugadorBD,
+                                jugador.Nombre,
+                                respuesta.CartaJugada.Color,
+                                respuesta.CartaJugada.Valor,
+                                respuesta.CartaJugada.Tipo);
+
+                            if (!registrada)
+                            {
+                                Console.WriteLine(
+                                    "No fue posible registrar la jugada de " + jugador.Nombre +
+                                    " en la base de datos.");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine(
+                                "No se encontraron los IDs de la partida o del jugador en la base de datos.");
+                        }
+                    }
 
                     // Si la acción fue aceptada, actualizar a todos
                     if (respuesta.Aceptado == true)

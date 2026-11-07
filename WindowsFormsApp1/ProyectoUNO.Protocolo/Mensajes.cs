@@ -36,6 +36,9 @@ namespace ProyectoUno.Protocolo
         [JsonProperty("jugadorObjetivoId")]
         public int? JugadorObjetivoId { get; set; }
 
+        [JsonProperty("cartaJugada")]
+        public CartaEstadoDto CartaJugada { get; set; }
+
         //contiene una explicación del resultado (o error)
         [JsonProperty("mensaje")]
         public string Mensaje { get; set; }

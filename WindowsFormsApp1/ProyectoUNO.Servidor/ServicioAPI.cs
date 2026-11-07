@@ -43,8 +43,7 @@ namespace ProyectoUno.Servidor
                         return null;
                     }
 
-                    return JsonConvert.DeserializeObject<RespuestaInicioAPI>(
-                        resultado);
+                    return JsonConvert.DeserializeObject<RespuestaInicioAPI>(resultado);
                 }
             }
             catch (Exception ex)
@@ -55,7 +54,7 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        public async Task RegistrarJugadaAsync(
+        public async Task<bool> RegistrarJugadaAsync(
             int idPartida,
             int idJugador,
             string nombre,
@@ -76,7 +75,7 @@ namespace ProyectoUno.Servidor
                 }
             };
 
-            await EnviarAsync("api/Partida/log-jugada", datos);
+            return await EnviarAsync("api/Partida/log-jugada", datos);
         }
 
         public async Task RegistrarCartaRobadaAsync(
@@ -119,32 +118,33 @@ namespace ProyectoUno.Servidor
             await EnviarAsync("api/Partida/log-turno", datos);
         }
 
-        private async Task EnviarAsync(string endpoint, object datos)
+        private async Task<bool> EnviarAsync(string endpoint, object datos)
         {
             try
             {
                 string json = JsonConvert.SerializeObject(datos);
 
-                using (var contenido = new StringContent(
-                    json, Encoding.UTF8, "application/json"))
+                using (var contenido = new StringContent(json, Encoding.UTF8, "application/json"))
                 {
-                    HttpResponseMessage respuesta =
-                        await cliente.PostAsync(endpoint, contenido);
+                    HttpResponseMessage respuesta = await cliente.PostAsync(endpoint, contenido);
 
                     if (!respuesta.IsSuccessStatusCode)
                     {
-                        string error =
-                            await respuesta.Content.ReadAsStringAsync();
+                        string error = await respuesta.Content.ReadAsStringAsync();
 
-                        Console.WriteLine(
-                            "Error de API en " + endpoint + ": " + error);
+                        Console.WriteLine("Error de API en " + endpoint + ": " + error);
+
+                        return false;
                     }
+
+                    return true;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "Error enviando información a la API: " + ex.Message);
+                Console.WriteLine("Error enviando información a la API: " + ex.Message);
+
+                return false;
             }
         }
     }

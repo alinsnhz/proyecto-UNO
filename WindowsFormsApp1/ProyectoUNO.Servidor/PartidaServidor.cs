@@ -241,6 +241,14 @@ namespace ProyectoUno.Servidor
             // cuando otro jugador comienza una acción válida.
             CerrarOportunidadUNO(jugador);
 
+            CartaEstadoDto cartaJugada = new CartaEstadoDto
+            {
+                Id = carta.Id,
+                Color = carta.Color,
+                Valor = carta.Valor,
+                Tipo = carta.Tipo
+            };
+
             // Se retira la carta únicamente después de validarla.
             jugador.quitarCarta(carta);
 
@@ -265,7 +273,10 @@ namespace ProyectoUno.Servidor
                 Juego.declaroUNO = false;
 
                 return CrearRespuesta(
-                    solicitud, true, "¡Has ganado la partida!");
+                    solicitud,
+                    true,
+                    "¡Has ganado la partida!",
+                    cartaJugada);
             }
 
             // Se registra la oportunidad de declarar UNO.
@@ -312,8 +323,7 @@ namespace ProyectoUno.Servidor
                     break;
             }
 
-            return CrearRespuesta(
-                solicitud, true, "Carta jugada correctamente.");
+            return CrearRespuesta(solicitud, true, "Carta jugada correctamente.", cartaJugada);
         }
 
         private Mensajes ProcesarRobarCarta(
@@ -456,7 +466,8 @@ namespace ProyectoUno.Servidor
         private Mensajes CrearRespuesta(
             Mensajes solicitud,
             bool aceptado,
-            string mensaje)
+            string mensaje,
+            CartaEstadoDto cartaJugada = null)
         {
             return new Mensajes
             {
@@ -465,7 +476,8 @@ namespace ProyectoUno.Servidor
                     ? null
                     : solicitud.IdSolicitud,
                 Aceptado = aceptado,
-                Mensaje = mensaje
+                Mensaje = mensaje,
+                CartaJugada = cartaJugada
             };
         }
 
