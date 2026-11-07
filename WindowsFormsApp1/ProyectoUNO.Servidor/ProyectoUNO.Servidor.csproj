@@ -4,7 +4,7 @@
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
+		<Nullable>disable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -12,12 +12,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\ProyectoUno.API\ProyectoUno.API.csproj" />
 		<ProjectReference Include="..\ProyectoUNO.Protocolo\ProyectoUNO.Protocolo.csproj" />
-		<ProjectReference Include="..\WindowsFormsApp1\proyectoUNO.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Folder Include="Properties\" />
+		<ProjectReference Include="..\ProyectoUNO.Logica\ProyectoUNO.Logica.csproj" />
 	</ItemGroup>
 
 </Project>

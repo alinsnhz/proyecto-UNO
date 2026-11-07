@@ -14,7 +14,6 @@ namespace proyectoUNO
 
         public Carta(string color, string valor, string tipo)
         {
-            // ID que permite identificar cada carta de manera individual
             Id = Guid.NewGuid().ToString("N");
             Color = color;
             Valor = valor;
