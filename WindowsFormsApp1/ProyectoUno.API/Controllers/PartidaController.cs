@@ -16,22 +16,50 @@ namespace ProyectoUno.API.Controllers
         [HttpPost("iniciar")]
         public IActionResult IniciarPartida([FromBody] IniciarPartidaDto dto)
         {
-            List<int> ids = new List<int>();
-
-            foreach (string nombre in dto.NombresJugadores)
+            if (dto == null || dto.NombresJugadores == null)
             {
-                int id = _jugadorDAO.ObtenerOCrear(nombre);
-                ids.Add(id);
+                return BadRequest(new
+                {
+                    Mensaje = "La lista de jugadores es obligatoria."
+                });
             }
 
-            int idPartida = _historialDAO.GuardarPartida();
-            _historialDAO.GuardarParticipantes(idPartida, dto.NombresJugadores);
-
-            return Ok(new
+            if (dto.NombresJugadores.Count != 3)
             {
-                IdPartida = idPartida,
-                IdsJugadores = ids
-            });
+                return BadRequest(new
+                {
+                    Mensaje = "La partida debe tener exactamente 3 jugadores."
+                });
+            }
+
+            if (dto.NombresJugadores.Exists(string.IsNullOrWhiteSpace))
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "Todos los jugadores deben tener un nombre."
+                });
+            }
+
+            try
+            {
+                ResultadoInicioPartida resultado =
+                    _historialDAO.GuardarPartidaConParticipantes(dto.NombresJugadores);
+
+                return Ok(new
+                {
+                    IdPartida = resultado.IdPartida,
+                    IdsJugadores = resultado.IdsJugadores
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al iniciar partida: " + ex.Message);
+
+                return StatusCode(500, new
+                {
+                    Mensaje = "No se pudo registrar la partida en la base de datos."
+                });
+            }
         }
 
         [HttpPost("log-jugada")]

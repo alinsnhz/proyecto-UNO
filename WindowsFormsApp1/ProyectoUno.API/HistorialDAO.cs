@@ -8,6 +8,13 @@ using MySql.Data.MySqlClient;
 
 namespace ProyectoUno.API
 {
+
+    public class ResultadoInicioPartida
+    {
+        public int IdPartida { get; set; }
+        public List<int> IdsJugadores { get; set; } = new List<int>();
+    }
+
     internal class HistorialDAO
     {
         private readonly JugadorDAO jugadorDAO = new JugadorDAO();
@@ -115,6 +122,77 @@ namespace ProyectoUno.API
                     var tabla = new DataTable();
                     adaptador.Fill(tabla);
                     return tabla;
+                }
+            }
+        }
+
+        public ResultadoInicioPartida GuardarPartidaConParticipantes(List<string> nombresJugadores)
+        {
+            if (nombresJugadores == null || nombresJugadores.Count != 3)
+                throw new ArgumentException("La partida debe tener exactamente 3 jugadores.");
+
+            if (nombresJugadores.Exists(string.IsNullOrWhiteSpace))
+                throw new ArgumentException("Todos los jugadores deben tener un nombre.");
+
+            if (nombresJugadores.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 3)
+                throw new ArgumentException("No puede haber jugadores con nombres repetidos.");
+
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var transaccion = con.BeginTransaction())
+                {
+                    try
+                    {
+                        var resultado = new ResultadoInicioPartida();
+
+                        // Obtener o crear los jugadores, manteniendo el orden recibido.
+                        foreach (string nombre in nombresJugadores)
+                        {
+                            int idJugador = jugadorDAO.ObtenerOCrear(
+                                nombre,
+                                con,
+                                transaccion);
+
+                            resultado.IdsJugadores.Add(idJugador);
+                        }
+
+                        // Crear la partida.
+                        using (var cmd = new MySqlCommand(
+                            "INSERT INTO Partida (Fecha, IdJugadorGanador) VALUES (@f, NULL); SELECT LAST_INSERT_ID();",
+                            con,
+                            transaccion))
+                        {
+                            cmd.Parameters.AddWithValue("@f", DateTime.Now);
+                            resultado.IdPartida = Convert.ToInt32(cmd.ExecuteScalar());
+                        }
+
+                        // Registrar los participantes.
+                        foreach (int idJugador in resultado.IdsJugadores)
+                        {
+                            using (var cmd = new MySqlCommand(
+                                @"INSERT INTO ResultadoPartida
+                                (IdPartida, IdJugador, CartasRestantes, Gano)
+                                VALUES (@p, @j, 0, FALSE);",
+                                con,
+                                transaccion))
+                            {
+                                cmd.Parameters.AddWithValue("@p", resultado.IdPartida);
+                                cmd.Parameters.AddWithValue("@j", idJugador);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+
+                        transaccion.Commit();
+
+                        return resultado;
+                    }
+                    catch
+                    {
+                        transaccion.Rollback();
+                        throw;
+                    }
                 }
             }
         }
