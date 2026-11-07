@@ -162,6 +162,10 @@ namespace ProyectoUno.Servidor
 
                 if (partida.CantidadJugadores == 0)
                 {
+                    // Limpiar los identificadores de la partida anterior.
+                    idsJugadoresBD.Clear();
+                    idPartidaBD = 0;
+
                     Console.WriteLine("Esperando una nueva partida...");
                 }
             }
@@ -215,7 +219,9 @@ namespace ProyectoUno.Servidor
                 if (resultado != null &&
                     resultado.IdPartida > 0 &&
                     resultado.IdsJugadores != null &&
-                    resultado.IdsJugadores.Count == jugadoresPartida.Count)
+                    resultado.IdsJugadores.Count == jugadoresPartida.Count &&
+                    resultado.IdsJugadores.All(id => id > 0) &&
+                    resultado.IdsJugadores.Distinct().Count() == jugadoresPartida.Count)
                 {
                     idPartidaBD = resultado.IdPartida;
 
@@ -230,8 +236,17 @@ namespace ProyectoUno.Servidor
                 }
                 else
                 {
-                    Console.WriteLine(
-                        "No se pudo registrar la partida en la base de datos.");
+                    Console.WriteLine("No se pudo registrar la partida en la base de datos.");
+
+                    await EnviarRespuestaAsync(
+                        jugador,
+                        "Error",
+                        false,
+                        "No fue posible registrar la partida. Intenta nuevamente más tarde."
+                    );
+
+                    jugador.Desconectar();
+                    return;
                 }
             }
 
