@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
+using ProyectoUno.API.DTOs;
 
 namespace ProyectoUno.API
 {
@@ -104,6 +105,86 @@ namespace ProyectoUno.API
                 }
             }
         }
+
+
+        public void FinalizarPartida(int idPartida, int idJugadorGanador, List<ResultadoJugadorFinalDto> resultados)
+        {
+            if (idPartida <= 0 || idJugadorGanador <= 0 ||
+                resultados == null || resultados.Count != 3)
+            {
+                throw new ArgumentException("Datos de finalización inválidos.");
+            }
+
+            if (!resultados.Any(r => r.IdJugador == idJugadorGanador))
+            {
+                throw new ArgumentException("El ganador no está registrado en los resultados.");
+            }
+
+            using (var con = conexionBD.NuevaConexion())
+            {
+                con.Open();
+
+                using (var transaccion = con.BeginTransaction())
+                {
+                    try
+                    {
+                        // Registrar el ganador solamente si la partida aún no terminó.
+                        using (var cmd = new MySqlCommand(
+                            @"UPDATE Partida
+                            SET IdJugadorGanador = @g
+                            WHERE IdPartida = @p
+                            AND IdJugadorGanador IS NULL;",
+                            con,
+                            transaccion))
+                        {
+                            cmd.Parameters.AddWithValue("@g", idJugadorGanador);
+                            cmd.Parameters.AddWithValue("@p", idPartida);
+
+                            int filas = cmd.ExecuteNonQuery();
+
+                            if (filas != 1)
+                            {
+                                throw new InvalidOperationException(
+                                    "La partida no existe o ya fue finalizada.");
+                            }
+                        }
+
+                        // Actualizar los resultados de los tres jugadores.
+                        foreach (var resultado in resultados)
+                        {
+                            using (var cmd = new MySqlCommand(
+                                @"UPDATE ResultadoPartida
+                                SET CartasRestantes = @c,
+                                    Gano = @g
+                                WHERE IdPartida = @p
+                                AND IdJugador = @j;",
+                                con,
+                                transaccion))
+                            {
+                                cmd.Parameters.AddWithValue(
+                                    "@c", resultado.CartasRestantes);
+
+                                cmd.Parameters.AddWithValue(
+                                    "@g", resultado.IdJugador == idJugadorGanador);
+
+                                cmd.Parameters.AddWithValue("@p", idPartida);
+                                cmd.Parameters.AddWithValue("@j", resultado.IdJugador);
+
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+
+                        transaccion.Commit();
+                    }
+                    catch
+                    {
+                        transaccion.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
 
         public DataTable ConsultarHistorial()
         {

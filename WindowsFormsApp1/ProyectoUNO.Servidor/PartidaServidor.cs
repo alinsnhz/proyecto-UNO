@@ -186,9 +186,7 @@ namespace ProyectoUno.Servidor
             }
         }
 
-        private Mensajes ProcesarJugarCarta(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarJugarCarta(Jugador jugador, Mensajes solicitud)
         {
             if (string.IsNullOrWhiteSpace(solicitud.CartaId))
             {
@@ -326,9 +324,7 @@ namespace ProyectoUno.Servidor
             return CrearRespuesta(solicitud, true, "Carta jugada correctamente.", cartaJugada);
         }
 
-        private Mensajes ProcesarRobarCarta(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarRobarCarta(Jugador jugador, Mensajes solicitud)
         {
             if (!ReglasUNO.PuedeRobar(Juego, jugador))
             {
@@ -365,9 +361,7 @@ namespace ProyectoUno.Servidor
                 cartaRobada);
         }
 
-        private Mensajes ProcesarPasarTurno(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarPasarTurno(Jugador jugador, Mensajes solicitud)
         {
             if (!ReglasUNO.PuedePasarTurno(Juego, jugador))
             {
@@ -389,9 +383,7 @@ namespace ProyectoUno.Servidor
                 solicitud, true, "Tu turno ha terminado.");
         }
 
-        private Mensajes ProcesarDeclararUNO(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarDeclararUNO(Jugador jugador, Mensajes solicitud)
         {
             if (Juego.declararUNO(jugador))
             {
@@ -405,9 +397,7 @@ namespace ProyectoUno.Servidor
                 "No puedes declarar UNO en este momento.");
         }
 
-        private Mensajes ProcesarAcusarUNO(
-            Jugador jugador,
-            Mensajes solicitud)
+        private Mensajes ProcesarAcusarUNO(Jugador jugador, Mensajes solicitud)
         {
             if (!solicitud.JugadorObjetivoId.HasValue)
             {
@@ -473,11 +463,7 @@ namespace ProyectoUno.Servidor
             return null;
         }
 
-        private Mensajes CrearRespuesta(
-            Mensajes solicitud,
-            bool aceptado,
-            string mensaje,
-            CartaEstadoDto cartaJugada = null)
+        private Mensajes CrearRespuesta(Mensajes solicitud, bool aceptado, string mensaje, CartaEstadoDto cartaJugada = null)
         {
             return new Mensajes
             {

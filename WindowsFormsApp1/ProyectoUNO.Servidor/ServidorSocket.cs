@@ -24,6 +24,7 @@ namespace ProyectoUno.Servidor
         private readonly ServicioAPI servicioAPI = new ServicioAPI();
         private int idPartidaBD = 0;
         private readonly ConcurrentDictionary<int, int> idsJugadoresBD = new ConcurrentDictionary<int, int>();
+        private int estadoFinalizacionBD = 0;
 
         public async Task IniciarAsync()
         {
@@ -172,14 +173,12 @@ namespace ProyectoUno.Servidor
                         }
                         else
                         {
-                            Console.WriteLine(
-                                "No se encontraron los IDs de la partida o del jugador para registrar la carta robada.");
+                            Console.WriteLine("No se encontraron los IDs de la partida o del jugador para registrar la carta robada.");
                         }
                     }
 
                     // Registrar los efectos de las cartas especiales.
-                    // No se registra si el jugador ganó inmediatamente,
-                    // porque en ese caso el efecto no llegó a ejecutarse.
+                    // No se registra si el jugador ganó inmediatamente, porque en ese caso el efecto no llegó a ejecutarse.
                     if (respuesta.Aceptado == true &&
                         !string.Equals(
                             respuesta.Mensaje,
@@ -210,8 +209,80 @@ namespace ProyectoUno.Servidor
                             }
                             else
                             {
-                                Console.WriteLine(
-                                    "No se encontraron los IDs para registrar el efecto especial.");
+                                Console.WriteLine("No se encontraron los IDs para registrar el efecto especial.");
+                            }
+                        }
+                    }
+
+                    // Registrar la finalización de la partida una sola vez.
+                    if (respuesta.Aceptado == true &&
+                        partida.Juego != null &&
+                        partida.Juego.partidaTerminada &&
+                        partida.Juego.Ganador != null)
+                    {
+                        // Evita que dos solicitudes registren el mismo resultado.
+                        if (Interlocked.CompareExchange(
+                            ref estadoFinalizacionBD, 1, 0) == 0)
+                        {
+                            try
+                            {
+                                int idGanadorBD = 0;
+
+                                Jugador ganador = partida.Juego.Ganador;
+
+                                List<ResultadoJugadorFinalAPI> resultados = new List<ResultadoJugadorFinalAPI>();
+
+                                bool datosValidos = idPartidaBD > 0 && idsJugadoresBD.TryGetValue(ganador.ID, out idGanadorBD);
+
+                                // Recuperar el resultado de cada participante.
+                                foreach (Jugador participante in partida.Juego.jugadores)
+                                {
+                                    if (!idsJugadoresBD.TryGetValue(
+                                        participante.ID, out int idJugadorBD))
+                                    {
+                                        datosValidos = false;
+                                        break;
+                                    }
+
+                                    resultados.Add(new ResultadoJugadorFinalAPI
+                                    {
+                                        IdJugador = idJugadorBD,
+                                        CartasRestantes = participante.Cartas.Count
+                                    });
+                                }
+
+                                if (datosValidos && resultados.Count == MaxJugadores)
+                                {
+                                    bool registrada = await servicioAPI.FinalizarPartidaAsync(
+                                        idPartidaBD,
+                                        idGanadorBD,
+                                        resultados);
+
+                                    if (registrada)
+                                    {
+                                        Interlocked.Exchange(ref estadoFinalizacionBD, 2);
+
+                                        Console.WriteLine("Finalización de partida registrada correctamente.");
+                                    }
+                                    else
+                                    {
+                                        Interlocked.Exchange(ref estadoFinalizacionBD, 0);
+
+                                        Console.WriteLine("No fue posible registrar la finalización de la partida.");
+                                    }
+                                }
+                                else
+                                {
+                                    Interlocked.Exchange(ref estadoFinalizacionBD, 0);
+
+                                    Console.WriteLine("No se pudieron obtener los datos de todos los jugadores.");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Interlocked.Exchange(ref estadoFinalizacionBD, 0);
+
+                                Console.WriteLine("Error al registrar la finalización: " + ex.Message);
                             }
                         }
                     }
@@ -225,9 +296,7 @@ namespace ProyectoUno.Servidor
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "Error con jugador " +
-                    jugador.Id + ": " + ex.Message
+                Console.WriteLine("Error con jugador " + jugador.Id + ": " + ex.Message
                 );
             }
             finally
@@ -242,9 +311,7 @@ namespace ProyectoUno.Servidor
 
                 lugares.Release();
 
-                Console.WriteLine(
-                    "Conexiones restantes: " +
-                    clientes.Count + "/" + MaxJugadores
+                Console.WriteLine("Conexiones restantes: " + clientes.Count + "/" + MaxJugadores
                 );
 
                 if (partida.Interrumpida)
@@ -262,6 +329,7 @@ namespace ProyectoUno.Servidor
                     // Limpiar los identificadores de la partida anterior.
                     idsJugadoresBD.Clear();
                     idPartidaBD = 0;
+                    Interlocked.Exchange(ref estadoFinalizacionBD, 0);
 
                     Console.WriteLine("Esperando una nueva partida...");
                 }
@@ -322,6 +390,7 @@ namespace ProyectoUno.Servidor
                     resultado.IdsJugadores.Distinct().Count() == jugadoresPartida.Count)
                 {
                     idPartidaBD = resultado.IdPartida;
+                    Interlocked.Exchange(ref estadoFinalizacionBD, 0);
 
                     for (int i = 0; i < jugadoresPartida.Count; i++)
                     {

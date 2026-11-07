@@ -135,6 +135,20 @@ namespace ProyectoUno.Servidor
             await EnviarAsync("api/Partida/log-efecto", datos);
         }
 
+
+        public async Task<bool> FinalizarPartidaAsync(int idPartida, int idJugadorGanador, List<ResultadoJugadorFinalAPI> resultados)
+        {
+            var datos = new
+            {
+                IdPartida = idPartida,
+                IdJugadorGanador = idJugadorGanador,
+                Resultados = resultados
+            };
+
+            return await EnviarAsync("api/Partida/finalizar", datos);
+        }
+
+
         private async Task<bool> EnviarAsync(string endpoint, object datos)
         {
             try
@@ -171,4 +185,11 @@ namespace ProyectoUno.Servidor
         public int IdPartida { get; set; }
         public List<int> IdsJugadores { get; set; }
     }
+
+    public class ResultadoJugadorFinalAPI
+    {
+        public int IdJugador { get; set; }
+        public int CartasRestantes { get; set; }
+    }
+
 }

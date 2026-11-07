@@ -128,5 +128,52 @@ namespace ProyectoUno.API.Controllers
 
             return Ok(new { Mensaje = "Carta robada registrada correctamente" });
         }
+
+
+        [HttpPost("finalizar")]
+        public IActionResult FinalizarPartida([FromBody] FinalizarPartidaDto dto)
+        {
+            if (dto == null ||
+                dto.IdPartida <= 0 ||
+                dto.IdJugadorGanador <= 0 ||
+                dto.Resultados == null ||
+                dto.Resultados.Count != 3)
+            {
+                return BadRequest(new
+                {
+                    Mensaje = "Datos de finalización inválidos."
+                });
+            }
+
+            try
+            {
+                _historialDAO.FinalizarPartida(
+                    dto.IdPartida,
+                    dto.IdJugadorGanador,
+                    dto.Resultados);
+
+                return Ok(new
+                {
+                    Mensaje = "Partida finalizada correctamente."
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new
+                {
+                    Mensaje = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al finalizar partida: " + ex.Message);
+
+                return StatusCode(500, new
+                {
+                    Mensaje = "No se pudo finalizar la partida."
+                });
+            }
+        }
+
     }
 }
