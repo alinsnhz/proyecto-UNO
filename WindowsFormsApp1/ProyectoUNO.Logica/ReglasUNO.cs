@@ -26,28 +26,27 @@ namespace proyectoUNO
                    (carta.Tipo == "+2" || carta.Tipo == "+4");
         }
 
-        public static bool EsCartaValida(Carta carta, Carta cartaActual)
+        public static bool EsCartaValida(
+            Carta carta,
+            Carta cartaActual)
         {
             if (carta == null || cartaActual == null)
                 return false;
 
-            // Los comodines pueden jugarse sobre cualquier carta.
+            // Los comodines y +4 siempre se pueden tirar
             if (EsComodin(carta))
                 return true;
 
-            // Coincidencia por color
+            // Coincide el color
             if (carta.Color == cartaActual.Color)
                 return true;
 
-            // Coincidencia por valor
+            // Coincide el número o valor de la carta
             if (carta.Valor == cartaActual.Valor)
                 return true;
 
-            // Coincidencia por tipo o símbolo
-            if (carta.Tipo == cartaActual.Tipo)
-                return true;
-
-            if (carta.Simbolo == cartaActual.Simbolo)
+            // Coincide el símbolo (si aplica)
+            if (carta.Simbolo == cartaActual.Simbolo && !string.IsNullOrEmpty(carta.Simbolo))
                 return true;
 
             return false;
