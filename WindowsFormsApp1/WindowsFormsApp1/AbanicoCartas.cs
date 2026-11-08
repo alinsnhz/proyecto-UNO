@@ -21,6 +21,7 @@ namespace WindowsFormsApp1
 
         public float Orientacion { get; set; }    // 0 = abajo, 90 = izquierda, 270 = derecha
         public bool ManoActiva { get; set; }      // solo la mano con turno responde al mouse
+        public bool MostrarFrente { get; set; } = true; // controla si se ven los números y colores o el reverso
         public bool Atenuar { get; set; }         // oscurece la mano si no es su turno
         public Carta CartaOculta { get; set; }    // carta que está "volando" (no se dibuja)
         public event Action<Carta> CartaClick;
@@ -42,11 +43,12 @@ namespace WindowsFormsApp1
             TabStop = false;
         }
 
-        //actualiza la lista de cartas mostradas y si la mano está activa para interacción; después solicita redibujado
-        public void PonerCartas(List<Carta> lista, bool activa)
+        // Actualiza la lista de cartas, el estado de interacción y la visibilidad del frente
+        public void PonerCartas(List<Carta> lista, bool activa, bool mostrarFrente = true)
         {
             cartas = lista == null ? new List<Carta>() : new List<Carta>(lista);
             ManoActiva = activa;
+            MostrarFrente = mostrarFrente;
             CartaOculta = null;
             indiceHover = -1;
             Cursor = Cursors.Default;
@@ -167,7 +169,6 @@ namespace WindowsFormsApp1
             g.Restore(estado);
         }
 
-        //dibuja la imagen o representación de la carta dentro del rectángulo indicado
         // Dibuja la imagen o representación de la carta dentro del rectángulo indicado
         private void DibujarCarta(Graphics g, Carta carta, RectangleF r)
         {
@@ -180,11 +181,10 @@ namespace WindowsFormsApp1
                 g.FillPath(brochaSombra, sombra);
             }
 
-            // Si es reverso usa la imagen del sistema, si no, busca la carta
+            // Si no debe mostrarse el frente (rivales) o es reverso explícito, dibuja el reverso
             Image img = null;
-            if (carta != null && (!ManoActiva || carta.Valor == "Reverso" || (carta.Tipo == "Especial" && carta.Color == "Negro")))
+            if (carta != null && (!MostrarFrente || carta.Valor == "Reverso" || (carta.Tipo == "Especial" && carta.Color == "Negro")))
             {
-                // Si la mano no está activa (es de otro jugador), mostramos siempre el reverso de la carta
                 img = ImagenesUNO.Reverso();
             }
             else
@@ -237,8 +237,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        //determina qué carta está bajo la posición del mouse y devuelve su
-        //índice o un valor que indica que no encontró carta
+        //determina qué carta está bajo la posición del mouse y devuelve su índice
         private int CartaEn(Point p)
         {
             int n = CantidadVisible();
@@ -247,7 +246,6 @@ namespace WindowsFormsApp1
             float cw, ch;
             Medidas(out cw, out ch);
 
-            // pasa el punto al espacio virtual (inverso de lo que hace OnPaint)
             double rad = -Orientacion * Math.PI / 180.0;
             double dx = p.X - Width / 2.0, dy = p.Y - Height / 2.0;
             double vx = dx * Math.Cos(rad) - dy * Math.Sin(rad) + VW / 2.0;

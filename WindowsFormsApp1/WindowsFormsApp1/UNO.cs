@@ -21,6 +21,7 @@ namespace WindowsFormsApp1
     */
     public partial class UNO : Form
     {
+        private bool animacionInicialEjecutada = false;
         private juegoUNO juego;
         private Timer timerMensaje;
 
@@ -115,11 +116,11 @@ namespace WindowsFormsApp1
 
                 if (InvokeRequired)
                 {
-                    BeginInvoke(new Action(() => AplicarEstadoServidor(estado)));
+                    BeginInvoke(new Action(() => AplicarEstadoServidorDto(estado)));
                     return;
                 }
 
-                AplicarEstadoServidor(estado);
+                AplicarEstadoServidorDto(estado);
             }
             catch (Exception ex)
             {
@@ -157,24 +158,32 @@ namespace WindowsFormsApp1
             AgregarHistorial(respuesta.Mensaje);
         }
 
-        private void AplicarEstadoServidor(EstadoPartidaDto estado)
+        private async Task AplicarEstadoServidorDto(EstadoPartidaDto estado)
         {
             if (estado == null || estado.Jugadores == null || juego == null)
                 return;
 
-            // Espera os três jogadores estarem registrados.
+            // Espera a que los 3 jugadores estén registrados y la partida iniciada.
             if (!estado.PartidaIniciada || estado.Jugadores.Count != 3)
                 return;
 
-            List<Jugador> jugadoresServidor = new List<Jugador>();
-
-            foreach (var jugadorServidor in estado.Jugadores)
+            // --- EJECUCIÓN ÚNICA DE LA ANIMACIÓN DE INICIO ---
+            if (!animacionInicialEjecutada)
             {
-                Jugador jugadorLocal = new Jugador(
-                    jugadorServidor.Id,
-                    jugadorServidor.Nombre
-                );
+                animacionInicialEjecutada = true;
 
+                // Pausa inicial para sincronizar clientes y evitar parpadeo
+                await Task.Delay(3000);
+
+                // Ejecutamos la animación de barajar y repartir
+                await AnimacionInicio();
+            }
+
+            // 1. Encontrar nuestro índice original en la lista del servidor
+            int miIndiceOriginal = -1;
+            for (int i = 0; i < estado.Jugadores.Count; i++)
+            {
+                var jugadorServidor = estado.Jugadores[i];
                 bool esMiJugador = string.Equals(
                     jugadorServidor.Nombre?.Trim(),
                     nombreJugadorActual?.Trim(),
@@ -183,6 +192,30 @@ namespace WindowsFormsApp1
 
                 if (esMiJugador)
                 {
+                    miIndiceOriginal = i;
+                    break;
+                }
+            }
+
+            if (miIndiceOriginal < 0) miIndiceOriginal = 0;
+
+            List<Jugador> jugadoresRotados = new List<Jugador>();
+            int indiceTurnoLocal = 0;
+
+            // 2. Rotamos la lista para que TÚ estés siempre en el índice 0 (abajo)
+            for (int offset = 0; offset < 3; offset++)
+            {
+                int i = (miIndiceOriginal + offset) % 3;
+                var jugadorServidor = estado.Jugadores[i];
+
+                Jugador jugadorLocal = new Jugador(
+                    jugadorServidor.Id,
+                    jugadorServidor.Nombre
+                );
+
+                if (offset == 0)
+                {
+                    // Somos nosotros: cargamos nuestras cartas reales de frente
                     jugadorLocal.Cartas = estado.MisCartas == null ? new List<Carta>() : estado.MisCartas.ConvertAll(c => new Carta
                     {
                         Id = c.Id,
@@ -193,22 +226,27 @@ namespace WindowsFormsApp1
                 }
                 else
                 {
+                    // Rivales: rellenamos con cartas válidas para que el abanico dibuje los reversos
                     for (int j = 0; j < jugadorServidor.CantidadCartas; j++)
                     {
                         jugadorLocal.Cartas.Add(new Carta
                         {
-                            Color = "Negro",
+                            Color = "Rojo",
                             Valor = "Reverso",
                             Tipo = "Especial"
                         });
                     }
                 }
 
-                jugadoresServidor.Add(jugadorLocal);
+                if (jugadorServidor.EsTurnoActual)
+                    indiceTurnoLocal = offset;
+
+                jugadoresRotados.Add(jugadorLocal);
             }
 
-            // Mantém exatamente a ordem enviada pelo servidor.
-            juego.jugadores = jugadoresServidor;
+            // Mantenemos la lista rotada para que la interfaz pinte tu mano abajo y los rivales a los lados
+            juego.jugadores = jugadoresRotados;
+            juego.jugadorActual = indiceTurnoLocal;
 
             if (estado.CartaCentro != null)
             {
@@ -222,14 +260,6 @@ namespace WindowsFormsApp1
             }
 
             juego.direccion = estado.Sentido;
-
-            int indiceActual = estado.Jugadores.FindIndex(
-                j => j.EsTurnoActual
-            );
-
-            if (indiceActual >= 0)
-                juego.jugadorActual = indiceActual;
-
             juego.partidaTerminada = estado.PartidaTerminada;
             juego.Ganador = null;
 
@@ -285,8 +315,7 @@ namespace WindowsFormsApp1
 
             if (clienteSocket != null)
             {
-                // En una partida en red, el servidor es el único que reparte cartas,
-                // decide turnos y aplica efectos. La ventana espera su primer estado.
+                // En red, esperamos a que el servidor mande la señal de inicio y reparto
                 lblTurno.Text = "Conectado. Esperando a los otros jugadores...";
                 lblMensaje.Text = "La partida comenzará cuando se conecten los 3 jugadores.";
                 return;
@@ -296,7 +325,6 @@ namespace WindowsFormsApp1
             juego.iniciarPartida();
             juego.colocarCartaInicial();
 
-            // Animación visual inicial
             await AnimacionInicio();
 
             AgregarHistorial("Conectando con la partida...");
@@ -305,7 +333,7 @@ namespace WindowsFormsApp1
 
         // Recibe respuestas y estados JSON del servidor.
         // El evento llega desde un hilo secundario.
-        private void ClienteSocket_OnMessageReceived(string json)
+        private async void ClienteSocket_OnMessageReceived(string json)
         {
             if (IsDisposed || !IsHandleCreated) return;
 
@@ -362,7 +390,24 @@ namespace WindowsFormsApp1
                     JObject estado = mensaje["estadoPartida"] as JObject;
 
                     if (estado != null)
+                    {
+                        // Revisamos si el servidor ya marcó que la partida inició
+                        bool partidaIniciadaDto = (bool?)(estado["partidaIniciada"] ?? estado["PartidaIniciada"]) ?? false;
+
+                        // Verificamos si debemos lanzar la animación de inicio (solo si no se ha animado antes)
+                        if ((string.Equals(tipo, "PartidaIniciada", StringComparison.OrdinalIgnoreCase) || partidaIniciadaDto) && !animando)
+                        {
+                            System.Diagnostics.Debug.WriteLine(">>> ESPERANDO 3 SEGUNDOS PARA INICIAR ANIMACIÓN EN CLIENTE...");
+                            await Task.Delay(3000);
+
+                            System.Diagnostics.Debug.WriteLine(">>> EJECUTANDO ANIMACIÓN DE INICIO...");
+                            await AnimacionInicio();
+
+                            System.Diagnostics.Debug.WriteLine(">>> ANIMACIÓN FINALIZADA.");
+                        }
+
                         AplicarEstadoServidor(estado);
+                    }
 
                     if (!string.IsNullOrWhiteSpace(texto))
                         AgregarHistorial(texto);
@@ -392,48 +437,60 @@ namespace WindowsFormsApp1
                 MessageBoxIcon.Warning);
         }
 
-        // Reconstruye la vista local a partir del estado oficial.
-        // Las manos rivales se representan con cartas ocultas.
+        // Reconstruye la vista local a partir del estado oficial, rotando la lista 
+        // para que el jugador local esté siempre en la posición inferior (índice 0).
         private void AplicarEstadoServidor(JObject estado)
         {
             JArray listaJugadores = estado["jugadores"] as JArray;
 
-            if (listaJugadores == null) return;
+            if (listaJugadores == null || listaJugadores.Count != 3) return;
 
             idJugadorServidor = (int?)estado["miJugadorId"] ?? idJugadorServidor;
-
-            List<Jugador> jugadoresNuevos = new List<Jugador>();
-            int indiceTurno = 0;
-            int indicePropio = -1;
-
             JArray misCartas = estado["misCartas"] as JArray ?? new JArray();
 
-            // El servidor informa si cada jugador tiene una oportunidad UNO pendiente.
-            jugadoresPendientesUNO = new bool[3];
-
-            foreach (JObject dato in listaJugadores)
+            // 1. Encontrar nuestro índice original en la lista del servidor usando el ID
+            int miIndiceOriginal = -1;
+            for (int i = 0; i < 3; i++)
             {
+                JObject dato = (JObject)listaJugadores[i];
+                int id = (int?)dato["id"] ?? 0;
+
+                if (id == idJugadorServidor)
+                {
+                    miIndiceOriginal = i;
+                    break;
+                }
+            }
+
+            if (miIndiceOriginal < 0) miIndiceOriginal = 0;
+
+            jugadoresPendientesUNO = new bool[3];
+            List<Jugador> jugadoresNuevos = new List<Jugador>();
+            int indiceTurnoLocal = 0;
+
+            // 2. Rotamos la lista para que NOSOTROS seamos siempre el índice 0 (Abanico inferior)
+            for (int offset = 0; offset < 3; offset++)
+            {
+                int i = (miIndiceOriginal + offset) % 3;
+                JObject dato = (JObject)listaJugadores[i];
+
                 int id = (int?)dato["id"] ?? 0;
                 string nombre = (string)dato["nombre"] ?? "Jugador";
                 int cantidad = (int?)dato["cantidadCartas"] ?? 0;
                 bool esTurno = (bool?)dato["esTurnoActual"] ?? false;
                 bool debeDeclararUNO = (bool?)dato["debeDeclararUNO"] ?? false;
 
-                int indiceJugador = jugadoresNuevos.Count;
-
-                if (indiceJugador < jugadoresPendientesUNO.Length)
-                    jugadoresPendientesUNO[indiceJugador] = debeDeclararUNO;
+                if (offset < jugadoresPendientesUNO.Length)
+                    jugadoresPendientesUNO[offset] = debeDeclararUNO;
 
                 Jugador jugador = new Jugador(id, nombre);
 
-                if (id == idJugadorServidor)
+                // Si offset es 0, somos nosotros: cargamos nuestras cartas reales de frente
+                if (offset == 0)
                 {
-                    indicePropio = jugadoresNuevos.Count;
-
                     foreach (JObject cartaDto in misCartas)
                     {
                         Carta carta = new Carta();
-
                         carta.Id = (string)cartaDto["id"] ?? Guid.NewGuid().ToString("N");
                         carta.Color = (string)cartaDto["color"] ?? "";
                         carta.Valor = (string)cartaDto["valor"] ?? "";
@@ -446,13 +503,21 @@ namespace WindowsFormsApp1
                 }
                 else
                 {
-                    // Objetos ficticios solo para conservar el contador y dibujar reversos.
-                    for (int i = 0; i < cantidad; i++)
-                        jugador.agregarCarta(new Carta("", "", "Oculta"));
+                    // Para los rivales (offset 1 y 2), agregamos cartas con valor "Reverso" 
+                    // asegurando que se registren correctamente para el abanico lateral.
+                    for (int c = 0; c < cantidad; c++)
+                    {
+                        jugador.agregarCarta(new Carta
+                        {
+                            Color = "Negro",
+                            Valor = "Reverso",
+                            Tipo = "Especial"
+                        });
+                    }
                 }
 
                 if (esTurno)
-                    indiceTurno = jugadoresNuevos.Count;
+                    indiceTurnoLocal = offset;
 
                 jugadoresNuevos.Add(jugador);
             }
@@ -460,14 +525,12 @@ namespace WindowsFormsApp1
             if (jugadoresNuevos.Count != 3) return;
 
             juego.jugadores = jugadoresNuevos;
-            juego.jugadorActual = indiceTurno;
+            juego.jugadorActual = indiceTurnoLocal;
             juego.direccion = (int?)estado["sentido"] ?? 1;
-            puedePasarTurnoServidor = (bool?)estado["puedePasarTurno"] ?? false;
             juego.partidaTerminada = (bool?)estado["partidaTerminada"] ?? false;
             juego.Ganador = null;
 
             string ganador = (string)estado["ganador"];
-
             if (!string.IsNullOrWhiteSpace(ganador))
             {
                 foreach (Jugador jugador in juego.jugadores)
@@ -478,11 +541,9 @@ namespace WindowsFormsApp1
             }
 
             JObject centro = estado["cartaCentro"] as JObject;
-
             if (centro != null)
             {
                 Carta cartaCentroServidor = new Carta();
-
                 cartaCentroServidor.Id = (string)centro["id"] ?? Guid.NewGuid().ToString("N");
                 cartaCentroServidor.Color = (string)centro["color"] ?? "";
                 cartaCentroServidor.Valor = (string)centro["valor"] ?? "";
@@ -497,9 +558,6 @@ namespace WindowsFormsApp1
 
             for (int i = 0; i < 3; i++)
                 nombresJugadores[i] = juego.jugadores[i].Nombre;
-
-            if (indicePropio >= 0)
-                AgregarHistorial("Tu jugador es " + nombresJugadores[indicePropio] + ".");
 
             partidaFinalizada = juego.partidaTerminada;
 
@@ -868,6 +926,12 @@ namespace WindowsFormsApp1
                 }
             }
 
+            // Forzamos el redibujado de todos los abanicos para que los rivales muestren sus dorsos sin fallar
+            foreach (var abanico in abanicos)
+            {
+                if (abanico != null) abanico.Invalidate();
+            }
+
             MostrarCartaCentro();
             ActualizarTurno();
         }
@@ -923,7 +987,7 @@ namespace WindowsFormsApp1
         {
             if (cartas == null)
             {
-                abanico.PonerCartas(new List<Carta>(), false);
+                abanico.PonerCartas(new List<Carta>(), false, false);
                 return;
             }
 
@@ -932,26 +996,29 @@ namespace WindowsFormsApp1
 
             if (clienteSocket == null)
             {
-                // Modo local: el jugador 1 ve sus cartas de frente.
+                // Modo local: el jugador 1 ve sus cartas de frente y puede interactuar.
                 mostrarFrente = indiceJugador == 0;
                 puedeInteractuar = indiceJugador == 0 && !juego.partidaTerminada;
             }
             else
             {
-                // Modo en red: cada jugador ve sus propias cartas.
-                bool esMiJugador =
-                    juego.jugadores[indiceJugador].ID == idJugadorServidor;
+                // Modo en red: Solo el índice 0 (tú) muestra el frente; los índices 1 y 2 (rivales) muestran el reverso.
+                bool esMiJugador = (indiceJugador == 0);
 
+                // ¡Tú SIEMPRE ves el frente de tus propias cartas en todo momento, y los rivales muestran su dorso (reverso)!
                 mostrarFrente = esMiJugador;
 
+                // Pero solo puedes interactuar (jugarlas) si es estrictamente tu turno.
                 puedeInteractuar = esMiJugador &&
-                                juego.jugadorActual == indiceJugador &&
-                                !juego.partidaTerminada;
+                                   juego.jugadorActual == indiceJugador &&
+                                   !juego.partidaTerminada;
             }
 
+            // Enviamos separados la lista, si responde al mouse y si muestra el frente
             abanico.PonerCartas(
                 cartas,
-                mostrarFrente && puedeInteractuar
+                puedeInteractuar,
+                mostrarFrente
             );
         }
 
@@ -1207,7 +1274,8 @@ namespace WindowsFormsApp1
                                 pila[i].BringToFront();
                         }
 
-                        await Task.Delay(15);
+                        // Cambiado a 5 ms para mayor fluidez visual
+                        await Task.Delay(5);
                     }
                 }
 
@@ -1228,7 +1296,7 @@ namespace WindowsFormsApp1
                                 centro,
                                 tam,
                                 Centro(abanicos[j]),
-                                k * 70,
+                                k * 70, // Corregido de k70 a k * 70
                                 j,
                                 recibidas));
                     }
@@ -1254,12 +1322,16 @@ namespace WindowsFormsApp1
         // JUGAR CARTA
         private async Task JugarCarta(Carta cartaJugada, int indiceJugador)
         {
-            if (animando || juego.partidaTerminada || indiceJugador != juego.jugadorActual)
+            // Como ya rotamos la lista para que estés siempre en el índice 0, 
+            // solo permitimos jugar si el clic viene de tu abanico inferior (índice 0).
+            if (animando || juego.partidaTerminada || indiceJugador != 0)
                 return;
 
-            if (clienteSocket != null &&
-                juego.jugadores[indiceJugador].ID != idJugadorServidor)
+            if (clienteSocket != null && juego.jugadorActual != 0)
+            {
+                // Si no es tu turno según el índice local, no procede
                 return;
+            }
 
             animando = true;
 
@@ -1274,6 +1346,7 @@ namespace WindowsFormsApp1
         }
 
         // Envía la acción JUGAR_CARTA al servidor.
+        // Envía la acción JUGAR_CARTA al servidor.
         private async Task JugarCartaInterno(Carta cartaJugada, int indiceJugador)
         {
             Jugador jugador = juego.jugadores[indiceJugador];
@@ -1282,8 +1355,17 @@ namespace WindowsFormsApp1
             // En red, el servidor procesa y valida la jugada.
             if (clienteSocket != null)
             {
-                if (jugador.ID != idJugadorServidor)
+                // Validamos primero que la carta cumpla con las reglas locales antes de enviarla
+                if (!juego.puedeJugar(jugador, cartaJugada))
+                {
+                    MessageBox.Show(
+                        "No puedes jugar esa carta",
+                        "Carta no válida",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
                     return;
+                }
 
                 string colorRed = "";
 
@@ -1427,7 +1509,6 @@ namespace WindowsFormsApp1
 
             FinalizarTurno();
         }
-
         private void FinalizarTurno()
         {
             if (clienteSocket == null)
