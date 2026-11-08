@@ -22,6 +22,13 @@ namespace WindowsFormsApp1
     public partial class UNO : Form
     {
         private bool animacionInicialEjecutada = false;
+
+        // [CAMBIO ANIMACIÓN] Indica que la animación de inicio ya terminó por completo.
+        private bool animacionTerminada = false;
+
+        // [CAMBIO ANIMACIÓN] Último estado recibido mientras se animaba el inicio.
+        private EstadoPartidaDto estadoPendiente = null;
+
         private juegoUNO juego;
         private Timer timerMensaje;
 
@@ -116,15 +123,41 @@ namespace WindowsFormsApp1
 
                 if (InvokeRequired)
                 {
-                    BeginInvoke(new Action(() => AplicarEstadoServidorDto(estado)));
+                    // [CAMBIO ANIMACIÓN] Se captura cualquier excepción del método async
+                    // para que no se pierda en silencio.
+                    BeginInvoke(new Action(async () =>
+                    {
+                        try
+                        {
+                            await AplicarEstadoServidorDto(estado);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Error al aplicar estado: " + ex);
+                        }
+                    }));
                     return;
                 }
 
-                AplicarEstadoServidorDto(estado);
+                // Ya estamos en el hilo de la interfaz.
+                var _ = AplicarEstadoServidorSeguro(estado);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("Error al procesar estado del servidor: " + ex.Message);
+            }
+        }
+
+        // [CAMBIO ANIMACIÓN] Envoltorio con try/catch para el caso sin InvokeRequired.
+        private async Task AplicarEstadoServidorSeguro(EstadoPartidaDto estado)
+        {
+            try
+            {
+                await AplicarEstadoServidorDto(estado);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error al aplicar estado: " + ex);
             }
         }
 
@@ -167,17 +200,19 @@ namespace WindowsFormsApp1
             if (!estado.PartidaIniciada || estado.Jugadores.Count != 3)
                 return;
 
-            // --- EJECUCIÓN ÚNICA DE LA ANIMACIÓN DE INICIO ---
-            if (!animacionInicialEjecutada)
+            // [CAMBIO ANIMACIÓN] Si la animación de inicio está en curso, solo guardamos
+            // el último estado recibido. Se aplicará cuando la animación termine.
+            if (animacionInicialEjecutada && !animacionTerminada)
             {
-                animacionInicialEjecutada = true;
-
-                // Pausa inicial para sincronizar clientes y evitar parpadeo
-                await Task.Delay(3000);
-
-                // Ejecutamos la animación de barajar y repartir
-                await AnimacionInicio();
+                estadoPendiente = estado;
+                return;
             }
+
+            // [CAMBIO ANIMACIÓN] Marcamos aquí (antes de cualquier await) para bloquear
+            // llamadas repetidas mientras esperamos y animamos.
+            bool esPrimeraVez = !animacionInicialEjecutada;
+            if (esPrimeraVez)
+                animacionInicialEjecutada = true;
 
             // 1. Encontrar nuestro índice original en la lista del servidor
             int miIndiceOriginal = -1;
@@ -274,6 +309,34 @@ namespace WindowsFormsApp1
                     juego.Ganador = juego.jugadores.Find(
                         j => j.ID == ganador.Id
                     );
+                }
+            }
+
+            // [CAMBIO ANIMACIÓN] La animación ahora corre DESPUÉS de armar las manos,
+            // así AnimacionInicio sabe cuántas cartas repartir a cada jugador.
+            if (esPrimeraVez)
+            {
+                try
+                {
+                    // Pausa inicial para sincronizar clientes y evitar parpadeo
+                    await Task.Delay(3000);
+
+                    // Ejecutamos la animación de barajar y repartir
+                    await AnimacionInicio();
+                }
+                finally
+                {
+                    animacionTerminada = true;
+                }
+
+                // Si llegó un estado más nuevo mientras se animaba, usamos ese.
+                if (estadoPendiente != null)
+                {
+                    EstadoPartidaDto masReciente = estadoPendiente;
+                    estadoPendiente = null;
+
+                    await AplicarEstadoServidorDto(masReciente);
+                    return;
                 }
             }
 
@@ -1052,6 +1115,17 @@ namespace WindowsFormsApp1
         }
 
         // ANIMACIONES
+
+        // [CAMBIO ANIMACIÓN] Tamaño propio para las cartas animadas.
+        // Ya no depende de cartaCentro.Size (que puede estar oculta o con región recortada).
+        private Size TamanoCartaAnimacion()
+        {
+            int altoCarta = Limitar((int)(this.ClientSize.Height * 0.2), 110, 220);
+            int anchoCarta = (int)(altoCarta * 0.68);
+
+            return new Size(anchoCarta, altoCarta);
+        }
+
         private Point Centro(Control c)
         {
             return new Point(c.Left + c.Width / 2, c.Top + c.Height / 2);
@@ -1138,7 +1212,8 @@ namespace WindowsFormsApp1
             Point desde = Centro(RobarJ1);
             Point hasta = Centro(abanicos[indiceDestino]);
 
-            Size tam = cartaCentro.Size;
+            // [CAMBIO ANIMACIÓN] Usa el tamaño propio en vez de cartaCentro.Size
+            Size tam = TamanoCartaAnimacion();
             Size tamFinal = new Size(tam.Width * 2 / 3, tam.Height * 2 / 3);
 
             List<Task> vuelos = new List<Task>();
@@ -1216,8 +1291,14 @@ namespace WindowsFormsApp1
                 lblTurno.Text = "Barajando y repartiendo...";
                 lblTurno.BackColor = Color.FromArgb(40, 40, 40);
 
+                // [CAMBIO ANIMACIÓN] Aseguramos que la distribución esté calculada
+                // antes de tomar posiciones de los controles.
+                AcomodarControles();
+
                 Image reverso = ImagenesUNO.Reverso();
-                Size tam = cartaCentro.Size;
+
+                // [CAMBIO ANIMACIÓN] Tamaño propio de carta (no depende de cartaCentro.Size)
+                Size tam = TamanoCartaAnimacion();
                 Point centro = Centro(cartaCentro);
 
                 // Las manos existen pero aún no se ven.
@@ -1281,6 +1362,8 @@ namespace WindowsFormsApp1
 
                 // 2) REPARTIR
                 int[] recibidas = new int[3];
+
+                // Las cartas por jugador salen de la mano ya armada por el servidor.
                 int cartasPorJugador = juego.jugadores[0].Cartas.Count;
                 List<Task> vuelos = new List<Task>();
 
@@ -1296,7 +1379,7 @@ namespace WindowsFormsApp1
                                 centro,
                                 tam,
                                 Centro(abanicos[j]),
-                                k * 70, // Corregido de k70 a k * 70
+                                k * 70,
                                 j,
                                 recibidas));
                     }
@@ -1345,7 +1428,6 @@ namespace WindowsFormsApp1
             }
         }
 
-        // Envía la acción JUGAR_CARTA al servidor.
         // Envía la acción JUGAR_CARTA al servidor.
         private async Task JugarCartaInterno(Carta cartaJugada, int indiceJugador)
         {
@@ -1509,6 +1591,7 @@ namespace WindowsFormsApp1
 
             FinalizarTurno();
         }
+
         private void FinalizarTurno()
         {
             if (clienteSocket == null)
