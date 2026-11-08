@@ -7,15 +7,17 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using proyectoUNO;
+using ProyectoUno.Protocolo;
 using static WindowsFormsApp1.EstiloUI;
 
 namespace WindowsFormsApp1
 {
     /*
-     * Es la ventana principal de la partida. 
-     * Coordina la interfaz, la lógica del juego, las animaciones, los botones y el registro de eventos
+- Es la ventana principal de la partida. 
+- Coordina la interfaz, la lógica del juego, las animaciones, los botones y el registro de eventos
     */
     public partial class UNO : Form
     {
@@ -23,7 +25,6 @@ namespace WindowsFormsApp1
         private Timer timerMensaje;
 
         // Instancias de BD y control de sesión/partida
-        private HistorialDAO historialDAO = new HistorialDAO();
         private LogJuegoDAO logJuegoDAO = new LogJuegoDAO();
         private JugadorDAO jugadorDAO = new JugadorDAO();
 
@@ -87,17 +88,186 @@ namespace WindowsFormsApp1
             ConfigurarInterfaz();
         }
 
+        private void ProcesarEstadoServidor(string json)
+        {
+            try
+            {
+                var respuesta = JsonConvert.DeserializeObject<Mensajes>(json);
+
+                if (respuesta == null)
+                    return;
+
+                if (respuesta.EstadoPartida == null)
+                {
+                    if (InvokeRequired)
+                    {
+                        BeginInvoke(new Action(() => ProcesarRespuestaAccion(respuesta)));
+                    }
+                    else
+                    {
+                        ProcesarRespuestaAccion(respuesta);
+                    }
+
+                    return;
+                }
+
+                EstadoPartidaDto estado = respuesta.EstadoPartida;
+
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() => AplicarEstadoServidor(estado)));
+                    return;
+                }
+
+                AplicarEstadoServidor(estado);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error al procesar estado del servidor: " + ex.Message);
+            }
+        }
+
+        private void ProcesarRespuestaAccion(Mensajes respuesta)
+        {
+            if (respuesta == null)
+                return;
+
+            if (respuesta.Aceptado != true)
+            {
+                AgregarHistorial(respuesta.Mensaje);
+                return;
+            }
+
+            if (string.Equals(
+                respuesta.Tipo, "RobarCarta",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                yaRobo = true;
+            }
+            else if (
+                string.Equals(respuesta.Tipo, "PasarTurno",
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(respuesta.Tipo, "JugarCarta",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                yaRobo = false;
+                cartaRobadaEnTurno = null;
+            }
+
+            AgregarHistorial(respuesta.Mensaje);
+        }
+
+        private void AplicarEstadoServidor(EstadoPartidaDto estado)
+        {
+            if (estado == null || estado.Jugadores == null || juego == null)
+                return;
+
+            // Espera os três jogadores estarem registrados.
+            if (!estado.PartidaIniciada || estado.Jugadores.Count != 3)
+                return;
+
+            List<Jugador> jugadoresServidor = new List<Jugador>();
+
+            foreach (var jugadorServidor in estado.Jugadores)
+            {
+                Jugador jugadorLocal = new Jugador(
+                    jugadorServidor.Id,
+                    jugadorServidor.Nombre
+                );
+
+                bool esMiJugador = string.Equals(
+                    jugadorServidor.Nombre?.Trim(),
+                    nombreJugadorActual?.Trim(),
+                    StringComparison.OrdinalIgnoreCase
+                );
+
+                if (esMiJugador)
+                {
+                    jugadorLocal.Cartas = estado.MisCartas == null ? new List<Carta>() : estado.MisCartas.ConvertAll(c => new Carta
+                    {
+                        Id = c.Id,
+                        Color = c.Color,
+                        Valor = c.Valor,
+                        Tipo = c.Tipo
+                    });
+                }
+                else
+                {
+                    for (int j = 0; j < jugadorServidor.CantidadCartas; j++)
+                    {
+                        jugadorLocal.Cartas.Add(new Carta
+                        {
+                            Color = "Negro",
+                            Valor = "Reverso",
+                            Tipo = "Especial"
+                        });
+                    }
+                }
+
+                jugadoresServidor.Add(jugadorLocal);
+            }
+
+            // Mantém exatamente a ordem enviada pelo servidor.
+            juego.jugadores = jugadoresServidor;
+
+            if (estado.CartaCentro != null)
+            {
+                juego.cartaActual = new Carta
+                {
+                    Id = estado.CartaCentro.Id,
+                    Color = estado.CartaCentro.Color,
+                    Valor = estado.CartaCentro.Valor,
+                    Tipo = estado.CartaCentro.Tipo
+                };
+            }
+
+            juego.direccion = estado.Sentido;
+
+            int indiceActual = estado.Jugadores.FindIndex(
+                j => j.EsTurnoActual
+            );
+
+            if (indiceActual >= 0)
+                juego.jugadorActual = indiceActual;
+
+            juego.partidaTerminada = estado.PartidaTerminada;
+            juego.Ganador = null;
+
+            if (estado.PartidaTerminada)
+            {
+                var ganador = estado.Jugadores.Find(
+                    j => j.Nombre == estado.Ganador
+                );
+
+                if (ganador != null)
+                {
+                    juego.Ganador = juego.jugadores.Find(
+                        j => j.ID == ganador.Id
+                    );
+                }
+            }
+
+            ActualizarInterfaz();
+        }
+
         // Constructor que usa la pantalla de inicio (nombres e iconos de cada jugador)
         public UNO(ClienteSocket clienteSocket, string nombreJugador) : this()
         {
             this.clienteSocket = clienteSocket;
-            this.nombreJugadorActual = string.IsNullOrEmpty(nombreJugador) ? "Jugador 1" : nombreJugador;
-            this.WindowState = FormWindowState.Maximized;
-            this.clienteSocket.OnMessageReceived += ClienteSocket_OnMessageReceived;
-            this.clienteSocket.OnDisconnected += ClienteSocket_OnDisconnected;
+            this.nombreJugadorActual = string.IsNullOrEmpty(nombreJugador)
+                ? "Jugador 1"
+                : nombreJugador;
 
-            // Fuerza la creación del handle para poder recibir eventos del socket.
-            IntPtr handleFormulario = this.Handle;
+            this.WindowState = FormWindowState.Maximized;
+
+            if (this.clienteSocket != null)
+            {
+                this.clienteSocket.OnMessageReceived += ProcesarEstadoServidor;
+                this.clienteSocket.OnDisconnected += ClienteSocket_OnDisconnected;
+
+                // Fuerza la creación del handle para poder recibir eventos del socket.
+                IntPtr handleFormulario = this.Handle;
+            }
 
             nombresJugadores[0] = this.nombreJugadorActual;
 
@@ -126,20 +296,10 @@ namespace WindowsFormsApp1
             juego.iniciarPartida();
             juego.colocarCartaInicial();
 
-            for (int i = 0; i < nombresJugadores.Length; i++)
-                idsJugadores[i] = jugadorDAO.ObtenerOCrear(nombresJugadores[i]);
-
-            idPartidaActual = historialDAO.GuardarPartida();
-            historialDAO.GuardarParticipantes(idPartidaActual, nombresJugadores.ToList());
-
-            logJuegoDAO.RegistrarTurno(
-                idPartidaActual,
-                idsJugadores[juego.jugadorActual],
-                nombresJugadores[juego.jugadorActual]);
-
+            // Animación visual inicial
             await AnimacionInicio();
 
-            AgregarHistorial("Comienza la partida. Turno de " + nombresJugadores[juego.jugadorActual]);
+            AgregarHistorial("Conectando con la partida...");
             ActualizarInterfaz();
         }
 
@@ -496,6 +656,7 @@ namespace WindowsFormsApp1
                 boton.BackgroundImageLayout = ImageLayout.Stretch;
             }
         }
+
         // asigna iconos visuales a los jugadores
         private void AsignarIconos()
         {
@@ -669,6 +830,12 @@ namespace WindowsFormsApp1
                 Jugador jugador = juego.jugadores[i];
                 bool esActual = juego.jugadorActual == i;
 
+                bool esMiJugador = string.Equals(
+                    jugador.Nombre,
+                    nombreJugadorActual,
+                    StringComparison.OrdinalIgnoreCase
+                );
+
                 MostrarCartas(abanicos[i], jugador.Cartas, i);
 
                 nombres[i].Text = jugador.Nombre + "  ·  " + jugador.Cartas.Count;
@@ -683,20 +850,20 @@ namespace WindowsFormsApp1
                 if (clienteSocket != null)
                 {
                     // En red, el servidor decide quién tiene una oportunidad UNO pendiente.
-                    bool esMiJugador = jugador.ID == idJugadorServidor;
+                    bool esJugadorPropio = jugador.ID == idJugadorServidor;
                     bool oportunidadPendiente = jugadoresPendientesUNO[i];
 
-                    uno[i].Text = esMiJugador ? "¡UNO!" : "ACUSAR";
-
+                    uno[i].Text = esJugadorPropio ? "¡UNO!" : "ACUSAR";
                     uno[i].Visible = !juego.partidaTerminada && oportunidadPendiente;
-
                     uno[i].Enabled = uno[i].Visible;
                 }
                 else
                 {
-                    // Se conserva el comportamiento visual del modo local
+                    // Comportamiento del modo local.
                     uno[i].Text = "UNO";
-                    uno[i].Visible = esActual && jugador.Cartas.Count == 1 && !juego.partidaTerminada;
+                    uno[i].Visible = esActual &&
+                                     jugador.Cartas.Count == 1 &&
+                                     !juego.partidaTerminada;
                     uno[i].Enabled = uno[i].Visible;
                 }
             }
@@ -760,41 +927,32 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            // En red, cada jugador ve sus cartas de frente y las de los rivales ocultas.
-            bool mostrarFrente = clienteSocket == null
-                ? indiceJugador == 0
-                : juego.jugadores[indiceJugador].ID == idJugadorServidor;
+            bool mostrarFrente;
+            bool puedeInteractuar;
+
+            if (clienteSocket == null)
+            {
+                // Modo local: el jugador 1 ve sus cartas de frente.
+                mostrarFrente = indiceJugador == 0;
+                puedeInteractuar = indiceJugador == 0 && !juego.partidaTerminada;
+            }
+            else
+            {
+                // Modo en red: cada jugador ve sus propias cartas.
+                bool esMiJugador =
+                    juego.jugadores[indiceJugador].ID == idJugadorServidor;
+
+                mostrarFrente = esMiJugador;
+
+                puedeInteractuar = esMiJugador &&
+                                juego.jugadorActual == indiceJugador &&
+                                !juego.partidaTerminada;
+            }
 
             abanico.PonerCartas(
                 cartas,
-                mostrarFrente && !juego.partidaTerminada);
-
-            if (clienteSocket == null &&
-                cartas.Count == 0 &&
-                !partidaFinalizada)
-            {
-                partidaFinalizada = true;
-                FinalizarPartidaBD(indiceJugador);
-
-                MessageBox.Show($"{nombresJugadores[indiceJugador]} se quedó sin cartas. ¡Ganó y sus datos fueron guardados!");
-            }
-        }
-
-        // Registra en la base de datos el resultado final.
-        private void FinalizarPartidaBD(int indiceGanador)
-        {
-            string nombreGanador = nombresJugadores[indiceGanador];
-
-            historialDAO.GuardarGanador(idPartidaActual, nombreGanador);
-            historialDAO.RegistrarGanadasPerdidas(idPartidaActual, nombreGanador);
-
-            for (int i = 0; i < nombresJugadores.Length; i++)
-            {
-                historialDAO.GuardarResultado(
-                    idPartidaActual,
-                    nombresJugadores[i],
-                    juego.jugadores[i].Cartas.Count);
-            }
+                mostrarFrente && puedeInteractuar
+            );
         }
 
         // MOSTRAR CARTA CENTRAL
@@ -979,6 +1137,7 @@ namespace WindowsFormsApp1
             recibidas[jugador]++;
             abanicos[jugador].MaxVisibles = recibidas[jugador];
         }
+
         // Barajeo + reparto al iniciar la partida.
         private async Task AnimacionInicio()
         {
@@ -1120,7 +1279,7 @@ namespace WindowsFormsApp1
             Jugador jugador = juego.jugadores[indiceJugador];
             int idJugador = idsJugadores[indiceJugador];
 
-            // En red, el servidor procesa la jugada.
+            // En red, el servidor procesa y valida la jugada.
             if (clienteSocket != null)
             {
                 if (jugador.ID != idJugadorServidor)
@@ -1144,6 +1303,29 @@ namespace WindowsFormsApp1
                 return;
             }
 
+            // Validaciones del modo local.
+            if (yaRobo && cartaJugada != cartaRobadaEnTurno)
+            {
+                MessageBox.Show(
+                    "Después de robar solo puedes jugar la carta que robaste, o pasar el turno haciendo clic en el mazo.",
+                    "Carta no válida",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+                return;
+            }
+
+            if (!juego.puedeJugar(jugador, cartaJugada))
+            {
+                MessageBox.Show(
+                    "No puedes jugar esa carta",
+                    "Carta no válida",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+                return;
+            }
+
             // Modo local: selección de color para comodines.
             string colorElegido = "";
 
@@ -1160,26 +1342,104 @@ namespace WindowsFormsApp1
 
             string colorCarta = cartaJugada.Color ?? "SinColor";
             string valorCarta = cartaJugada.Valor ?? cartaJugada.Tipo;
-            string tipoCarta = cartaJugada.Tipo;
 
             string descripcionCartaBD =
                 (colorCarta + " " + valorCarta).Trim();
 
+            // Registro directo permitido únicamente en modo local.
             logJuegoDAO.RegistrarCartaJugada(
                 idPartidaActual,
                 idJugador,
                 jugador.Nombre,
                 descripcionCartaBD);
 
-            _ = APICliente.RegistrarJugadaAsync(
-                idPartidaActual,
-                idJugador,
-                jugador.Nombre,
-                colorCarta,
-                valorCarta,
-                tipoCarta);
+            string mensaje = jugador.Nombre + " jugó: " + valorCarta;
 
-            AgregarHistorial(jugador.Nombre + " envió jugada: " + valorCarta);
+            // Penalización por no decir UNO.
+            if (jugador.Cartas.Count == 1 && !juego.declaroUNO)
+            {
+                juego.agregaCartaRobada(jugador);
+                juego.agregaCartaRobada(jugador);
+
+                logJuegoDAO.RegistrarMensaje(
+                    idPartidaActual,
+                    idJugador,
+                    jugador.Nombre + " no declaró UNO y robó 2 cartas de penalización");
+
+                mensaje += ". No dijo UNO y roba 2 cartas";
+                await VolarReversos(2, indiceJugador);
+            }
+
+            // Efecto de la carta.
+            switch (cartaJugada.Tipo)
+            {
+                case "Comodin":
+                    juego.aplicarComodin(colorElegido);
+                    mensaje += " (color: " + colorElegido + ").";
+                    juego.cambiarTurno();
+                    break;
+
+                case "+4":
+                    juego.aplicarMasCuatro(colorElegido);
+
+                    mensaje += " (color: " + colorElegido +
+                            "). El siguiente jugador roba 4 cartas y pierde su turno.";
+
+                    await VolarReversos(4, (indiceJugador + 1) % 3);
+                    break;
+
+                case "Reversa":
+                    juego.aplicarReversa();
+                    mensaje += ". Se invirtió el sentido del juego.";
+                    juego.cambiarTurno();
+                    break;
+
+                case "Salta":
+                    juego.aplicarSalta();
+                    mensaje += ". Se saltó el turno del siguiente jugador.";
+                    break;
+
+                case "+2":
+                    juego.aplicarMasDos();
+
+                    mensaje += ". El siguiente jugador roba 2 cartas y pierde su turno.";
+
+                    await VolarReversos(2, (indiceJugador + 1) % 3);
+                    break;
+            }
+
+            AgregarHistorial(mensaje);
+
+            // Comprobar ganador.
+            if (juego.esGanador(jugador))
+            {
+                juego.comprobarGanador(jugador);
+
+                logJuegoDAO.RegistrarMensaje(
+                    idPartidaActual,
+                    idJugador,
+                    jugador.Nombre + " ganó la partida");
+
+                ActualizarInterfaz();
+                this.Close();
+                return;
+            }
+
+            FinalizarTurno();
+        }
+
+        private void FinalizarTurno()
+        {
+            if (clienteSocket == null)
+            {
+                logJuegoDAO.RegistrarTurno(
+                    idPartidaActual,
+                    idsJugadores[juego.jugadorActual],
+                    nombresJugadores[juego.jugadorActual]
+                );
+            }
+
+            ActualizarInterfaz();
         }
 
         // ROBAR Y PASAR TURNO
@@ -1188,26 +1448,58 @@ namespace WindowsFormsApp1
             if (animando || juego.partidaTerminada)
                 return;
 
+            // Partida online: el servidor controla el robo y la pasada de turno.
+            if (clienteSocket != null)
+            {
+                if (yaRobo)
+                    await clienteSocket.EnviarAccionAsync("PasarTurno");
+                else
+                    await clienteSocket.EnviarAccionAsync("RobarCarta");
+
+                return;
+            }
+
+            // Partida local.
             Jugador jugador = juego.obtenerJugadorActual();
+
+            if (jugador == null)
+                return;
 
             animando = true;
 
             try
             {
-                if (clienteSocket != null)
+                Carta cartaNueva = juego.robarDuranteTurno(jugador);
+
+                if (cartaNueva == null)
                 {
-                    if (jugador == null || jugador.ID != idJugadorServidor)
-                        return;
-
-                    if (puedePasarTurnoServidor)
-                        await clienteSocket.EnviarAccionAsync("pasarturno");
-                    else
-                        await clienteSocket.EnviarAccionAsync("robarcarta");
-
+                    AgregarHistorial("No hay cartas disponibles para robar.");
                     return;
                 }
 
-                AgregarHistorial(jugador.Nombre + " solicitó robar carta al servidor.");
+                yaRobo = true;
+                cartaRobadaEnTurno = cartaNueva;
+
+                await VolarReversos(1, juego.jugadorActual);
+
+                if (juego.puedeJugarCartaRobada(jugador, cartaNueva))
+                {
+                    AgregarHistorial(
+                        jugador.Nombre +
+                        " robó una carta que puede jugar. Juégala o pasa el turno."
+                    );
+
+                    ActualizarInterfaz();
+                }
+                else
+                {
+                    AgregarHistorial(
+                        jugador.Nombre +
+                        " robó una carta que no puede jugar y pasó su turno."
+                    );
+
+                    PasarTurno(jugador);
+                }
             }
             finally
             {
@@ -1215,19 +1507,32 @@ namespace WindowsFormsApp1
             }
         }
 
-        private void BtnRobar_Click_1(object sender, EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
-        }
+        // Manejadores de botones que delegan la acción al método común de robar
+        private void BtnRobar_Click_1(object sender, EventArgs e) => BtnRobar_Click(sender, e);
+        private void RobarJ2_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
+        private void RobarJ3_Click(object sender, EventArgs e) => BtnRobar_Click(sender, e);
 
-        private void RobarJ2_Click(object sender, EventArgs e)
+        // Avanza el turno a partir del jugador indicado según la lógica de la partida
+        private async void PasarTurno(Jugador jugador)
         {
-            BtnRobar_Click(sender, e);
-        }
+            if (clienteSocket != null)
+            {
+                await clienteSocket.EnviarAccionAsync("PasarTurno");
+                return;
+            }
 
-        private void RobarJ3_Click(object sender, EventArgs e)
-        {
-            BtnRobar_Click(sender, e);
+            logJuegoDAO.RegistrarMensaje(
+                idPartidaActual,
+                idsJugadores[juego.jugadorActual],
+                jugador.Nombre + " pasó su turno"
+            );
+
+            juego.PasarTurno(jugador);
+
+            yaRobo = false;
+            cartaRobadaEnTurno = null;
+
+            FinalizarTurno();
         }
 
         // SELECCIONAR COLOR
@@ -1342,7 +1647,12 @@ namespace WindowsFormsApp1
 
             // En modo local se mantiene la declaración del jugador correspondiente.
             if (juego.jugadorActual == indiceJugador)
-                MostrarAvisoUno(indiceJugador);
+            {
+                if (juego.declararUNO(jugadorObjetivo))
+                {
+                    MostrarAvisoUno(indiceJugador);
+                }
+            }
         }
 
         private void MostrarAvisoUno(int indiceJugador)
