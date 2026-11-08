@@ -23,10 +23,10 @@ namespace WindowsFormsApp1
     {
         private bool animacionInicialEjecutada = false;
 
-        // [CAMBIO ANIMACIÓN] Indica que la animación de inicio ya terminó por completo.
+        // Indica que la animación de inicio ya terminó por completo.
         private bool animacionTerminada = false;
 
-        // [CAMBIO ANIMACIÓN] Último estado recibido mientras se animaba el inicio.
+        // Último estado recibido mientras se animaba el inicio.
         private EstadoPartidaDto estadoPendiente = null;
 
         private juegoUNO juego;
@@ -61,6 +61,9 @@ namespace WindowsFormsApp1
 
         // Indica qué jugador quedó con una carta y todavía no declaró UNO.
         private bool[] jugadoresPendientesUNO = new bool[3];
+
+        // [CAMBIO FLUIDEZ] Reverso ya escalado para la animación.
+        private Image reversoEscalado = null;
 
         private readonly Font fuenteNombre = new Font("Segoe UI Semibold", 12f);
         private readonly Font fuenteNombreActivo = new Font("Segoe UI", 12f, FontStyle.Bold);
@@ -123,7 +126,7 @@ namespace WindowsFormsApp1
 
                 if (InvokeRequired)
                 {
-                    // [CAMBIO ANIMACIÓN] Se captura cualquier excepción del método async
+                    // Se captura cualquier excepción del método async
                     // para que no se pierda en silencio.
                     BeginInvoke(new Action(async () =>
                     {
@@ -148,7 +151,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        // [CAMBIO ANIMACIÓN] Envoltorio con try/catch para el caso sin InvokeRequired.
+        // Envoltorio con try/catch para el caso sin InvokeRequired.
         private async Task AplicarEstadoServidorSeguro(EstadoPartidaDto estado)
         {
             try
@@ -200,7 +203,7 @@ namespace WindowsFormsApp1
             if (!estado.PartidaIniciada || estado.Jugadores.Count != 3)
                 return;
 
-            // [CAMBIO ANIMACIÓN] Si la animación de inicio está en curso, solo guardamos
+            // Si la animación de inicio está en curso, solo guardamos
             // el último estado recibido. Se aplicará cuando la animación termine.
             if (animacionInicialEjecutada && !animacionTerminada)
             {
@@ -208,7 +211,7 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            // [CAMBIO ANIMACIÓN] Marcamos aquí (antes de cualquier await) para bloquear
+            // Marcamos aquí (antes de cualquier await) para bloquear
             // llamadas repetidas mientras esperamos y animamos.
             bool esPrimeraVez = !animacionInicialEjecutada;
             if (esPrimeraVez)
@@ -250,14 +253,16 @@ namespace WindowsFormsApp1
 
                 if (offset == 0)
                 {
-                    // Somos nosotros: cargamos nuestras cartas reales de frente
-                    jugadorLocal.Cartas = estado.MisCartas == null ? new List<Carta>() : estado.MisCartas.ConvertAll(c => new Carta
+                    // Somos nosotros: cargamos nuestras cartas reales de frente y las ordenamos por color/tipo
+                    var cartasMio = estado.MisCartas == null ? new List<Carta>() : estado.MisCartas.ConvertAll(c => new Carta
                     {
                         Id = c.Id,
                         Color = c.Color,
                         Valor = c.Valor,
                         Tipo = c.Tipo
                     });
+
+                    jugadorLocal.Cartas = OrdenarCartasPorColor(cartasMio);
                 }
                 else
                 {
@@ -312,7 +317,7 @@ namespace WindowsFormsApp1
                 }
             }
 
-            // [CAMBIO ANIMACIÓN] La animación ahora corre DESPUÉS de armar las manos,
+            // La animación corre DESPUÉS de armar las manos,
             // así AnimacionInicio sabe cuántas cartas repartir a cada jugador.
             if (esPrimeraVez)
             {
@@ -342,7 +347,6 @@ namespace WindowsFormsApp1
 
             ActualizarInterfaz();
         }
-
         // Constructor que usa la pantalla de inicio (nombres e iconos de cada jugador)
         public UNO(ClienteSocket clienteSocket, string nombreJugador) : this()
         {
@@ -937,6 +941,8 @@ namespace WindowsFormsApp1
         }
 
         // ACTUALIZAR LA INTERFAZ
+        // ACTUALIZAR LA INTERFAZ
+        // ACTUALIZAR LA INTERFAZ
         private void ActualizarInterfaz()
         {
             if (juego.jugadores.Count < 3)
@@ -951,18 +957,13 @@ namespace WindowsFormsApp1
                 Jugador jugador = juego.jugadores[i];
                 bool esActual = juego.jugadorActual == i;
 
-                bool esMiJugador = string.Equals(
-                    jugador.Nombre,
-                    nombreJugadorActual,
-                    StringComparison.OrdinalIgnoreCase
-                );
+                bool esMiJugador = (i == 0); // El índice 0 SIEMPRE eres tú en la interfaz rotada
 
                 MostrarCartas(abanicos[i], jugador.Cartas, i);
 
                 nombres[i].Text = jugador.Nombre + "  ·  " + jugador.Cartas.Count;
                 nombres[i].Font = esActual ? fuenteNombreActivo : fuenteNombre;
                 nombres[i].BackColor = esActual ? Color.Gold : Color.FromArgb(200, 35, 10, 10);
-
                 nombres[i].ForeColor = esActual ? Color.FromArgb(60, 20, 0) : Color.White;
 
                 // Robar solo está disponible para el jugador cuyo turno corresponde.
@@ -970,12 +971,20 @@ namespace WindowsFormsApp1
 
                 if (clienteSocket != null)
                 {
-                    // En red, el servidor decide quién tiene una oportunidad UNO pendiente.
-                    bool esJugadorPropio = jugador.ID == idJugadorServidor;
                     bool oportunidadPendiente = jugadoresPendientesUNO[i];
 
-                    uno[i].Text = esJugadorPropio ? "¡UNO!" : "ACUSAR";
-                    uno[i].Visible = !juego.partidaTerminada && oportunidadPendiente;
+                    if (esMiJugador)
+                    {
+                        // TU BOTÓN (Abanico inferior - Índice 0): Muestra ¡UNO! cuando te queden 2 o 1 carta
+                        uno[i].Text = "¡UNO!";
+                        uno[i].Visible = !juego.partidaTerminada && (jugador.Cartas.Count <= 2);
+                    }
+                    else
+                    {
+                        // BOTONES DE RIVALES (Abanicos laterales - Índices 1 y 2): Muestra ACUSAR si tienen 1 carta o el servidor marca pendiente
+                        uno[i].Text = "ACUSAR";
+                        uno[i].Visible = !juego.partidaTerminada && (oportunidadPendiente || jugador.Cartas.Count == 1);
+                    }
                     uno[i].Enabled = uno[i].Visible;
                 }
                 else
@@ -983,7 +992,7 @@ namespace WindowsFormsApp1
                     // Comportamiento del modo local.
                     uno[i].Text = "UNO";
                     uno[i].Visible = esActual &&
-                                     jugador.Cartas.Count == 1 &&
+                                     jugador.Cartas.Count <= 2 &&
                                      !juego.partidaTerminada;
                     uno[i].Enabled = uno[i].Visible;
                 }
@@ -1115,15 +1124,192 @@ namespace WindowsFormsApp1
         }
 
         // ANIMACIONES
+        // Las cartas voladoras ya NO son controles (Panel). Se dibujan como "sprites"
+        // directamente en el formulario con UN solo repintado por cuadro, solo en la
+        // zona que cambió. Eso evita los cortes entre cuadros.
 
-        // [CAMBIO ANIMACIÓN] Tamaño propio para las cartas animadas.
-        // Ya no depende de cartaCentro.Size (que puede estar oculta o con región recortada).
+        [System.Runtime.InteropServices.DllImport("winmm.dll")]
+        private static extern uint timeBeginPeriod(uint ms);
+
+        [System.Runtime.InteropServices.DllImport("winmm.dll")]
+        private static extern uint timeEndPeriod(uint ms);
+
+        private class SpriteVuelo
+        {
+            public Image Img;
+            public Point Desde;
+            public Point Hasta;
+            public Size TamDesde;
+            public Size TamHasta;
+            public int Ms;
+            public long Inicio;
+            public Rectangle Rect;
+            public bool Visible;
+            public bool Manual;      // la mueve el código (barajeo), no el bucle
+            public bool Terminado;
+            public TaskCompletionSource<bool> Fin = new TaskCompletionSource<bool>();
+        }
+
+        private readonly List<SpriteVuelo> sprites = new List<SpriteVuelo>();
+        private readonly Stopwatch relojAnim = Stopwatch.StartNew();
+        private bool bucleCorriendo = false;
+
+        // Dibuja los sprites encima del fondo; los controles hijos se pintan después.
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            if (sprites.Count == 0) return;
+
+            Graphics g = e.Graphics;
+            g.InterpolationMode = InterpolationMode.Bilinear;
+            g.PixelOffsetMode = PixelOffsetMode.HighSpeed;
+            g.CompositingQuality = CompositingQuality.HighSpeed;
+
+            foreach (SpriteVuelo sp in sprites.ToArray())
+            {
+                if (!sp.Visible || sp.Img == null) continue;
+                if (!sp.Rect.IntersectsWith(e.ClipRectangle)) continue;
+
+                g.DrawImage(sp.Img, sp.Rect);
+            }
+        }
+
+        private static Rectangle Unir(Rectangle a, Rectangle b)
+        {
+            if (a.IsEmpty) return b;
+            if (b.IsEmpty) return a;
+            return Rectangle.Union(a, b);
+        }
+
+        // Repinta solo la zona indicada (incluye hijos transparentes).
+        private void InvalidarZona(Rectangle r)
+        {
+            if (r.IsEmpty) return;
+
+            r.Inflate(3, 3);
+            this.Invalidate(r, true);
+        }
+
+        // Un solo bucle mueve TODAS las cartas y repinta una vez por cuadro.
+        private async Task BucleAnimacion()
+        {
+            bucleCorriendo = true;
+            timeBeginPeriod(1);
+
+            try
+            {
+                while (!this.IsDisposed && sprites.Any(s => !s.Manual))
+                {
+                    long ahora = relojAnim.ElapsedMilliseconds;
+                    Rectangle sucio = Rectangle.Empty;
+
+                    // Quita las que terminaron en el cuadro anterior.
+                    foreach (SpriteVuelo sp in sprites.Where(s => s.Terminado).ToList())
+                    {
+                        sucio = Unir(sucio, sp.Rect);
+                        sprites.Remove(sp);
+                    }
+
+                    List<SpriteVuelo> recienTerminados = new List<SpriteVuelo>();
+
+                    foreach (SpriteVuelo sp in sprites.Where(s => !s.Manual && !s.Terminado).ToList())
+                    {
+                        if (ahora < sp.Inicio) continue;
+
+                        Rectangle viejo = sp.Rect;
+                        bool eraVisible = sp.Visible;
+
+                        double t = Math.Min(1.0, (ahora - sp.Inicio) / (double)sp.Ms);
+                        double e = 1 - Math.Pow(1 - t, 3);
+
+                        int w = (int)(sp.TamDesde.Width + (sp.TamHasta.Width - sp.TamDesde.Width) * e);
+                        int h = (int)(sp.TamDesde.Height + (sp.TamHasta.Height - sp.TamDesde.Height) * e);
+                        int x = (int)(sp.Desde.X + (sp.Hasta.X - sp.Desde.X) * e);
+                        int y = (int)(sp.Desde.Y + (sp.Hasta.Y - sp.Desde.Y) * e);
+
+                        sp.Rect = new Rectangle(x - w / 2, y - h / 2, w, h);
+                        sp.Visible = true;
+
+                        sucio = Unir(sucio, eraVisible ? Rectangle.Union(viejo, sp.Rect) : sp.Rect);
+
+                        if (t >= 1.0)
+                            recienTerminados.Add(sp);
+                    }
+
+                    if (!sucio.IsEmpty)
+                    {
+                        InvalidarZona(sucio);
+                        this.Update();
+                    }
+
+                    // Se avisa DESPUÉS de pintar; el sprite se quita en el siguiente cuadro,
+                    // así la carta no desaparece antes de que aparezca en la mano.
+                    foreach (SpriteVuelo sp in recienTerminados)
+                    {
+                        sp.Terminado = true;
+                        sp.Fin.TrySetResult(true);
+                    }
+
+                    await Task.Delay(1);
+                }
+            }
+            finally
+            {
+                timeEndPeriod(1);
+                bucleCorriendo = false;
+
+                foreach (SpriteVuelo sp in sprites.Where(s => !s.Manual).ToList())
+                {
+                    sprites.Remove(sp);
+                    sp.Fin.TrySetResult(true);
+                }
+            }
+        }
+
+        // Tamaño propio para las cartas animadas.
         private Size TamanoCartaAnimacion()
         {
             int altoCarta = Limitar((int)(this.ClientSize.Height * 0.2), 110, 220);
             int anchoCarta = (int)(altoCarta * 0.68);
 
             return new Size(anchoCarta, altoCarta);
+        }
+
+        // Reverso precalculado al tamaño de la animación, con esquinas redondeadas.
+        private Image ReversoParaAnimacion(Size tam)
+        {
+            if (reversoEscalado != null && reversoEscalado.Size == tam)
+                return reversoEscalado;
+
+            Image original = ImagenesUNO.Reverso();
+            if (original == null) return null;
+
+            Bitmap bmp = new Bitmap(tam.Width, tam.Height,
+                System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+            using (Graphics g = Graphics.FromImage(bmp))
+            using (GraphicsPath gp = new GraphicsPath())
+            {
+                int r = Math.Max(6, tam.Width / 9);
+                int d = r * 2;
+
+                gp.AddArc(0, 0, d, d, 180, 90);
+                gp.AddArc(tam.Width - d - 1, 0, d, d, 270, 90);
+                gp.AddArc(tam.Width - d - 1, tam.Height - d - 1, d, d, 0, 90);
+                gp.AddArc(0, tam.Height - d - 1, d, d, 90, 90);
+                gp.CloseFigure();
+
+                g.SetClip(gp);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(original, 0, 0, tam.Width, tam.Height);
+            }
+
+            Image anterior = reversoEscalado;
+            reversoEscalado = bmp;
+            if (anterior != null) anterior.Dispose();
+
+            return bmp;
         }
 
         private Point Centro(Control c)
@@ -1136,60 +1322,36 @@ namespace WindowsFormsApp1
             return new Point(c.Left + p.X, c.Top + p.Y);
         }
 
-        private Panel NuevaCartaVuelo(Image imagen, Size tam)
-        {
-            Panel p = new Panel();
-            p.Size = tam;
-            p.BackgroundImage = imagen;
-            p.BackgroundImageLayout = ImageLayout.Stretch;
-            p.BackColor = imagen == null ? Color.DarkRed : Color.Transparent;
-
-            this.Controls.Add(p);
-            p.BringToFront();
-
-            return p;
-        }
-
-        private async Task VolarCarta(
+        // Lanza una carta voladora; el Task termina cuando llega a su destino.
+        private Task VolarCarta(
             Image img,
             Point desde,
             Size tamDesde,
             Point hasta,
             Size tamHasta,
-            int ms)
+            int ms,
+            int retraso = 0)
         {
-            Panel vuelo = NuevaCartaVuelo(img, tamDesde);
+            SpriteVuelo sp = new SpriteVuelo();
+            sp.Img = img;
+            sp.Desde = desde;
+            sp.Hasta = hasta;
+            sp.TamDesde = tamDesde;
+            sp.TamHasta = tamHasta;
+            sp.Ms = Math.Max(1, ms);
+            sp.Inicio = relojAnim.ElapsedMilliseconds + Math.Max(0, retraso);
 
-            vuelo.SetBounds(
-                desde.X - tamDesde.Width / 2,
-                desde.Y - tamDesde.Height / 2,
-                tamDesde.Width,
-                tamDesde.Height);
+            sprites.Add(sp);
 
-            Stopwatch reloj = Stopwatch.StartNew();
-
-            while (reloj.ElapsedMilliseconds < ms)
+            if (!bucleCorriendo)
             {
-                if (this.IsDisposed) return;
-
-                double t = reloj.ElapsedMilliseconds / (double)ms;
-                t = 1 - Math.Pow(1 - t, 3);
-
-                int w = (int)(tamDesde.Width + (tamHasta.Width - tamDesde.Width) * t);
-                int h = (int)(tamDesde.Height + (tamHasta.Height - tamDesde.Height) * t);
-                int x = (int)(desde.X + (hasta.X - desde.X) * t);
-                int y = (int)(desde.Y + (hasta.Y - desde.Y) * t);
-
-                vuelo.SetBounds(x - w / 2, y - h / 2, w, h);
-
-                await Task.Delay(15);
+                var _ = BucleAnimacion();
             }
 
-            this.Controls.Remove(vuelo);
-            vuelo.Dispose();
+            return sp.Fin.Task;
         }
 
-        private async Task VolarConEspera(
+        private Task VolarConEspera(
             Image img,
             Point desde,
             Size tamDesde,
@@ -1198,22 +1360,18 @@ namespace WindowsFormsApp1
             int ms,
             int espera)
         {
-            if (espera > 0)
-                await Task.Delay(espera);
-
-            await VolarCarta(img, desde, tamDesde, hasta, tamHasta, ms);
+            return VolarCarta(img, desde, tamDesde, hasta, tamHasta, ms, espera);
         }
 
         // Cartas boca abajo que salen del mazo hacia la mano de un jugador.
         private async Task VolarReversos(int cantidad, int indiceDestino)
         {
-            Image reverso = ImagenesUNO.Reverso();
+            Size tam = TamanoCartaAnimacion();
+            Image reverso = ReversoParaAnimacion(tam);
 
             Point desde = Centro(RobarJ1);
             Point hasta = Centro(abanicos[indiceDestino]);
 
-            // [CAMBIO ANIMACIÓN] Usa el tamaño propio en vez de cartaCentro.Size
-            Size tam = TamanoCartaAnimacion();
             Size tamFinal = new Size(tam.Width * 2 / 3, tam.Height * 2 / 3);
 
             List<Task> vuelos = new List<Task>();
@@ -1255,77 +1413,116 @@ namespace WindowsFormsApp1
         }
 
         // Anima el reparto de una carta hacia el jugador indicado.
+        // Mientras se reparte, los abanicos están ocultos (repintarlos en cada cuadro
+        // era lo que causaba los cortes); la carta que llega queda como sprite fijo.
         private async Task RepartirCarta(
             Image img,
             Point desde,
             Size tam,
             Point hasta,
-            int espera,
-            int jugador,
-            int[] recibidas)
+            int retraso,
+            List<SpriteVuelo> aterrizadas)
         {
-            await Task.Delay(espera);
+            Size tamFinal = new Size(tam.Width * 2 / 3, tam.Height * 2 / 3);
 
-            await VolarCarta(
-                img,
-                desde,
-                tam,
-                hasta,
-                new Size(tam.Width * 2 / 3, tam.Height * 2 / 3),
-                320);
+            await VolarCarta(img, desde, tam, hasta, tamFinal, 320, retraso);
 
             if (this.IsDisposed) return;
 
-            recibidas[jugador]++;
-            abanicos[jugador].MaxVisibles = recibidas[jugador];
+            SpriteVuelo quieta = new SpriteVuelo();
+            quieta.Img = img;
+            quieta.Manual = true;
+            quieta.Visible = true;
+            quieta.Rect = new Rectangle(
+                hasta.X - tamFinal.Width / 2,
+                hasta.Y - tamFinal.Height / 2,
+                tamFinal.Width,
+                tamFinal.Height);
+
+            sprites.Add(quieta);
+            aterrizadas.Add(quieta);
+        }
+
+        // Pone la pila en el orden de dibujo del barajeo.
+        private void OrdenarPila(List<SpriteVuelo> pila, bool intercalado)
+        {
+            foreach (SpriteVuelo sp in pila)
+                sprites.Remove(sp);
+
+            if (intercalado)
+            {
+                sprites.InsertRange(0, pila);
+            }
+            else
+            {
+                List<SpriteVuelo> orden = new List<SpriteVuelo>();
+
+                for (int i = 0; i < pila.Count; i += 2)
+                    orden.Add(pila[i]);
+
+                for (int i = 1; i < pila.Count; i += 2)
+                    orden.Add(pila[i]);
+
+                sprites.InsertRange(0, orden);
+            }
         }
 
         // Barajeo + reparto al iniciar la partida.
         private async Task AnimacionInicio()
         {
             animando = true;
-            List<Panel> pila = new List<Panel>();
+            timeBeginPeriod(1);
+
+            List<SpriteVuelo> pila = new List<SpriteVuelo>();
+            List<SpriteVuelo> aterrizadas = new List<SpriteVuelo>();
 
             try
             {
                 lblTurno.Text = "Barajando y repartiendo...";
                 lblTurno.BackColor = Color.FromArgb(40, 40, 40);
 
-                // [CAMBIO ANIMACIÓN] Aseguramos que la distribución esté calculada
-                // antes de tomar posiciones de los controles.
                 AcomodarControles();
 
-                Image reverso = ImagenesUNO.Reverso();
-
-                // [CAMBIO ANIMACIÓN] Tamaño propio de carta (no depende de cartaCentro.Size)
                 Size tam = TamanoCartaAnimacion();
+                Image reverso = ReversoParaAnimacion(tam);
                 Point centro = Centro(cartaCentro);
 
-                // Las manos existen pero aún no se ven.
+                // Las manos existen pero se mantienen ocultas durante el reparto.
                 for (int i = 0; i < 3; i++)
                 {
                     abanicos[i].PonerCartas(juego.jugadores[i].Cartas, false);
                     abanicos[i].MaxVisibles = 0;
+                    abanicos[i].Visible = false;
                 }
 
                 // 1) BARAJAR
                 for (int i = 0; i < 10; i++)
                 {
-                    Panel p = NuevaCartaVuelo(reverso, tam);
-                    p.Location = new Point(
+                    SpriteVuelo sp = new SpriteVuelo();
+                    sp.Img = reverso;
+                    sp.Manual = true;
+                    sp.Visible = true;
+                    sp.Rect = new Rectangle(
                         centro.X - tam.Width / 2,
-                        centro.Y - tam.Height / 2 - i * 2);
+                        centro.Y - tam.Height / 2 - i * 2,
+                        tam.Width,
+                        tam.Height);
 
-                    pila.Add(p);
+                    pila.Add(sp);
                 }
+
+                OrdenarPila(pila, true);
+
+                Rectangle area = Rectangle.Empty;
+                foreach (SpriteVuelo sp in pila)
+                    area = Unir(area, sp.Rect);
+
+                InvalidarZona(area);
+                this.Update();
 
                 for (int ronda = 0; ronda < 3; ronda++)
                 {
-                    for (int i = 0; i < pila.Count; i += 2)
-                        pila[i].BringToFront();
-
-                    for (int i = 1; i < pila.Count; i += 2)
-                        pila[i].BringToFront();
+                    OrdenarPila(pila, false);
 
                     Stopwatch reloj = Stopwatch.StartNew();
                     bool intercalado = false;
@@ -1337,84 +1534,115 @@ namespace WindowsFormsApp1
                         double t = reloj.ElapsedMilliseconds / 500.0;
                         double abrir = Math.Sin(Math.PI * t);
 
+                        Rectangle sucio = Rectangle.Empty;
+
                         for (int i = 0; i < pila.Count; i++)
                         {
                             int lado = (i % 2 == 0) ? -1 : 1;
                             int dx = (int)(lado * abrir * tam.Width * 0.9);
 
-                            pila[i].Location = new Point(
+                            Rectangle viejo = pila[i].Rect;
+
+                            pila[i].Rect = new Rectangle(
                                 centro.X - tam.Width / 2 + dx,
-                                centro.Y - tam.Height / 2 - i * 2);
+                                centro.Y - tam.Height / 2 - i * 2,
+                                tam.Width,
+                                tam.Height);
+
+                            sucio = Unir(sucio, Rectangle.Union(viejo, pila[i].Rect));
                         }
 
                         if (!intercalado && t >= 0.5)
                         {
                             intercalado = true;
-
-                            for (int i = 0; i < pila.Count; i++)
-                                pila[i].BringToFront();
+                            OrdenarPila(pila, true);
                         }
 
-                        // Cambiado a 5 ms para mayor fluidez visual
-                        await Task.Delay(5);
+                        InvalidarZona(sucio);
+                        this.Update();
+
+                        await Task.Delay(1);
                     }
                 }
 
-                // 2) REPARTIR
-                int[] recibidas = new int[3];
-
-                // Las cartas por jugador salen de la mano ya armada por el servidor.
-                int cartasPorJugador = juego.jugadores[0].Cartas.Count;
+                // 2) REPARTIR: las cartas salen escalonadas y vuelan al mismo tiempo.
+                int cartasPorJugador = juego.jugadores.Max(j => j.Cartas.Count);
+                Size tamFinal = new Size(tam.Width * 2 / 3, tam.Height * 2 / 3);
                 List<Task> vuelos = new List<Task>();
+                int k = 0;
 
                 for (int ronda = 0; ronda < cartasPorJugador; ronda++)
                 {
                     for (int j = 0; j < 3; j++)
                     {
-                        int k = ronda * 3 + j;
+                        int total = juego.jugadores[j].Cartas.Count;
 
-                        vuelos.Add(
-                            RepartirCarta(
-                                reverso,
-                                centro,
-                                tam,
-                                Centro(abanicos[j]),
-                                k * 70,
-                                j,
-                                recibidas));
+                        if (ronda >= total)
+                            continue;
+
+                        // Cada carta cae un poco desplazada para formar la mano.
+                        Point c = Centro(abanicos[j]);
+                        double pos = ronda - (total - 1) / 2.0;
+
+                        Point destino = (j == 0)
+                            ? new Point(c.X + (int)(pos * tamFinal.Width * 0.45), c.Y)
+                            : new Point(c.X, c.Y + (int)(pos * tamFinal.Height * 0.28));
+
+                        vuelos.Add(RepartirCarta(
+                            reverso,
+                            centro,
+                            tam,
+                            destino,
+                            k * 80,
+                            aterrizadas));
+
+                        k++;
                     }
                 }
 
                 await Task.WhenAll(vuelos);
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error en AnimacionInicio: " + ex);
+                MessageBox.Show(this, ex.ToString(), "Error en la animación");
+            }
             finally
             {
-                foreach (Panel p in pila)
+                Rectangle area = Rectangle.Empty;
+
+                foreach (SpriteVuelo sp in pila)
                 {
-                    this.Controls.Remove(p);
-                    p.Dispose();
+                    area = Unir(area, sp.Rect);
+                    sprites.Remove(sp);
                 }
 
+                foreach (SpriteVuelo sp in aterrizadas)
+                {
+                    area = Unir(area, sp.Rect);
+                    sprites.Remove(sp);
+                }
+
+                // Las manos reales aparecen de golpe, ya con todas sus cartas.
                 for (int i = 0; i < 3; i++)
+                {
                     abanicos[i].MaxVisibles = -1;
+                    abanicos[i].Visible = true;
+                }
+
+                InvalidarZona(area);
 
                 animando = false;
+                timeEndPeriod(1);
             }
         }
 
         // JUGAR CARTA
         private async Task JugarCarta(Carta cartaJugada, int indiceJugador)
         {
-            // Como ya rotamos la lista para que estés siempre en el índice 0, 
-            // solo permitimos jugar si el clic viene de tu abanico inferior (índice 0).
+            // En red, permitimos que el clic viaje directamente si es tu turno (índice 0)
             if (animando || juego.partidaTerminada || indiceJugador != 0)
                 return;
-
-            if (clienteSocket != null && juego.jugadorActual != 0)
-            {
-                // Si no es tu turno según el índice local, no procede
-                return;
-            }
 
             animando = true;
 
@@ -1437,18 +1665,6 @@ namespace WindowsFormsApp1
             // En red, el servidor procesa y valida la jugada.
             if (clienteSocket != null)
             {
-                // Validamos primero que la carta cumpla con las reglas locales antes de enviarla
-                if (!juego.puedeJugar(jugador, cartaJugada))
-                {
-                    MessageBox.Show(
-                        "No puedes jugar esa carta",
-                        "Carta no válida",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning
-                    );
-                    return;
-                }
-
                 string colorRed = "";
 
                 if (cartaJugada.Tipo == "Comodin" || cartaJugada.Tipo == "+4")
@@ -1459,6 +1675,7 @@ namespace WindowsFormsApp1
                         return;
                 }
 
+                // Enviamos la acción directamente al servidor socket
                 await clienteSocket.EnviarAccionAsync(
                     "jugarcarta",
                     cartaJugada.Id,
@@ -1466,6 +1683,8 @@ namespace WindowsFormsApp1
 
                 return;
             }
+
+            // ... resto del código local ...
 
             // Validaciones del modo local.
             if (yaRobo && cartaJugada != cartaRobadaEnTurno)
@@ -1788,17 +2007,14 @@ namespace WindowsFormsApp1
 
             if (clienteSocket != null)
             {
-                if (!jugadoresPendientesUNO[indiceJugador])
-                    return;
-
-                if (jugadorObjetivo.ID == idJugadorServidor)
+                // Si es tu propio botón (índice 0, abajo)
+                if (indiceJugador == 0)
                 {
-                    // El jugador que quedó con una carta declara UNO.
                     await clienteSocket.EnviarAccionAsync("declararuno");
                 }
                 else
                 {
-                    // El cliente acusa al rival que no declaró UNO.
+                    // Si es un botón lateral de un rival (índice 1 o 2), enviamos la acusación al servidor
                     await clienteSocket.EnviarAccionAsync(
                         "acusaruno",
                         null,
@@ -1883,6 +2099,32 @@ namespace WindowsFormsApp1
             if (carta.Color == "Amarillo") return Color.LightYellow;
 
             return Color.LightGray;
+        }
+
+        private List<Carta> OrdenarCartasPorColor(List<Carta> cartas)
+        {
+            if (cartas == null) return new List<Carta>();
+
+            // Definimos jerarquía de colores: Rojo, Azul, Verde, Amarillo y Comodines al final
+            Dictionary<string, int> ordenColores = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "Rojo", 1 },
+        { "Azul", 2 },
+        { "Verde", 3 },
+        { "Amarillo", 4 },
+        { "Negro", 5 },
+        { "Comodin", 5 },
+        { "+4", 5 }
+    };
+
+            return cartas.OrderBy(c =>
+            {
+                string colorKey = string.IsNullOrEmpty(c.Color) ? "Negro" : c.Color;
+                return ordenColores.ContainsKey(colorKey) ? ordenColores[colorKey] : 6;
+            })
+            .ThenBy(c => c.Tipo == "Comodin" || c.Tipo == "+4" ? 1 : 0) // Comodines y +4 al final de cada color
+            .ThenBy(c => c.Valor)
+            .ToList();
         }
     }
 }
