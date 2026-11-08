@@ -13,7 +13,7 @@ using proyectoUNO;
 using ProyectoUno.Protocolo;
 using static WindowsFormsApp1.EstiloUI;
 
-namespace WindowsFormsApp
+namespace WindowsFormsApp1
 {
     /*
 - Es la ventana principal de la partida. 
