@@ -15,7 +15,7 @@ namespace proyectoUNO
     {
         private static readonly HttpClient client = new HttpClient
         {
-            BaseAddress = new Uri("http://10.103.150.31:5198/")
+            BaseAddress = new Uri("http://localhost:5198/")
         };
 
         //envía los nombres de los jugadores a la API para crear la partida y devuelve la respuesta

@@ -236,8 +236,7 @@ namespace WindowsFormsApp1
                 btnHistorial.Enabled = false;
                 btnHistorial.Text = "CARGANDO...";
 
-                List<JsonElement> partidas =
-                    await APICliente.ObtenerHistorialAsync();
+                List<JsonElement> partidas = await APICliente.ObtenerHistorialAsync();
 
                 if (partidas == null || partidas.Count == 0)
                 {
@@ -247,30 +246,12 @@ namespace WindowsFormsApp1
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Information
                     );
-
                     return;
                 }
 
-                StringBuilder texto = new StringBuilder();
-
-                foreach (JsonElement partida in partidas)
-                {
-                    string id = ObtenerValor(partida, "Partida");
-                    string fecha = ObtenerValor(partida, "Fecha");
-                    string ganador = ObtenerValor(partida, "Ganador");
-
-                    texto.AppendLine("Partida: " + id);
-                    texto.AppendLine("Fecha: " + fecha);
-                    texto.AppendLine("Ganador: " + ganador);
-                    texto.AppendLine("--------------------------------");
-                }
-
-                MessageBox.Show(
-                    texto.ToString(),
-                    "Historial de partidas",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information
-                );
+                // Mostrar el nuevo formulario con el estilo del juego y las estadísticas
+                HistorialForm formHistorial = new HistorialForm(partidas);
+                formHistorial.ShowDialog(this);
             }
             catch (Exception ex)
             {

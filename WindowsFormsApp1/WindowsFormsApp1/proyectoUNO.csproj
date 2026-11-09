@@ -106,6 +106,9 @@
     <Compile Include="APICliente.cs" />
     <Compile Include="conexionBD.cs" />
     <Compile Include="HistorialDAO.cs" />
+    <Compile Include="HistorialForms.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="InicioForms.cs">
       <SubType>Form</SubType>
     </Compile>
